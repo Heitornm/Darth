@@ -12,14 +12,13 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 
 const MASTER_BARBER_ID = 'darth-barber-main';
+const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 export default function BarberDashboardPage() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  const BARBER_EMAIL = "darthbarber@darth.com.br";
-  
   useEffect(() => {
     if (!isUserLoading && (!user || user.email !== BARBER_EMAIL)) {
       router.push('/login');
@@ -27,11 +26,11 @@ export default function BarberDashboardPage() {
   }, [user, isUserLoading, router]);
 
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || user.email !== BARBER_EMAIL) return null;
+    
     const today = new Date();
     today.setHours(0,0,0,0);
     
-    // Consultamos pelo ID fixo do barbeiro mestre para garantir consistência
     return query(
       collection(db, "appointments"),
       where("barberId", "==", MASTER_BARBER_ID),
@@ -40,7 +39,7 @@ export default function BarberDashboardPage() {
     );
   }, [db, user]);
 
-  const { data: appointments, isLoading } = useCollection(appointmentsQuery);
+  const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
 
   if (isUserLoading || isLoading) {
     return (
@@ -70,6 +69,15 @@ export default function BarberDashboardPage() {
           </Card>
         </div>
       </div>
+
+      {error && (
+        <Card className="border-destructive bg-destructive/10 mb-6">
+          <CardContent className="py-4 text-destructive flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            <p>Erro ao carregar agenda. Verifique suas permissões.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {!appointments || appointments.length === 0 ? (
         <Card className="border-dashed border-2 bg-transparent">
