@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -18,8 +19,10 @@ export default function BarberDashboardPage() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (!isUserLoading && (!user || user.email !== BARBER_EMAIL)) {
       router.push('/login');
     }
@@ -41,7 +44,7 @@ export default function BarberDashboardPage() {
 
   const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
 
-  if (isUserLoading || isLoading) {
+  if (!mounted || isUserLoading || isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
