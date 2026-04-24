@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Scissors, Calendar, Sparkles, Clock, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Scissors, Calendar, Clock, ShieldCheck, ChevronRight, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -14,19 +14,20 @@ export default function Home() {
             src="https://picsum.photos/seed/barber-hero/1200/800" 
             alt="Barbershop" 
             className="w-full h-full object-cover grayscale opacity-40"
+            data-ai-hint="barbershop interior"
           />
         </div>
         
         <div className="container mx-auto px-4 relative z-20 space-y-6 max-w-2xl ml-auto md:ml-10">
           <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide border border-primary/30">
-            <Sparkles className="w-4 h-4" />
+            <Scissors className="w-4 h-4" />
             <span>EXCLUSIVIDADE & ESTILO</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-headline font-bold leading-tight tracking-tight">
             Domine seu <span className="text-primary italic">Estilo</span> com Precisão
           </h1>
           <p className="text-xl text-muted-foreground max-w-lg leading-relaxed">
-            Agendamento inteligente, assistente de estilo por IA e os melhores profissionais em um só lugar.
+            Agendamento inteligente e os melhores profissionais em um só lugar para garantir o seu melhor visual.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <Button asChild size="lg" className="h-14 px-8 text-lg font-headline bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl shadow-primary/20">
@@ -54,17 +55,17 @@ export default function Home() {
             {
               icon: <Calendar className="w-8 h-8 text-primary" />,
               title: "Agendamento Online",
-              desc: "Escolha seu barbeiro e horário favorito em segundos, sem ligações."
+              desc: "Escolha seu barbeiro e horário favorito em segundos, sem complicações."
             },
             {
-              icon: <Sparkles className="w-8 h-8 text-accent" />,
-              title: "Assistente de Estilo AI",
-              desc: "Descreva seu corte e nossa IA traduzirá perfeitamente para seu barbeiro."
+              icon: <UserCheck className="w-8 h-8 text-accent" />,
+              title: "Profissionais de Elite",
+              desc: "Nossa equipe conta com os melhores especialistas em cortes clássicos e modernos."
             },
             {
               icon: <Clock className="w-8 h-8 text-primary" />,
               title: "Tempo Real",
-              desc: "Atualizações instantâneas de agenda para você e para o profissional."
+              desc: "Confirmação instantânea de agenda para você e para o profissional escolhido."
             }
           ].map((feature, i) => (
             <Card key={i} className="bg-card border-border/50 hover:border-primary/50 transition-all duration-300">
@@ -86,13 +87,13 @@ export default function Home() {
           <ShieldCheck className="w-16 h-16 text-primary mx-auto opacity-50" />
           <h2 className="text-3xl font-headline font-bold">Segurança e Compromisso</h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            Garantimos que cada agendamento seja respeitado e que sua comunicação com o barbeiro seja 
-            clara e precisa, resultando no corte perfeito que você deseja.
+            Garantimos que cada agendamento seja respeitado, proporcionando uma experiência de alto nível 
+            do início ao fim.
           </p>
           <div className="flex justify-center gap-12 text-sm font-bold tracking-widest text-primary uppercase">
             <span>+1000 Cortes</span>
             <span>Estilo Garantido</span>
-            <span>IA de Ponta</span>
+            <span>Elite Team</span>
           </div>
         </div>
       </section>

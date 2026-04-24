@@ -2,19 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors, User as UserIcon, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Scissors, User as UserIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { StyleAssistant } from '@/components/StyleAssistant';
 import { appointmentService } from '@/services/appointmentService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,7 +34,6 @@ export default function ClientAppointmentsPage() {
   const [barberId, setBarberId] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [clientName, setClientName] = useState("");
-  const [styleSummary, setStyleSummary] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleBooking = async () => {
@@ -60,7 +58,6 @@ export default function ClientAppointmentsPage() {
         barberId,
         dataHora: appointmentDate,
         status: 'pendente',
-        styleSummary,
       });
 
       toast({
@@ -83,7 +80,7 @@ export default function ClientAppointmentsPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="text-center mb-8 space-y-2">
         <h1 className="text-4xl font-headline font-bold text-primary">Reserve seu Horário</h1>
-        <p className="text-muted-foreground">Escolha o profissional e o melhor momento para o seu estilo.</p>
+        <p className="text-muted-foreground">Escolha o profissional e o melhor momento para o seu corte.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
@@ -185,11 +182,9 @@ export default function ClientAppointmentsPage() {
           </Card>
         </div>
 
-        {/* AI Column */}
+        {/* Summary Column */}
         <div className="space-y-6">
-          <StyleAssistant onSummaryGenerated={setStyleSummary} />
-          
-          <Card className="border-muted bg-muted/20">
+          <Card className="border-muted bg-muted/20 h-full">
             <CardHeader>
               <CardTitle className="font-headline text-lg">Resumo do Pedido</CardTitle>
             </CardHeader>
@@ -206,12 +201,9 @@ export default function ClientAppointmentsPage() {
                 <span className="text-muted-foreground">Horário:</span>
                 <span className="font-medium">{time || '---'}</span>
               </div>
-              {styleSummary && (
-                <div className="pt-2">
-                  <p className="text-muted-foreground mb-1 font-bold">Instruções AI:</p>
-                  <p className="italic text-accent bg-accent/5 p-2 rounded border border-accent/10">{styleSummary}</p>
-                </div>
-              )}
+              <div className="pt-4 text-center text-muted-foreground italic">
+                Apresente-se 5 minutos antes do horário agendado.
+              </div>
             </CardContent>
           </Card>
         </div>

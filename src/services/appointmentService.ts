@@ -16,7 +16,6 @@ export interface Appointment {
   barberId: string;
   dataHora: Timestamp | Date;
   status: 'pendente' | 'confirmado' | 'cancelado';
-  styleSummary?: string;
 }
 
 export const appointmentService = {

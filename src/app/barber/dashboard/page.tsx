@@ -105,20 +105,6 @@ export default function BarberDashboardPage() {
                           </Button>
                         </div>
                       </div>
-
-                      {apt.styleSummary && (
-                        <div className="bg-accent/5 p-4 rounded-lg border border-accent/20">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="bg-accent p-1 rounded">
-                              <Scissors className="w-3 h-3 text-accent-foreground" />
-                            </div>
-                            <p className="text-xs font-bold uppercase tracking-widest text-accent">Instruções de Estilo</p>
-                          </div>
-                          <p className="text-sm italic leading-relaxed text-accent/90">
-                            "{apt.styleSummary}"
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </CardContent>
