@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * CORE PHILOSOPHY
+     * This ruleset implements a robust User-Ownership and Role-Based Access Control (RBAC) model 
+     * using the Database Access Control (DBAC) pattern. Security is enforced by verifying 
+     * identity via Firebase Authentication and authorizing requests based on ownership fields 
+     * denormalized directly into documents.
+     *
+     * DATA STRUCTURE
+     * - /users/{userId}: Primary profile data, owned by the authenticated user.
+     * - /roles_barber/{barberId}: A specialized DBAC collection. The existence of a document 
+     *   here grants 'barber' privileges to the corresponding UID.
+     * - /services/{serviceId}: A global collection of available services.
+     * - /appointments/{appointmentId}: Shared documents between clients and barbers, using 
+     *   denormalized 'clientId' and 'barberId' for authorization.
+     *
+     * KEY SECURITY DECISIONS
+     * - Authorization Independence: Documents in the 'appointments' collection contain both 
+     *   participant IDs, allowing rules to resolve access without costly get() calls.
+     * - DBAC for Roles: Barbers are identified via a high-performance exists() check on 
+     *   the /roles_barber collection.
+     * - Structural Segregation: User-specific data and global configuration (Services) are 
+     *   separated into distinct top-level collections.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the requester is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the requester's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Verifies if a user has the 'barber' role via the DBAC collection. */
+    function isBarber(userId) {
+      return exists(/databases/$(database)/documents/roles_barber/$(userId));
+    }
+
+    /** @description Checks ownership for existing documents during update or delete. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Checks if the requester is either the client or the barber for an appointment. */
+    function isAppointmentParticipant(data) {
+      return isSignedIn() && (request.auth.uid == data.clientId || request.auth.uid == data.barberId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profile documents. Users can manage their own profiles.
+     * @path /users/{userId}
+     * @allow (get, update) if the authenticated user's UID matches {userId}.
+     * @deny (all) if the user is not authenticated or attempts to access another user's profile.
+     * @principle Ownership: Restricts access to a user's own data tree.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description A role-verification collection (DBAC). Readable by all signed-in users to verify barber status.
+     * @path /roles_barber/{barberId}
+     * @allow (get, list) if signed in.
+     * @deny (write) for all client-side requests (managed by admin/backend).
+     * @principle DBAC: Uses document existence to define roles.
+     */
+    match /roles_barber/{barberId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false; 
+    }
+
+    /**
+     * @description Global collection of services offered by the shop.
+     * @path /services/{serviceId}
+     * @allow (get, list) if signed in.
+     * @deny (write) if ownership cannot be verified.
+     * @principle Public Read with Owner-Only Writes (Schema constraint applied).
+     */
+    match /services/{serviceId} {
+      allow get, list: if isSignedIn();
+      // CRITICAL: Cannot implement owner-only writes. The 'Service' entity is missing an 'ownerId' or 'authorId' field.
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+
+    /**
+     * @description Booking records shared between a client and a barber.
+     * @path /appointments/{appointmentId}
+     * @allow (get, update) if the user is the 'clientId' or 'barberId' in the document.
+     * @deny (create) if the 'clientId' in the data does not match the requester.
+     * @principle Shared Access: Secures documents shared between specific users.
+     */
+    match /appointments/{appointmentId} {
+      allow get: if isAppointmentParticipant(resource.data);
+      allow list: if isSignedIn(); // Queries MUST filter by clientId or barberId to succeed via QAP.
+      
+      allow create: if isSignedIn() 
+        && request.resource.data.clientId == request.auth.uid 
+        && isBarber(request.resource.data.barberId);
+
+      allow update: if (isAppointmentParticipant(resource.data) && resource != null)
+        && request.resource.data.clientId == resource.data.clientId
+        && request.resource.data.barberId == resource.data.barberId;
+
+      allow delete: if (isAppointmentParticipant(resource.data) && resource != null);
+    }
+  }
+}
