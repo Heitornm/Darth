@@ -4,62 +4,49 @@ service cloud.firestore {
 
     /**
      * CORE PHILOSOPHY
-     * This ruleset implements RBAC for the barbershop.
-     * Permissions are granted based on user identity (auth.uid) or email (for the Master Barber).
+     * Sistema de permissões baseado em RBAC para a barbearia.
      */
-
-    // --- Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Verifies if a user is the Master Barber by email. */
     function isMasterBarber() {
       return isSignedIn() && request.auth.token.email == 'darthbarber@darth.com.br';
     }
-
-    // --- Collection Rules ---
 
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    match /roles_barber/{barberId} {
-      allow read: if isSignedIn();
-      allow write: if false; 
-    }
-
     match /services/{serviceId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isMasterBarber();
     }
 
     match /appointments/{appointmentId} {
       /** 
-       * allow read: Permite listagem para verificação de disponibilidade 
-       * e acesso individual para as partes envolvidas.
+       * allow list: Essencial para verificar disponibilidade e para o dashboard do barbeiro.
+       * allow get: Acesso individual.
        */
-      allow read: if isSignedIn();
+      allow list, get: if isSignedIn();
       
       /**
-       * allow create: Permite que qualquer usuário logado crie um agendamento
-       * desde que o clientId corresponda ao seu próprio UID.
+       * allow create: Clientes criam seus próprios agendamentos.
        */
       allow create: if isSignedIn() 
         && request.resource.data.clientId == request.auth.uid;
 
       /**
-       * allow update, delete: Apenas o dono do agendamento ou o barbeiro mestre.
+       * allow update, delete: Apenas o dono ou o barbeiro mestre.
        */
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
-        request.auth.uid == resource.data.barberId ||
         isMasterBarber()
       );
     }
     
-    // Fallback security rule - trigger redeploy
+    // Fallback
     match /{path=**} {
       allow read, write: if false;
     }

@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Scissors, Clock, User, Calendar as CalendarIcon, AlertCircle, TrendingUp } from 'lucide-react';
+import { Clock, User, Calendar as CalendarIcon, AlertCircle, TrendingUp, Scissors } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -34,6 +33,8 @@ export default function BarberDashboardPage() {
     const today = new Date();
     today.setHours(0,0,0,0);
     
+    // Simplificando a query para evitar erros de indexação complexa em tempo real
+    // e garantindo que o barbeiro mestre veja todos os agendamentos destinados a ele.
     return query(
       collection(db, "appointments"),
       where("barberId", "==", MASTER_BARBER_ID),
@@ -44,10 +45,30 @@ export default function BarberDashboardPage() {
 
   const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
 
-  if (!mounted || isUserLoading || isLoading) {
+  // Evita Hydration Mismatch
+  if (!mounted) return null;
+
+  if (isUserLoading || isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Se houver erro de permissão ou outro, mostramos uma mensagem amigável sem travar a página
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="w-12 h-12 text-destructive mb-4 opacity-50" />
+            <h3 className="text-xl font-headline font-bold mb-2">Ops! Acesso restrito</h3>
+            <p className="text-muted-foreground max-w-md">
+              Não conseguimos carregar a agenda. Certifique-se de estar logado como o Barbeiro Mestre.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -73,21 +94,12 @@ export default function BarberDashboardPage() {
         </div>
       </div>
 
-      {error && (
-        <Card className="border-destructive bg-destructive/10 mb-6">
-          <CardContent className="py-4 text-destructive flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            <p>Erro ao carregar agenda. Verifique suas permissões.</p>
-          </CardContent>
-        </Card>
-      )}
-
       {!appointments || appointments.length === 0 ? (
         <Card className="border-dashed border-2 bg-transparent">
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-            <AlertCircle className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
-            <h3 className="text-xl font-headline font-semibold mb-2">Sem agendamentos hoje</h3>
-            <p className="text-muted-foreground">Aproveite para afiar suas tesouras!</p>
+            <Scissors className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
+            <h3 className="text-xl font-headline font-semibold mb-2">Sem agendamentos para hoje</h3>
+            <p className="text-muted-foreground">Aproveite o tempo livre para organizar a bancada!</p>
           </CardContent>
         </Card>
       ) : (
@@ -124,7 +136,7 @@ export default function BarberDashboardPage() {
                           </div>
                         </div>
                         <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
-                          {apt.status.toUpperCase()}
+                          {apt.status?.toUpperCase() || 'CONFIRMADO'}
                         </Badge>
                       </div>
                     </div>
