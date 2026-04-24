@@ -19,9 +19,11 @@ export default function BarberDashboardPage() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
   const [mounted, setMounted] = useState(false);
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    setCurrentDate(new Date());
     if (!isUserLoading && (!user || user.email !== BARBER_EMAIL)) {
       router.push('/login');
     }
@@ -33,8 +35,6 @@ export default function BarberDashboardPage() {
     const today = new Date();
     today.setHours(0,0,0,0);
     
-    // Simplificando a query para evitar erros de indexação complexa em tempo real
-    // e garantindo que o barbeiro mestre veja todos os agendamentos destinados a ele.
     return query(
       collection(db, "appointments"),
       where("barberId", "==", MASTER_BARBER_ID),
@@ -45,7 +45,6 @@ export default function BarberDashboardPage() {
 
   const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
 
-  // Evita Hydration Mismatch
   if (!mounted) return null;
 
   if (isUserLoading || isLoading) {
@@ -56,16 +55,17 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // Se houver erro de permissão ou outro, mostramos uma mensagem amigável sem travar a página
-  if (error) {
+  // Tratamento de erro local para evitar travamento da aplicação
+  if (error || (user && user.email !== BARBER_EMAIL)) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mb-4 opacity-50" />
-            <h3 className="text-xl font-headline font-bold mb-2">Ops! Acesso restrito</h3>
+            <h3 className="text-xl font-headline font-bold mb-2">Acesso Restrito</h3>
             <p className="text-muted-foreground max-w-md">
-              Não conseguimos carregar a agenda. Certifique-se de estar logado como o Barbeiro Mestre.
+              Você não tem permissão para visualizar a agenda administrativa. 
+              Certifique-se de estar logado como o Barbeiro Mestre ({BARBER_EMAIL}).
             </p>
           </CardContent>
         </Card>
@@ -80,7 +80,7 @@ export default function BarberDashboardPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Agenda do Mestre</h1>
           <p className="text-muted-foreground flex items-center gap-2">
             <CalendarIcon className="w-4 h-4" />
-            {format(new Date(), "PPPP", { locale: ptBR })}
+            {currentDate ? format(currentDate, "PPPP", { locale: ptBR }) : "Carregando data..."}
           </p>
         </div>
         <div className="flex gap-4">
@@ -99,7 +99,7 @@ export default function BarberDashboardPage() {
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
             <Scissors className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
             <h3 className="text-xl font-headline font-semibold mb-2">Sem agendamentos para hoje</h3>
-            <p className="text-muted-foreground">Aproveite o tempo livre para organizar a bancada!</p>
+            <p className="text-muted-foreground">Aproveite o tempo livre para organizar a barbearia!</p>
           </CardContent>
         </Card>
       ) : (
@@ -136,7 +136,7 @@ export default function BarberDashboardPage() {
                           </div>
                         </div>
                         <Badge className="bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20">
-                          {apt.status?.toUpperCase() || 'CONFIRMADO'}
+                          {apt.status?.toUpperCase() || 'PENDENTE'}
                         </Badge>
                       </div>
                     </div>

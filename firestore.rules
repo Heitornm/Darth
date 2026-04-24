@@ -3,17 +3,20 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * CORE PHILOSOPHY
-     * Sistema de permissões baseado em RBAC para a barbearia.
+     * FUNÇÕES AUXILIARES
      */
-
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isMasterBarber() {
+      // O e-mail deve ser exatamente este para ter acesso administrativo
       return isSignedIn() && request.auth.token.email == 'darthbarber@darth.com.br';
     }
+
+    /**
+     * PERMISSÕES POR COLEÇÃO
+     */
 
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
@@ -25,28 +28,22 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      /** 
-       * allow list: Essencial para verificar disponibilidade e para o dashboard do barbeiro.
-       * allow get: Acesso individual.
-       */
-      allow list, get: if isSignedIn();
+      // Permite leitura (get e list) para qualquer usuário logado. 
+      // Essencial para verificar disponibilidade no agendamento e para o Dashboard.
+      allow read: if isSignedIn();
       
-      /**
-       * allow create: Clientes criam seus próprios agendamentos.
-       */
+      // Apenas o dono do agendamento pode criar
       allow create: if isSignedIn() 
         && request.resource.data.clientId == request.auth.uid;
 
-      /**
-       * allow update, delete: Apenas o dono ou o barbeiro mestre.
-       */
+      // Apenas o dono ou o barbeiro mestre podem atualizar ou excluir
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
         isMasterBarber()
       );
     }
     
-    // Fallback
+    // Bloqueio total por padrão
     match /{path=**} {
       allow read, write: if false;
     }
