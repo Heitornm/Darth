@@ -1,236 +1,69 @@
+
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the application, who can be either a client booking appointments or a barber providing services.",
+      "description": "Represents a user (client or barber).",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the user. Used for identification and communication (not for authentication credentials).",
-          "format": "email"
-        },
-        "role": {
-          "type": "string",
-          "description": "The role of the user within the application, determining their access and functionality.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["client", "barber"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "email",
-        "role",
-        "createdAt"
-      ]
+      "required": ["id", "name", "email", "role", "createdAt"]
     },
     "Service": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Service",
       "type": "object",
-      "description": "Represents a specific service offered by the barber shop, such as a haircut or beard trim. Services have a defined duration and price.",
+      "description": "Barbershop service.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Service entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the service (e.g., 'Haircut', 'Beard Trim', 'Shave')."
-        },
-        "description": {
-          "type": "string",
-          "description": "A brief description of what the service entails."
-        },
-        "price": {
-          "type": "number",
-          "description": "The price of the service in the local currency."
-        },
-        "durationMinutes": {
-          "type": "number",
-          "description": "The expected duration of the service in minutes (minimum 30 minutes as per requirements)."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the service was added to the system.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the service details were last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "durationMinutes": { "type": "number" }
       },
-      "required": [
-        "id",
-        "name",
-        "description",
-        "price",
-        "durationMinutes",
-        "createdAt"
-      ]
+      "required": ["id", "name", "price", "durationMinutes"]
     },
     "Appointment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Appointment",
       "type": "object",
-      "description": "Represents a scheduled booking for a specific service with a barber by a client.",
+      "description": "Scheduled booking.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Appointment entity."
-        },
-        "clientId": {
-          "type": "string",
-          "description": "Reference to the User (client) who booked the appointment. (Relationship: User 1:N Appointment)"
-        },
-        "clientName": {
-          "type": "string",
-          "description": "The name of the client who booked the appointment (denormalized for display convenience)."
-        },
-        "barberId": {
-          "type": "string",
-          "description": "Reference to the User (barber) assigned to perform this service. (Relationship: User 1:N Appointment)"
-        },
-        "serviceId": {
-          "type": "string",
-          "description": "Reference to the Service booked for this appointment. (Relationship: Service 1:N Appointment)"
-        },
-        "startTime": {
-          "type": "string",
-          "description": "The scheduled start date and time of the appointment.",
-          "format": "date-time"
-        },
-        "endTime": {
-          "type": "string",
-          "description": "The scheduled end date and time of the appointment, derived from startTime and the associated Service's durationMinutes.",
-          "format": "date-time"
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the appointment.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the appointment was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the appointment was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "barberId": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "clientId",
-        "clientName",
-        "barberId",
-        "serviceId",
-        "startTime",
-        "endTime",
-        "status",
-        "createdAt"
-      ]
+      "required": ["id", "clientId", "barberId", "serviceId", "startTime", "endTime", "status"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. The userId corresponds to the Firebase Authentication UID. Access is typically restricted to the user themselves for write operations, and potentially public for non-sensitive profile information like 'name'.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (Firebase Auth UID) of the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_barber/{barberId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "A collection used for Database Access Control (DBAC). A document exists here if the corresponding userId (barberId) has the 'barber' role. This allows security rules to quickly verify if a user is a barber using 'exists()' without relying on custom claims or document 'get()' dependencies on the main user profile. The document itself can be minimal, potentially just storing 'true' or the barber's name for convenience. Includes denormalized 'barberId' for authorization independence via existence check.",
-          "params": [
-            {
-              "name": "barberId",
-              "description": "The unique identifier (Firebase Auth UID) of the user who holds the 'barber' role."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/services/{serviceId}",
-        "definition": {
-          "entityName": "Service",
-          "schema": {
-            "$ref": "#/backend/entities/Service"
-          },
-          "description": "A global, publicly readable collection of all services offered by the barbershop. All documents in this collection share the same security posture (read-only for all, write-only for admins). This supports Queryable Authorization Paths (QAPs) by allowing all users to list available services securely.",
-          "params": [
-            {
-              "name": "serviceId",
-              "description": "The unique identifier of the service."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/appointments/{appointmentId}",
-        "definition": {
-          "entityName": "Appointment",
-          "schema": {
-            "$ref": "#/backend/entities/Appointment"
-          },
-          "description": "Stores all appointment bookings. This collection is central to authorization independence by denormalizing 'clientId' and 'barberId' directly into each document. This allows security rules to determine ownership directly from 'resource.data', avoiding 'get()' dependencies. QAPs for list operations are supported by enforcing that queries must filter by 'clientId' (for clients) or 'barberId' (for barbers), matching the 'request.auth.uid' to prevent broad, unauthorized data access.",
-          "params": [
-            {
-              "name": "appointmentId",
-              "description": "The unique identifier for the appointment."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure for DarthBarber is designed with a strong emphasis on Authorization Independence, Structural Segregation, and Queryable Authorization Paths (QAPs) to ensure security, scalability, and debuggability. \n\n1.  **Users and Roles (`/users/{userId}`, `/roles_barber/{barberId}`):**\n    *   User profiles are stored in `/users/{userId}`. This path ensures that each user's profile data is directly tied to their `uid` from `request.auth.uid`, simplifying ownership rules.\n    *   User roles are segregated into dedicated collections like `/roles_barber/{barberId}`. This adheres to the **DBAC** principle by storing roles in the database ('Existence over Content') and facilitates easy, non-hierarchical role checks (`exists(/roles_barber/$(request.auth.uid))`) without needing complex custom claims or `get()` calls on potentially unrelated documents. This also ensures **Structural Segregation** as a barber role is a distinct entity from a user's general profile.\n\n2.  **Services (`/services/{serviceId}`):**\n    *   Services are globally available and publicly browsable. They are stored in a top-level collection `/services/{serviceId}`. This exemplifies **Structural Segregation**, as all documents within this collection share the same security posture (read-only for all authenticated users/public, write-only for admins). This naturally supports **QAPs** as any `list` query is secure without additional filtering logic in rules.\n\n3.  **Appointments (`/appointments/{appointmentId}`):**\n    *   This is a crucial collection for client bookings and barber schedules. The `Appointment` document itself **denormalizes** key authorization context: `clientId` and `barberId`. This is the core of **Authorization Independence**; rules can evaluate access by directly comparing `request.auth.uid` with `resource.data.clientId` or `resource.data.barberId` without performing `get()` operations on parent `User` or `Service` documents. This allows atomic creation/updates without complex rule dependencies.\n    *   To support **QAPs (Rules are not Filters)** for `list` operations, the security rules for `/appointments/{appointmentId}` will enforce that any `list` query must include a `where` clause filtering by either `clientId == request.auth.uid` or `barberId == request.auth.uid`. This ensures that a client can only list their own appointments, and a barber can only list their own, preventing broad, unauthorized data dumps while still allowing efficient indexed queries. The rule acts as a 'query validator', ensuring the query itself is sufficiently specific for the authenticated user, rather than filtering results after the fact.\n    *   The `barberId` field in an `Appointment` will implicitly link to a document in `/roles_barber`, and rules will verify the `barberId` for specific barber actions (e.g., updating appointment status) against the `/roles_barber` collection using `exists()`. This confirms the user acting as a barber indeed holds the barber role, integrating **DBAC** securely."
+    "/users/{userId}": {
+      "schema": "#/entities/User",
+      "description": "User profiles."
+    },
+    "/roles_barber/{barberId}": {
+      "schema": "#/entities/User",
+      "description": "Barber role check."
+    },
+    "/services/{serviceId}": {
+      "schema": "#/entities/Service",
+      "description": "Available services."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "#/entities/Appointment",
+      "description": "Booking records."
+    }
   }
 }
