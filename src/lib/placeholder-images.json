@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-barber",
+      "description": "Modern barbershop interior",
+      "imageUrl": "https://picsum.photos/seed/barber1/1200/800",
+      "imageHint": "barbershop interior"
+    },
+    {
+      "id": "barber-1",
+      "description": "Professional barber portrait",
+      "imageUrl": "https://picsum.photos/seed/barber2/400/400",
+      "imageHint": "barber man"
+    },
+    {
+      "id": "barber-2",
+      "description": "Expert stylist",
+      "imageUrl": "https://picsum.photos/seed/barber3/400/400",
+      "imageHint": "hairdresser stylist"
+    }
+  ]
 }
