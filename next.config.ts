@@ -31,13 +31,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    allowedDevOrigins: [
-      '*.cloudworkstations.dev',
-      '*.firebaseapp.com',
-      '*.web.app'
-    ],
-  },
 };
 
 export default nextConfig;
