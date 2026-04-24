@@ -30,7 +30,7 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
       // Permite leitura (get e list) para qualquer usuário logado. 
-      // Essencial para verificar disponibilidade no agendamento e para o Dashboard.
+      // Isso é necessário para verificar disponibilidade e para o Dashboard funcionar sem erros de permissão.
       allow read: if isSignedIn();
       
       // Apenas o dono do agendamento pode criar
@@ -44,7 +44,7 @@ service cloud.firestore {
       );
     }
     
-    // Bloqueio total por padrão
+    // Bloqueio total por padrão para outras coleções
     match /{path=**} {
       allow read, write: if false;
     }

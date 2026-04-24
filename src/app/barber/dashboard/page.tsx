@@ -26,11 +26,13 @@ export default function BarberDashboardPage() {
     setMounted(true);
     setCurrentDate(new Date());
     if (!isUserLoading && (!user || user.email !== BARBER_EMAIL)) {
+      // Se não for o barbeiro, redireciona após carregar
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
 
   const appointmentsQuery = useMemoFirebase(() => {
+    // Só executa a query se for o barbeiro mestre logado
     if (!db || !user || user.email !== BARBER_EMAIL) return null;
     
     const today = new Date();
@@ -46,6 +48,7 @@ export default function BarberDashboardPage() {
 
   const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
 
+  // Evita erros de hidratação
   if (!mounted) return null;
 
   if (isUserLoading || isLoading) {
@@ -56,7 +59,7 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // Tratamento de erro local para evitar travamento da aplicação
+  // Se houver erro de permissão ou o usuário não for o barbeiro, mostra card de acesso restrito
   if (error || (user && user.email !== BARBER_EMAIL)) {
     return (
       <div className="container mx-auto px-4 py-8">
