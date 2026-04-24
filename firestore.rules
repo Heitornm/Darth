@@ -14,27 +14,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     /** @description Verifies if a user is the Master Barber by email. */
     function isMasterBarber() {
       return isSignedIn() && request.auth.token.email == 'darthbarber@darth.com.br';
     }
 
-    function canAccessAppointment(data) {
-      return isSignedIn() && (
-        request.auth.uid == data.clientId || 
-        request.auth.uid == data.barberId ||
-        isMasterBarber()
-      );
-    }
-
     // --- Collection Rules ---
 
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /roles_barber/{barberId} {
@@ -49,16 +37,31 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
       /** 
-       * allow list: needed for checking availability and for the barber dashboard.
+       * allow read: Permite listagem para verificação de disponibilidade 
+       * e acesso individual para as partes envolvidas.
        */
-      allow list: if isSignedIn();
+      allow read: if isSignedIn();
       
-      allow get: if canAccessAppointment(resource.data);
-      
+      /**
+       * allow create: Permite que qualquer usuário logado crie um agendamento
+       * desde que o clientId corresponda ao seu próprio UID.
+       */
       allow create: if isSignedIn() 
         && request.resource.data.clientId == request.auth.uid;
 
-      allow update, delete: if canAccessAppointment(resource.data);
+      /**
+       * allow update, delete: Apenas o dono do agendamento ou o barbeiro mestre.
+       */
+      allow update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.clientId || 
+        request.auth.uid == resource.data.barberId ||
+        isMasterBarber()
+      );
+    }
+    
+    // Fallback security rule - trigger redeploy
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
