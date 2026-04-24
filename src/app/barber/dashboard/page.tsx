@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -12,12 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 
+const MASTER_BARBER_ID = 'darth-barber-main';
+
 export default function BarberDashboardPage() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Verifica se o usuário logado é o barbeiro DarthBarber
   const BARBER_EMAIL = "darthbarber@darth.com.br";
   
   useEffect(() => {
@@ -31,9 +31,10 @@ export default function BarberDashboardPage() {
     const today = new Date();
     today.setHours(0,0,0,0);
     
+    // Consultamos pelo ID fixo do barbeiro mestre para garantir consistência
     return query(
       collection(db, "appointments"),
-      where("barberId", "==", "darth-barber-main"), // UID fixo conforme agendamento
+      where("barberId", "==", MASTER_BARBER_ID),
       where("dataHora", ">=", Timestamp.fromDate(today)),
       orderBy("dataHora", "asc")
     );
