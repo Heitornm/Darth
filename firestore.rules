@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -28,7 +29,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura para qualquer usuário logado (necessário para checar disponibilidade de horários)
+      // Correção Definitiva: Permite leitura (get e list) para qualquer usuário logado.
+      // Necessário para consultas de disponibilidade e visualização de agenda.
       allow read: if isSignedIn();
       
       // Permite criação se o clientId for o do usuário logado

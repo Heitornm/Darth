@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -44,7 +45,6 @@ export function Navbar() {
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
-  // Previne erros de hidratação renderizando apenas o essencial no servidor
   if (!mounted) {
     return (
       <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
@@ -71,9 +71,9 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          <div className="flex items-center gap-1 sm:gap-2 mr-2">
-            {user && (
-              isBarber ? (
+          {user && (
+            <div className="flex items-center gap-1 sm:gap-2 mr-2">
+              {isBarber ? (
                 <>
                   <NavLink href="/barber/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Agendamentos" />
                   <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Painel" />
@@ -83,9 +83,9 @@ export function Navbar() {
                   <NavLink href="/client/appointments" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
                   <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Reservas" />
                 </>
-              )
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {user && <div className="h-6 w-px bg-border mx-2"></div>}
 
