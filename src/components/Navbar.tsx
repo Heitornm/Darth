@@ -49,7 +49,6 @@ export function Navbar() {
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-4 h-18 flex items-center justify-between py-3">
-        {/* Logo - Estrutura estática para evitar erro de hidratação */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
             <Scissors className="w-6 h-6 text-primary-foreground" />
@@ -58,7 +57,6 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          {/* Menu de Navegação - Apenas após montagem e se logado */}
           {mounted && !isUserLoading && user && (
             <div className="flex items-center gap-1 sm:gap-2 mr-2 animate-in fade-in duration-500">
               {isBarber ? (

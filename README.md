@@ -20,24 +20,20 @@ Crie um arquivo `.env.local` na raiz do projeto:
 ```env
 GEMINI_API_KEY=sua_chave_aqui
 ```
-*Nota: As configurações do Firebase já estão incluídas no arquivo `src/firebase/config.ts`.*
+*Dica: Você pode gerar sua chave gratuitamente no [Google AI Studio](https://aistudio.google.com/app/apikey).*
 
 ### 4. Executando o Projeto
 Inicie o servidor de desenvolvimento do Next.js:
 ```bash
 npm run dev
 ```
-O projeto estará disponível em `http://localhost:9002` (ou na porta indicada no terminal).
+O projeto estará disponível em `http://localhost:9002`.
 
-### 5. Executando o Genkit (IA)
-Para testar e depurar os fluxos de IA (como o Assistente de Estilo):
-```bash
-npm run genkit:dev
-```
-Acesse `http://localhost:4000` para ver a interface do Genkit.
+### 5. Configuração do Firestore (Índices)
+Se você encontrar um erro de "Missing Index" no console do navegador ao acessar a agenda do barbeiro, clique no link fornecido na própria mensagem de erro. O Firebase criará o índice composto necessário automaticamente para você.
 
 ## Estrutura do Projeto
 - `src/app`: Páginas e rotas do Next.js.
 - `src/ai`: Fluxos e configurações do Genkit.
 - `src/firebase`: Configuração e hooks do Firebase.
-- `src/components`: Componentes UI reutilizáveis (ShadCN).
+- `src/components`: Componentes UI reutilizáveis.

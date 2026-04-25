@@ -12,7 +12,9 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setMounted(false);
+    const timer = setTimeout(() => setMounted(true), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -32,7 +34,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center gap-6">
-          {mounted && !isUserLoading && (
+          {mounted && !isUserLoading ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {user ? (
                 <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
@@ -52,6 +54,8 @@ export default function Home() {
                 </Button>
               )}
             </div>
+          ) : (
+            <div className="h-16 w-64 bg-muted animate-pulse rounded-full"></div>
           )}
         </div>
       </div>
