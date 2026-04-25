@@ -61,9 +61,9 @@ export default function Home() {
               )}
 
               {/* Card de Apresentação do Barbeiro */}
-              <Card className="max-w-[320px] w-full border-primary/20 bg-card/40 backdrop-blur-sm shadow-xl hover:border-primary/40 transition-all duration-300 transform hover:-translate-y-1">
-                <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
-                  <Avatar className="h-28 w-28 border-4 border-primary/20 shadow-2xl">
+              <Card className="max-w-[340px] w-full border-primary/20 bg-card/40 backdrop-blur-sm shadow-xl hover:border-primary/40 transition-all duration-300 transform hover:-translate-y-1">
+                <CardContent className="p-10 flex flex-col items-center gap-6 text-center">
+                  <Avatar className="h-40 w-40 border-4 border-primary/20 shadow-2xl">
                     <AvatarImage 
                       src={barberImage?.imageUrl} 
                       alt="Darth Barber" 
@@ -77,7 +77,7 @@ export default function Home() {
                       <h2 className="font-headline font-bold text-2xl text-foreground tracking-tight">Darth Barber</h2>
                       <Star className="w-4 h-4 text-accent fill-accent animate-pulse" />
                     </div>
-                    <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest px-4 py-1 bg-primary/5 rounded-full border border-primary/10">
+                    <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest px-4 py-1 bg-primary/5 rounded-full border border-primary/10">
                       Barbeiro Profissional
                     </p>
                     <p className="text-xs text-muted-foreground italic pt-2">
