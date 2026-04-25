@@ -33,7 +33,6 @@ export function Navbar() {
 
   const isBarber = user?.email === BARBER_EMAIL;
 
-  // Previne erros de hidratação retornando uma versão estável até o cliente estar pronto
   if (!mounted) {
     return (
       <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
@@ -61,20 +60,22 @@ export function Navbar() {
         
         <div className="flex items-center gap-1 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-2 mr-2">
-            {isBarber ? (
-              <>
-                <NavLink href="/barber/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Agendamentos" />
-                <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Meu Painel" />
-              </>
-            ) : (
-              <>
-                <NavLink href="/client/appointments" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                {user && <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Meus Agendamentos" />}
-              </>
-            )}
+            {user ? (
+              isBarber ? (
+                <>
+                  <NavLink href="/barber/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Agendamentos" />
+                  <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Meu Painel" />
+                </>
+              ) : (
+                <>
+                  <NavLink href="/client/appointments" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
+                  <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Meus Agendamentos" />
+                </>
+              )
+            ) : null}
           </div>
 
-          <div className="h-6 w-px bg-border mx-2"></div>
+          {user && <div className="h-6 w-px bg-border mx-2"></div>}
 
           {isUserLoading ? (
             <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>

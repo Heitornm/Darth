@@ -3,9 +3,12 @@
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
-import { Calendar, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronRight, LogIn } from 'lucide-react';
+import { useUser } from '@/firebase';
 
 export default function Home() {
+  const { user, isUserLoading } = useUser();
+
   return (
     <div className="flex flex-col items-center min-h-[85vh] px-4 py-12 md:py-20">
       <div className="max-w-6xl w-full text-center space-y-16">
@@ -25,13 +28,24 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-          <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
-            <Link href="/client/appointments">
-              <Calendar className="w-6 h-6 group-hover:scale-110 transition-transform" />
-              Agendar Agora
-              <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </Button>
+          {!isUserLoading && (
+            <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
+              {user ? (
+                <Link href="/client/appointments">
+                  <Calendar className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                  Agendar Agora
+                  <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              ) : (
+                <Link href="/login">
+                  <LogIn className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                  Entrar
+                  <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              )}
+            </Button>
+          )}
+          
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-[0.2em] font-bold opacity-40">
             <span className="w-8 h-px bg-muted-foreground/30"></span>
             Disponibilidade em Tempo Real
