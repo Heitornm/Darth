@@ -29,7 +29,7 @@ service cloud.firestore {
       
       // Permite leitura individual se for o dono do agendamento ou o barbeiro mestre
       allow get: if isSignedIn() && (
-        request.auth.uid == resource.data.clientId || 
+        resource.data.clientId == request.auth.uid || 
         isMasterBarber()
       );
       
@@ -38,7 +38,7 @@ service cloud.firestore {
 
       // Permite atualização e deleção pelo dono ou pelo barbeiro mestre
       allow update, delete: if isSignedIn() && (
-        request.auth.uid == resource.data.clientId || 
+        resource.data.clientId == request.auth.uid || 
         isMasterBarber()
       );
     }
