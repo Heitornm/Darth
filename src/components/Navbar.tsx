@@ -58,8 +58,7 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          {/* Navegação condicional - Apenas após montagem para evitar erro de hidratação */}
-          {mounted && !isUserLoading && user && (
+          {mounted && !isUserLoading && user ? (
             <div className="flex items-center gap-1 sm:gap-2 mr-2 animate-in fade-in duration-500">
               {isBarber ? (
                 <>
@@ -73,11 +72,10 @@ export function Navbar() {
                 </>
               )}
             </div>
-          )}
+          ) : null}
 
           {mounted && user && !isUserLoading && <div className="h-6 w-px bg-border mx-2"></div>}
 
-          {/* User Profile / Login Button */}
           {!mounted || isUserLoading ? (
             <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
           ) : user ? (
