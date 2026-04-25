@@ -6,6 +6,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
     function isMasterBarber() {
       return isSignedIn() && (
         request.auth.token.email == 'darthbarber@darth.com.br' || 
@@ -15,7 +19,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isOwner(userId);
     }
 
     match /services/{serviceId} {
@@ -24,13 +28,13 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permissão explícita para ler e listar se estiver logado
+      // Permite leitura se estiver logado (necessário para ver disponibilidade e agenda)
       allow read, list: if isSignedIn();
       
-      // Permite criação se o cliente for o próprio usuário logado
+      // Permite criação se o clientId for o do usuário logado
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
-      // Permite atualização e deleção pelo dono ou pelo barbeiro mestre
+      // Permite atualização/deleção apenas pelo dono ou pelo barbeiro mestre
       allow update, delete: if isSignedIn() && (
         resource.data.clientId == request.auth.uid || 
         isMasterBarber()

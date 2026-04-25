@@ -7,7 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
 
 const MASTER_BARBER_ID = 'darth-barber-main';
@@ -17,19 +17,26 @@ export default function BarberAppointmentsPage() {
   const db = useFirestore();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [mounted, setMounted] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (user && db) {
+      getDoc(doc(db, 'users', user.uid)).then(d => {
+        if (d.exists()) setUserRole(d.data().role);
+      });
+    }
+  }, [user, db]);
   
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    // Só dispara a query se for barbeiro ou mestre
+    if (!db || !user || (userRole !== 'barber' && user.email !== "darthbarber@darth.com.br")) return null;
     return query(
       collection(db, "appointments"), 
       where("barberId", "==", MASTER_BARBER_ID),
       orderBy("dataHora", "asc")
     );
-  }, [db, user]);
+  }, [db, user, userRole]);
 
   const { data: allAppointments, isLoading } = useCollection(appointmentsQuery);
 
