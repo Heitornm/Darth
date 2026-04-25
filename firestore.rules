@@ -7,7 +7,10 @@ service cloud.firestore {
     }
 
     function isMasterBarber() {
-      return isSignedIn() && request.auth.token.email == 'darthbarber@darth.com.br';
+      return isSignedIn() && (
+        request.auth.token.email == 'darthbarber@darth.com.br' || 
+        request.auth.uid == 'darth-barber-main'
+      );
     }
 
     // Perfil de usuário
@@ -24,7 +27,8 @@ service cloud.firestore {
     // Agendamentos
     match /appointments/{appointmentId} {
       // Permite leitura completa para usuários logados (essencial para listagem e verificação de horários)
-      allow read: if isSignedIn();
+      // O erro de 'list' ocorre se não houver permissão explícita no nível da coleção ou se o match for restrito
+      allow read, list: if isSignedIn();
       
       // Permite criar se o clientId for o próprio usuário
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;

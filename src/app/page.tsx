@@ -16,7 +16,7 @@ export default function Home() {
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
             Seja bem-vindo à experiência definitiva em estilo e precisão. 
-            Escolha um de nossos serviços abaixo e transforme seu visual.
+            Escolha um de nossos serviços abaixo e transforme seu visual com quem entende do assunto.
           </p>
         </div>
 

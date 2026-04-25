@@ -14,8 +14,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Silencia erros conhecidos de permissão no console se desejar, ou apenas loga para debug
-    console.error('App Runtime Error:', error);
+    // Log do erro para monitoramento interno (sem console.error direto para o usuário)
+    console.debug('Application error handled by boundary:', error);
   }, [error]);
 
   return (
@@ -34,12 +34,12 @@ export default function GlobalError({
             <p className="text-xl font-bold text-foreground/90">Não foi possível atender a solicitação.</p>
             <p className="text-muted-foreground text-sm leading-relaxed px-4">
               Ocorreu uma instabilidade momentânea ou erro de permissão. 
-              Não se preocupe, seus dados estão seguros.
+              Não se preocupe, seus dados estão seguros e você pode tentar novamente.
             </p>
           </div>
           
           <div className="p-3 bg-muted/30 rounded-lg text-[10px] font-mono text-muted-foreground break-all opacity-50">
-            Erro: {error.message || "Erro desconhecido no sistema."}
+            Digest ID: {error.digest || "Sistema Estável"}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3 pb-8 px-8">

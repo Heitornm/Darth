@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -74,7 +75,6 @@ export default function BarberAppointmentsPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Lado Esquerdo: Calendário */}
         <div className="lg:col-span-4 space-y-6">
           <Card className="border-primary/20 shadow-2xl bg-card/40 backdrop-blur-md sticky top-24">
             <CardHeader>
@@ -89,7 +89,7 @@ export default function BarberAppointmentsPage() {
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 locale={ptBR}
-                className="w-full"
+                className="w-full flex justify-center"
                 modifiers={{
                   hasApt: (date) => datesWithAppointments.some(d => isSameDay(d, date))
                 }}
@@ -101,7 +101,6 @@ export default function BarberAppointmentsPage() {
           </Card>
         </div>
 
-        {/* Lado Direito: Lista de Agendamentos do Dia */}
         <div className="lg:col-span-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/40 p-5 rounded-2xl border border-border/50">
             <div>
@@ -110,7 +109,7 @@ export default function BarberAppointmentsPage() {
               </h2>
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <span className="capitalize">{selectedDate ? format(selectedDate, "EEEE", { locale: ptBR }) : ''}</span>
-                {isSameDay(selectedDate || new Date(), new Date()) && (
+                {selectedDate && isSameDay(selectedDate, new Date()) && (
                   <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none px-2 py-0 h-5 text-[10px]">HOJE</Badge>
                 )}
               </p>

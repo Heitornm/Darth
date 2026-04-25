@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { 
@@ -51,8 +51,8 @@ const SERVICES = [
 ];
 
 export function ServiceCarousel() {
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, dragFree: true, align: 'start' }, 
+  const [emblaRef] = useEmblaCarousel(
+    { loop: true, align: 'start' }, 
     [Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })]
   );
 
@@ -74,6 +74,7 @@ export function ServiceCarousel() {
                     src={service.image} 
                     alt={service.name} 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    data-ai-hint="barber service"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
                     <span className="text-white text-sm font-bold flex items-center gap-2">

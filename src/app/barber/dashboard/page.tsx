@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { query, collection, where, Timestamp } from 'firebase/firestore';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,9 +12,7 @@ import {
   DollarSign, 
   Clock, 
   Scissors, 
-  Calendar as CalendarIcon,
   Users,
-  CheckCircle2,
   AlertCircle,
   PieChart as PieChartIcon
 } from 'lucide-react';
@@ -25,9 +23,6 @@ import {
   YAxis, 
   Tooltip, 
   ResponsiveContainer, 
-  Cell,
-  LineChart,
-  Line
 } from 'recharts';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
@@ -147,7 +142,9 @@ export default function BarberDashboardPage() {
           </CardHeader>
           <CardContent className="h-[350px] pt-10">
             {filteredApts.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-muted-foreground italic">Sem dados suficientes para gerar gráfico</div>
+              <div className="h-full flex items-center justify-center text-muted-foreground italic text-center">
+                Sem dados suficientes para gerar gráfico. Adicione agendamentos no período selecionado.
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -204,7 +201,7 @@ export default function BarberDashboardPage() {
 
             <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
               <p className="text-xs text-muted-foreground text-center">
-                Você teve um aumento de <span className="text-green-500 font-bold">+12%</span> em relação ao período anterior.
+                Mantenha o foco nos combos para aumentar seu ticket médio.
               </p>
             </div>
           </CardContent>
