@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,9 +7,10 @@ import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
-import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
+import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const MASTER_BARBER_ID = 'darth-barber-main';
 
@@ -21,24 +23,31 @@ export default function BarberAppointmentsPage() {
 
   useEffect(() => {
     setMounted(true);
-    if (user && db) {
+  }, []);
+
+  useEffect(() => {
+    if (user && db && mounted) {
       getDoc(doc(db, 'users', user.uid)).then(d => {
         if (d.exists()) setUserRole(d.data().role);
       });
     }
-  }, [user, db]);
+  }, [user, db, mounted]);
   
   const appointmentsQuery = useMemoFirebase(() => {
-    // Só dispara a query se for barbeiro ou mestre
-    if (!db || !user || (userRole !== 'barber' && user.email !== "darthbarber@darth.com.br")) return null;
+    if (!db || !user || !mounted) return null;
+    
+    // Permitir se for barbeiro ou se tiver o email do master
+    const isAuthorized = userRole === 'barber' || user.email === "darthbarber@darth.com.br";
+    if (!isAuthorized) return null;
+
     return query(
       collection(db, "appointments"), 
       where("barberId", "==", MASTER_BARBER_ID),
       orderBy("dataHora", "asc")
     );
-  }, [db, user, userRole]);
+  }, [db, user, userRole, mounted]);
 
-  const { data: allAppointments, isLoading } = useCollection(appointmentsQuery);
+  const { data: allAppointments, isLoading, error } = useCollection(appointmentsQuery);
 
   const appointmentsForSelectedDate = allAppointments?.filter(apt => {
     if (!selectedDate) return false;
@@ -52,6 +61,22 @@ export default function BarberAppointmentsPage() {
   }) || [];
 
   if (!mounted || isUserLoading) return <div className="p-20 text-center animate-pulse">Sincronizando agenda...</div>;
+
+  const isAuthorized = userRole === 'barber' || user?.email === "darthbarber@darth.com.br";
+
+  if (!isAuthorized) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-md">
+        <Alert variant="destructive" className="border-destructive/20 bg-destructive/5">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Acesso Negado</AlertTitle>
+          <AlertDescription>
+            Você não tem permissão para acessar a agenda de barbeiros. Por favor, entre com uma conta de barbeiro.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -105,6 +130,10 @@ export default function BarberAppointmentsPage() {
 
           {isLoading ? (
             <div className="py-20 text-center animate-pulse">Carregando horários...</div>
+          ) : error ? (
+            <div className="p-10 text-center text-destructive">
+               Erro ao carregar agendamentos. Verifique suas permissões.
+            </div>
           ) : !appointmentsForSelectedDate || appointmentsForSelectedDate.length === 0 ? (
             <Card className="border-dashed border-2 py-24 text-center">
               <CardContent className="space-y-4">
@@ -134,6 +163,11 @@ export default function BarberAppointmentsPage() {
                             <Badge variant="secondary"><Scissors className="w-3 h-3 mr-1" />{apt.serviceName}</Badge>
                             <Badge variant="outline">{apt.durationMinutes} min</Badge>
                           </div>
+                          {apt.aiSummary && (
+                            <p className="text-xs text-muted-foreground italic mt-2 border-l-2 pl-2 border-primary/20">
+                              "{apt.aiSummary}"
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase">
                           <CheckCircle2 className="w-4 h-4" /> Confirmado

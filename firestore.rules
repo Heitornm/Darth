@@ -1,9 +1,18 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isBarber() {
+      return isSignedIn() && (getUserData().role == 'barber' || request.auth.token.email == 'darthbarber@darth.com.br');
     }
 
     function isMasterBarber() {
@@ -24,16 +33,17 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Regra de leitura para documentos individuais
+      // Leitura: Mestre, Barbeiro dono do serviço ou Cliente dono do agendamento
       allow get: if isSignedIn() && (
         isMasterBarber() || 
-        resource.data.clientId == request.auth.uid
+        resource.data.clientId == request.auth.uid ||
+        resource.data.barberId == request.auth.uid
       );
       
-      // Regra de listagem (queries): O filtro deve bater com a regra
+      // Listagem: Exige filtros na query para não dar erro de permissão global
       allow list: if isSignedIn() && (
         isMasterBarber() || 
-        request.query.limit <= 100 && (resource == null || resource.data.clientId == request.auth.uid)
+        (request.query.limit <= 100 && (resource == null || resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid))
       );
 
       // Criação: Cliente cria para si, Mestre cria qualquer um
@@ -45,7 +55,7 @@ service cloud.firestore {
       // Edição/Exclusão
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && resource.data.clientId == request.auth.uid)
+        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.barberId == request.auth.uid))
       );
     }
     
