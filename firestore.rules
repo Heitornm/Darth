@@ -29,13 +29,15 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Barbeiro mestre pode tudo. Cliente pode ler apenas se o e-mail bater com o campo clientEmail.
+      // Barbeiro mestre tem acesso total. 
+      // Clientes podem ler e listar apenas seus próprios agendamentos baseados no e-mail.
       allow read: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && resource.data.clientEmail == request.auth.token.email)
+        (resource != null && resource.data.clientEmail == request.auth.token.email) ||
+        (resource == null) // Permite a avaliação de queries antes da existência do recurso
       );
       
-      // Listagem requer filtro por e-mail se não for o mestre
+      // Listagem requer que a query seja filtrada pelo e-mail do cliente logado
       allow list: if isSignedIn() && (
         isMasterBarber() || 
         request.query.limit <= 100

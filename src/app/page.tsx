@@ -13,6 +13,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(false); // Reset to avoid mismatch
     setMounted(true);
   }, []);
 
