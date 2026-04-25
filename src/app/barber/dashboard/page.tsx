@@ -13,8 +13,7 @@ import {
   Clock, 
   Scissors, 
   Users,
-  AlertCircle,
-  BarChart3
+  AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -26,7 +25,7 @@ import {
 } from 'recharts';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
-const MASTER_BARBER_ID = 'darth-barber-main';
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
 export default function BarberDashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -38,16 +37,18 @@ export default function BarberDashboardPage() {
     setIsClient(true);
   }, []);
 
+  const isAuthorized = user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
+
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || user.email !== BARBER_EMAIL) return null;
+    if (!db || !user || !isAuthorized) return null;
     return query(collection(db, "appointments"), where("barberId", "==", MASTER_BARBER_ID));
-  }, [db, user]);
+  }, [db, user, isAuthorized]);
 
   const { data: allAppointments, isLoading } = useCollection(appointmentsQuery);
 
   if (!isClient || isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Calculando métricas...</div>;
   
-  if (!user || user.email !== BARBER_EMAIL) {
+  if (!user || !isAuthorized) {
     return (
       <div className="container mx-auto p-20 text-center">
         <Card className="border-destructive/20 bg-destructive/5 max-w-md mx-auto">

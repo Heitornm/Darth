@@ -8,7 +8,8 @@ service cloud.firestore {
 
     function isMasterBarber() {
       return isSignedIn() && (
-        request.auth.token.email == 'darthbarber@darth.com.br'
+        request.auth.token.email == 'darthbarber@darth.com.br' ||
+        request.auth.uid == 'eUCAkXknM1N0mcC04hCIfF3HcMk1'
       );
     }
 
@@ -38,7 +39,12 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow create: if isSignedIn();
-      allow read, list, update, delete: if isSignedIn() && (
+      allow read, list: if isSignedIn() && (
+        isMasterBarber() ||
+        (resource != null && resource.data.toId == request.auth.uid) ||
+        (resource == null) // Permite listar queries que garantem o filtro toId
+      );
+      allow update, delete: if isSignedIn() && (
         isMasterBarber() ||
         resource.data.toId == request.auth.uid
       );
