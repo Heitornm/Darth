@@ -27,12 +27,15 @@ export function Navbar() {
 
   useEffect(() => {
     setMounted(true);
-    if (user && db) {
+  }, []);
+
+  useEffect(() => {
+    if (user && db && mounted) {
       getDoc(doc(db, 'users', user.uid)).then(d => {
         if (d.exists()) setUserRole(d.data().role);
       });
     }
-  }, [user, db]);
+  }, [user, db, mounted]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -41,7 +44,21 @@ export function Navbar() {
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
-  if (!mounted) return null;
+  // Previne erros de hidratação renderizando apenas o essencial no servidor
+  if (!mounted) {
+    return (
+      <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
+        <div className="container mx-auto px-4 h-18 flex items-center justify-between py-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary p-2 rounded-xl">
+              <Scissors className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <span className="font-headline font-bold text-2xl tracking-tighter">DarthBarber</span>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
@@ -55,19 +72,19 @@ export function Navbar() {
         
         <div className="flex items-center gap-1 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-2 mr-2">
-            {user ? (
+            {user && (
               isBarber ? (
                 <>
                   <NavLink href="/barber/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Agendamentos" />
-                  <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Meu Painel" />
+                  <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Painel" />
                 </>
               ) : (
                 <>
                   <NavLink href="/client/appointments" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                  <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
+                  <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Reservas" />
                 </>
               )
-            ) : null}
+            )}
           </div>
 
           {user && <div className="h-6 w-px bg-border mx-2"></div>}
