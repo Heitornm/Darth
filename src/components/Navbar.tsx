@@ -47,6 +47,7 @@ export function Navbar() {
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
+  // Use a stable structure for SSR to avoid hydration errors
   if (!mounted) {
     return (
       <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
@@ -69,7 +70,7 @@ export function Navbar() {
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
             <Scissors className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="font-headline font-bold text-2xl tracking-tighter hidden sm:block text-foreground">DarthBarber</span>
+          <span className="font-headline font-bold text-2xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
