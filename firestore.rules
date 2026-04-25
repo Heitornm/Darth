@@ -29,9 +29,12 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permissão de leitura (get e list) para qualquer usuário logado.
-      // Essencial para verificar disponibilidade de horários no calendário.
-      allow read: if isSignedIn();
+      // Regra restritiva: Usuário só lê se for dono ou se for o barbeiro mestre
+      allow read: if isSignedIn() && (
+        resource == null || // Permite getDoc em docs inexistentes ou durante criação
+        resource.data.clientId == request.auth.uid || 
+        isMasterBarber()
+      );
       
       // Permite criação se o clientId for o do usuário logado
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
