@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn } from 'lucide-react';
+import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,6 +12,8 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+
+const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 export function Navbar() {
   const { user, isUserLoading } = useUser();
@@ -23,7 +25,7 @@ export function Navbar() {
     router.push('/');
   };
 
-  const isBarber = user?.email === "darthbarber@darth.com.br";
+  const isBarber = user?.email === BARBER_EMAIL;
 
   return (
     <nav className="border-b bg-card/50 backdrop-blur-md sticky top-0 z-50">
@@ -36,15 +38,22 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-4">
-          <Link href="/client/appointments" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            <span className="hidden sm:inline">Agendar</span>
-          </Link>
+          {isBarber ? (
+            <Link href="/barber/appointments" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              <span className="hidden sm:inline">Agendamentos</span>
+            </Link>
+          ) : (
+            <Link href="/client/appointments" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">Agendar</span>
+            </Link>
+          )}
 
           {isBarber && (
             <Link href="/barber/dashboard" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden sm:inline">Painel Barbeiro</span>
+              <span className="hidden sm:inline">Meu Painel</span>
             </Link>
           )}
 
@@ -60,7 +69,7 @@ export function Navbar() {
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground truncate">
                   {user.email}
                 </div>
                 <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
