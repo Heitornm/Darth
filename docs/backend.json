@@ -47,6 +47,21 @@
         "createdAt": { "type": "object", "description": "Firestore Timestamp" }
       },
       "required": ["clientId", "clientEmail", "barberId", "serviceId", "dataHora", "status"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "type": "object",
+      "description": "Notificações internas para usuários.",
+      "properties": {
+        "id": { "type": "string" },
+        "toId": { "type": "string", "description": "UID do destinatário" },
+        "fromName": { "type": "string", "description": "Nome de quem gerou a ação" },
+        "type": { "type": "string", "enum": ["new_appointment"] },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "object", "description": "Firestore Timestamp" }
+      },
+      "required": ["toId", "fromName", "type", "message", "read", "createdAt"]
     }
   },
   "auth": {
@@ -64,6 +79,10 @@
     "/appointments/{appointmentId}": {
       "schema": "#/backend/entities/Appointment",
       "description": "Registros de agendamentos."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "#/backend/entities/Notification",
+      "description": "Notificações para barbeiros e clientes."
     }
   }
 }

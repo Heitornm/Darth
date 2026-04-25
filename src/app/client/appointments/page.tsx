@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -50,7 +51,7 @@ export default function ClientAppointmentsPage() {
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
   const handleBooking = async () => {
-    if (!user) {
+    if (!user || !db) {
       toast({ title: "Login necessário", description: "Faça login para agendar." });
       router.push('/login');
       return;
@@ -85,23 +86,37 @@ export default function ClientAppointmentsPage() {
       createdAt: Timestamp.now(),
     };
 
-    addDoc(collection(db, "appointments"), appointmentData)
-      .then(() => {
-        toast({
-          title: "Sucesso!",
-          description: "Seu agendamento foi realizado com sucesso.",
-        });
-        router.push('/client/my-appointments');
-      })
-      .catch(async (err) => {
-        const error = new FirestorePermissionError({
-          path: 'appointments',
-          operation: 'create',
-          requestResourceData: appointmentData,
-        });
-        errorEmitter.emit('permission-error', error);
-      })
-      .finally(() => setLoading(false));
+    try {
+      // 1. Criar o agendamento
+      await addDoc(collection(db, "appointments"), appointmentData);
+
+      // 2. Notificar o barbeiro
+      const notificationData = {
+        toId: MASTER_BARBER_ID,
+        fromName: user.displayName || 'Cliente',
+        type: 'new_appointment',
+        message: `Novo agendamento: ${selectedService?.name} em ${format(appointmentDate, "dd/MM 'às' HH:mm")}`,
+        read: false,
+        createdAt: Timestamp.now()
+      };
+      
+      addDoc(collection(db, "notifications"), notificationData);
+
+      toast({
+        title: "Sucesso!",
+        description: "Seu agendamento foi realizado com sucesso.",
+      });
+      router.push('/client/my-appointments');
+    } catch (err) {
+      const error = new FirestorePermissionError({
+        path: 'appointments',
+        operation: 'create',
+        requestResourceData: appointmentData,
+      });
+      errorEmitter.emit('permission-error', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

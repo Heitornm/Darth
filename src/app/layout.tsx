@@ -1,8 +1,10 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { FirebaseClientProvider } from '@/firebase';
 import { Toaster } from '@/components/ui/toaster';
+import { NotificationListener } from '@/components/NotificationListener';
 
 export const metadata: Metadata = {
   title: 'DarthBarber | Modern Grooming',
@@ -23,6 +25,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground min-h-screen flex flex-col" suppressHydrationWarning>
         <FirebaseClientProvider>
+          <NotificationListener />
           <Navbar />
           <main className="flex-1">
             {children}
