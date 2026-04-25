@@ -35,6 +35,8 @@ export function Navbar() {
       getDoc(doc(db, 'users', user.uid)).then(d => {
         if (d.exists()) setUserRole(d.data().role);
       });
+    } else if (!user) {
+      setUserRole(null);
     }
   }, [user, db, mounted]);
 
@@ -71,6 +73,7 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
+          {/* Apenas exibe navegação se o usuário estiver autenticado */}
           {!isUserLoading && user && (
             <div className="flex items-center gap-1 sm:gap-2 mr-2">
               {isBarber ? (

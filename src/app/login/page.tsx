@@ -154,14 +154,14 @@ export default function LoginPage() {
                   <Label className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Eu sou...</Label>
                   <RadioGroup value={role} onValueChange={(v) => setRole(v as any)} className="flex gap-4">
                     <div className="flex-1">
-                      <Label htmlFor="role-client" className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${role === 'client' ? 'border-primary bg-primary/10' : 'border-muted'}`}>
+                      <Label htmlFor="role-client" className={`flex items-center justify-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${role === 'client' ? 'border-primary bg-primary/10' : 'border-muted'}`}>
                         <RadioGroupItem value="client" id="role-client" className="sr-only" />
                         <UserCircle className="w-5 h-5" />
                         <span className="font-bold text-sm">Cliente</span>
                       </Label>
                     </div>
                     <div className="flex-1">
-                      <Label htmlFor="role-barber" className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${role === 'barber' ? 'border-accent bg-accent/10' : 'border-muted'}`}>
+                      <Label htmlFor="role-barber" className={`flex items-center justify-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${role === 'barber' ? 'border-accent bg-accent/10' : 'border-muted'}`}>
                         <RadioGroupItem value="barber" id="role-barber" className="sr-only" />
                         <Briefcase className="w-5 h-5" />
                         <span className="font-bold text-sm">Barbeiro</span>
