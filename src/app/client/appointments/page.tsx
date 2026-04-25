@@ -82,7 +82,7 @@ export default function ClientAppointmentsPage() {
       price: selectedService?.price,
       dataHora: Timestamp.fromDate(appointmentDate),
       status: 'pendente',
-      aiSummary: aiSummary, // Adicionado resumo da IA se existir
+      aiSummary: aiSummary,
       createdAt: Timestamp.now(),
     };
 
@@ -92,7 +92,7 @@ export default function ClientAppointmentsPage() {
           title: "Sucesso!",
           description: "Seu agendamento foi realizado com sucesso.",
         });
-        // REDIRECIONAMENTO DEFINITIVO
+        // Redirecionamento automático após sucesso
         router.push('/client/my-appointments');
       })
       .catch(async (err) => {

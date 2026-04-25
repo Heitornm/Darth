@@ -17,9 +17,10 @@ export default function MyAppointmentsPage() {
 
   const myAppointmentsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // O filtro por clientId é obrigatório para bater com as Security Rules de Clientes
     return query(
       collection(db, "appointments"),
-      where("clientEmail", "==", user.email),
+      where("clientId", "==", user.uid),
       orderBy("dataHora", "desc")
     );
   }, [db, user]);

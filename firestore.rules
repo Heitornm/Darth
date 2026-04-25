@@ -25,23 +25,28 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Leitura/Lista: Mestre ou dono do registro (pelo UID ou Email)
-      allow read, list: if isSignedIn() && (
+      // Permite leitura se for o mestre ou se o documento pertencer ao cliente
+      allow read: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email)) ||
-        (resource == null) // Permite a query inicial que será filtrada
+        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email))
       );
       
-      // Criação: Mestre ou usuário logado vinculando seu próprio ID/Email
+      // Permite listagem (queries) apenas se houver filtro por clientId ou se for mestre
+      allow list: if isSignedIn() && (
+        isMasterBarber() || 
+        (request.query.limit <= 100 && (resource == null || resource.data.clientId == request.auth.uid))
+      );
+      
+      // Criação: Mestre ou usuário logado vinculando seu próprio ID
       allow create: if isSignedIn() && (
         isMasterBarber() || 
-        (request.resource.data.clientId == request.auth.uid && request.resource.data.clientEmail == request.auth.token.email)
+        (request.resource.data.clientId == request.auth.uid)
       );
 
       // Edição/Exclusão: Mestre ou dono
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email))
+        (resource != null && resource.data.clientId == request.auth.uid)
       );
     }
     
