@@ -69,7 +69,7 @@ export function Navbar() {
               ) : (
                 <>
                   <NavLink href="/client/appointments" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                  <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Meus Agendamentos" />
+                  <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
                 </>
               )
             ) : null}
