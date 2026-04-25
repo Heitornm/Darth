@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -25,11 +24,17 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura se for o mestre ou se o documento pertencer ao cliente
-      allow read, list: if isSignedIn() && (
+      // Permite leitura individual se for o mestre ou o dono
+      allow get: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email)) ||
-        (request.query.limit <= 100 && request.query.filters.size() > 0 && request.query.filters[0].op == '==' && request.query.filters[0].field == 'clientId' && request.query.filters[0].value == request.auth.uid)
+        resource.data.clientId == request.auth.uid || 
+        resource.data.clientEmail == request.auth.token.email
+      );
+
+      // Permite listagem (query) se for o mestre ou se houver filtro pelo clientId do usuário
+      allow list: if isSignedIn() && (
+        isMasterBarber() || 
+        request.query.filters.clientId == request.auth.uid
       );
       
       // Criação: Usuário logado vinculando seu próprio ID

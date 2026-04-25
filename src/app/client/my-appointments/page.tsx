@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Clock, Scissors, AlertCircle } from 'lucide-react';
+import { CalendarDays, Clock, Scissors } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -28,6 +27,7 @@ export default function MyAppointmentsPage() {
     }
 
     // SE FOR CLIENTE: O filtro 'where' é OBRIGATÓRIO para bater com a regra de segurança
+    // O Firestore exige que a query seja tão restritiva quanto a regra de listagem.
     return query(
       appointmentsRef,
       where("clientId", "==", user.uid),
