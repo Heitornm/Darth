@@ -11,15 +11,25 @@ import { CalendarDays, Clock, Scissors, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
+const BARBER_EMAIL = "darthbarber@darth.com.br";
+
 export default function MyAppointmentsPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
   const myAppointmentsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // O filtro por clientId é obrigatório para bater com as Security Rules de Clientes
+    
+    const appointmentsRef = collection(db, "appointments");
+    
+    // Se for o barbeiro mestre, ele pode listar tudo para fins de gerenciamento
+    if (user.email === BARBER_EMAIL) {
+      return query(appointmentsRef, orderBy("dataHora", "desc"));
+    }
+
+    // SE FOR CLIENTE: O filtro 'where' é OBRIGATÓRIO para bater com a regra de segurança
     return query(
-      collection(db, "appointments"),
+      appointmentsRef,
       where("clientId", "==", user.uid),
       orderBy("dataHora", "desc")
     );

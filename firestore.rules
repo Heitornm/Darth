@@ -26,18 +26,13 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
       // Permite leitura se for o mestre ou se o documento pertencer ao cliente
-      allow read: if isSignedIn() && (
+      allow read, list: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email))
+        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email)) ||
+        (request.query.limit <= 100 && request.query.filters.size() > 0 && request.query.filters[0].op == '==' && request.query.filters[0].field == 'clientId' && request.query.filters[0].value == request.auth.uid)
       );
       
-      // Permite listagem (queries) apenas se houver filtro por clientId ou se for mestre
-      allow list: if isSignedIn() && (
-        isMasterBarber() || 
-        (request.query.limit <= 100 && (resource == null || resource.data.clientId == request.auth.uid))
-      );
-      
-      // Criação: Mestre ou usuário logado vinculando seu próprio ID
+      // Criação: Usuário logado vinculando seu próprio ID
       allow create: if isSignedIn() && (
         isMasterBarber() || 
         (request.resource.data.clientId == request.auth.uid)
