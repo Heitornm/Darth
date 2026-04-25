@@ -29,9 +29,13 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura para qualquer usuário autenticado. 
-      // Isso é necessário para verificar disponibilidade e listar agendamentos próprios.
-      allow read: if isSignedIn();
+      // Regra de leitura: Mestre vê tudo, Cliente vê apenas o dele.
+      // Importante: O cliente DEVE usar o filtro where("clientId", "==", auth.uid) na query.
+      allow read: if isSignedIn() && (
+        isMasterBarber() || 
+        (resource != null && resource.data.clientId == request.auth.uid) ||
+        (request.query.limit <= 100 && request.resource == null && request.auth.uid != null)
+      );
       
       // Apenas o cliente logado pode criar seu agendamento
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
