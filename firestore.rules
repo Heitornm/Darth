@@ -29,16 +29,14 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura se for o barbeiro mestre ou se o documento pertencer ao usuário logado.
-      // O Firestore exige que a query do cliente contenha um filtro que bata com essa regra.
-      allow read: if isSignedIn() && (
-        isMasterBarber() || 
-        (resource != null && resource.data.clientId == request.auth.uid) ||
-        (resource != null && resource.data.barberId == request.auth.uid)
-      );
+      // Permite leitura para qualquer usuário autenticado. 
+      // Isso é necessário para verificar disponibilidade e listar agendamentos próprios.
+      allow read: if isSignedIn();
       
+      // Apenas o cliente logado pode criar seu agendamento
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
+      // Apenas o barbeiro mestre ou o próprio cliente podem editar/cancelar
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
         (resource != null && resource.data.clientId == request.auth.uid)

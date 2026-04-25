@@ -95,7 +95,7 @@ export default function LoginPage() {
           <div className="mx-auto bg-primary w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
             <Scissors className="text-primary-foreground w-8 h-8" />
           </div>
-          <CardTitle className="text-3xl font-headline font-bold">DarthBarber</CardTitle>
+          <CardTitle className="text-3xl font-headline font-bold text-primary">DarthBarber</CardTitle>
           <CardDescription>Crie sua conta ou acesse para agendar seu estilo.</CardDescription>
         </CardHeader>
         <CardContent>
