@@ -1,10 +1,11 @@
+
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, Scissors, ChevronRight, CheckCircle2, Star } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const SERVICES = [
   { 
@@ -13,7 +14,8 @@ const SERVICES = [
     price: 50, 
     durationMinutes: 30, 
     desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
-    image: 'https://picsum.photos/seed/haircut1/600/400',
+    image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageHint || '',
     features: ['Acabamento a navalha', 'Lavagem inclusa', 'Finalização com pomada']
   },
   { 
@@ -22,7 +24,8 @@ const SERVICES = [
     price: 40, 
     durationMinutes: 30, 
     desc: 'Tratamento completo para sua barba. Inclui design personalizado, toalha quente e óleos premium para hidratação.',
-    image: 'https://picsum.photos/seed/beard1/600/400',
+    image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageHint || '',
     features: ['Toalha quente', 'Massagem facial', 'Alinhamento de fios']
   },
   { 
@@ -31,7 +34,8 @@ const SERVICES = [
     price: 80, 
     durationMinutes: 60, 
     desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba para uma renovação total da sua imagem.',
-    image: 'https://picsum.photos/seed/combo1/600/400',
+    image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageHint || '',
     features: ['Corte completo', 'Barba completa', 'Cerveja cortesia']
   },
   { 
@@ -40,7 +44,8 @@ const SERVICES = [
     price: 70, 
     durationMinutes: 45, 
     desc: 'Para quem busca exclusividade. Inclui lavagem com produtos de alta performance e técnicas avançadas de visagismo.',
-    image: 'https://picsum.photos/seed/haircut2/600/400',
+    image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageHint || '',
     features: ['Visagismo facial', 'Produtos importados', 'Atendimento prioritário']
   },
 ];
@@ -71,6 +76,7 @@ export default function ServicesPage() {
                   src={service.image} 
                   alt={service.name} 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  data-ai-hint={service.hint}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
                 <div className="absolute bottom-4 left-4">

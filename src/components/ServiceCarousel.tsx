@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -14,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Clock, Scissors, CreditCard, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const SERVICES = [
   { 
@@ -21,32 +23,36 @@ const SERVICES = [
     name: 'Corte Clássico', 
     price: 50, 
     durationMinutes: 30, 
-    desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto e acabamento limpo.',
-    image: 'https://picsum.photos/seed/haircut1/600/400'
+    desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
+    image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageHint || ''
   },
   { 
     id: 'srv-2', 
     name: 'Barba Completa', 
     price: 40, 
     durationMinutes: 30, 
-    desc: 'Tratamento completo para sua barba. Inclui design personalizado, toalha quente para abrir os poros e óleos premium para hidratação profunda.',
-    image: 'https://picsum.photos/seed/beard1/600/400'
+    desc: 'Tratamento completo para sua barba. Inclui design personalizado, toalha quente e óleos premium.',
+    image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageHint || ''
   },
   { 
     id: 'srv-3', 
     name: 'Combo Imperial', 
     price: 80, 
     durationMinutes: 60, 
-    desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba para uma renovação total da sua imagem pessoal.',
-    image: 'https://picsum.photos/seed/combo1/600/400'
+    desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba.',
+    image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageHint || ''
   },
   { 
     id: 'srv-4', 
     name: 'Corte Premium', 
     price: 70, 
     durationMinutes: 45, 
-    desc: 'Para quem busca exclusividade. Inclui lavagem com produtos de alta performance, corte com técnicas avançadas e finalização personalizada.',
-    image: 'https://picsum.photos/seed/haircut2/600/400'
+    desc: 'Para quem busca exclusividade. Lavagem premium e técnicas avançadas de visagismo.',
+    image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || '',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageHint || ''
   },
 ];
 
@@ -74,7 +80,7 @@ export function ServiceCarousel() {
                     src={service.image} 
                     alt={service.name} 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    data-ai-hint="barber service"
+                    data-ai-hint={service.hint}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
                     <span className="text-white text-sm font-bold flex items-center gap-2">
