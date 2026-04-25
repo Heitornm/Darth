@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { query, collection, where, Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -35,6 +34,11 @@ export default function BarberDashboardPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user || user.email !== BARBER_EMAIL) return null;
@@ -43,7 +47,7 @@ export default function BarberDashboardPage() {
 
   const { data: allAppointments, isLoading, error } = useCollection(appointmentsQuery);
 
-  if (isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline font-bold">Analisando dados da barbearia...</div>;
+  if (!isClient || isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline font-bold">Analisando dados da barbearia...</div>;
   
   if (!user || user.email !== BARBER_EMAIL) {
     return (
@@ -65,8 +69,8 @@ export default function BarberDashboardPage() {
         <Card className="border-amber-500/50 bg-amber-500/5 max-w-md mx-auto">
           <CardContent className="pt-6 space-y-4">
             <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
-            <h2 className="text-2xl font-headline font-bold">Erro de Sincronização</h2>
-            <p className="text-muted-foreground">Não foi possível carregar os dados do painel no momento.</p>
+            <h2 className="text-2xl font-headline font-bold">Aviso de Acesso</h2>
+            <p className="text-muted-foreground">Verificando permissões da agenda...</p>
           </CardContent>
         </Card>
       </div>

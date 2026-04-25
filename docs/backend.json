@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -39,6 +38,7 @@
         "serviceId": { "type": "string" },
         "serviceName": { "type": "string" },
         "durationMinutes": { "type": "number" },
+        "price": { "type": "number" },
         "dataHora": { "type": "object", "description": "Firestore Timestamp" },
         "status": { "type": "string", "enum": ["pendente", "confirmado", "cancelado"] },
         "createdAt": { "type": "object", "description": "Firestore Timestamp" }
