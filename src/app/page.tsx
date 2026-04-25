@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from '@/components/ui/button';
@@ -12,11 +11,10 @@ export default function Home() {
       <div className="max-w-6xl w-full text-center space-y-16">
         <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-1000">
           <h1 className="text-5xl md:text-7xl font-headline font-bold text-primary tracking-tight">
-            DarthBarber
+            Bem-vindo à DarthBarber
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Seja bem-vindo à experiência definitiva em estilo e precisão. 
-            Escolha um de nossos serviços abaixo e transforme seu visual com quem entende do assunto.
+            Onde a tradição encontra a modernidade. Explore nossos serviços e agende sua experiência.
           </p>
         </div>
 

@@ -13,34 +13,28 @@ service cloud.firestore {
       );
     }
 
-    // Perfil de usuário
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Serviços disponíveis
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isMasterBarber();
     }
 
-    // Agendamentos
     match /appointments/{appointmentId} {
-      // Permite leitura completa para usuários logados (essencial para listagem e verificação de horários)
-      // O erro de 'list' ocorre se não houver permissão explícita no nível da coleção ou se o match for restrito
-      allow read, list: if isSignedIn();
+      // Permite listagem para qualquer usuário logado (necessário para verificação de disponibilidade)
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.uid == resource.data.clientId || isMasterBarber());
       
-      // Permite criar se o clientId for o próprio usuário
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
-      // Permite atualizar ou excluir se for o dono ou o barbeiro mestre
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
         isMasterBarber()
       );
     }
     
-    // Bloqueio padrão
     match /{path=**} {
       allow read, write: if false;
     }

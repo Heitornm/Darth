@@ -3,21 +3,22 @@
     "User": {
       "title": "User",
       "type": "object",
-      "description": "Represents a user (client or barber).",
+      "description": "Representa um usuário (cliente ou barbeiro).",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "phone": { "type": "string" },
         "role": { "type": "string", "enum": ["client", "barber"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "email", "role", "createdAt"]
     },
     "Service": {
       "title": "Service",
       "type": "object",
-      "description": "Barbershop service.",
+      "description": "Serviços da barbearia.",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
@@ -29,7 +30,7 @@
     "Appointment": {
       "title": "Appointment",
       "type": "object",
-      "description": "Scheduled booking.",
+      "description": "Registro de agendamento.",
       "properties": {
         "id": { "type": "string" },
         "clientId": { "type": "string" },
@@ -52,15 +53,15 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/User",
-      "description": "User profiles."
+      "description": "Perfis de usuários."
     },
     "/services/{serviceId}": {
       "schema": "#/backend/entities/Service",
-      "description": "Available services."
+      "description": "Serviços disponíveis."
     },
     "/appointments/{appointmentId}": {
       "schema": "#/backend/entities/Appointment",
-      "description": "Booking records."
+      "description": "Registros de agendamentos."
     }
   }
 }

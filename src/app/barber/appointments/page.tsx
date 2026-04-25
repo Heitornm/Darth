@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -67,10 +66,10 @@ export default function BarberAppointmentsPage() {
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl font-headline font-bold text-primary mb-2">Agendamentos</h1>
-          <p className="text-muted-foreground">Seu cronograma completo de atendimentos e compromissos.</p>
+          <p className="text-muted-foreground">Seu cronograma completo de atendimentos.</p>
         </div>
         <Badge variant="outline" className="text-xs py-1 px-3 border-primary/30 text-primary">
-          Modo Administrador Ativo
+          Modo Administrador
         </Badge>
       </header>
 
@@ -80,7 +79,7 @@ export default function BarberAppointmentsPage() {
             <CardHeader>
               <CardTitle className="font-headline flex items-center gap-2 text-lg">
                 <CalendarIcon className="w-5 h-5 text-primary" />
-                Navegação por Data
+                Calendário
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
@@ -94,7 +93,7 @@ export default function BarberAppointmentsPage() {
                   hasApt: (date) => datesWithAppointments.some(d => isSameDay(d, date))
                 }}
                 modifiersClassNames={{
-                  hasApt: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-green-500 after:rounded-full font-bold text-green-500"
+                  hasApt: "bg-green-500/20 text-green-500 font-bold hover:bg-green-500/40"
                 }}
               />
             </CardContent>
@@ -104,18 +103,15 @@ export default function BarberAppointmentsPage() {
         <div className="lg:col-span-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/40 p-5 rounded-2xl border border-border/50">
             <div>
-              <h2 className="text-2xl font-headline font-bold">
+              <h2 className="text-2xl font-headline font-bold uppercase tracking-tight">
                 {selectedDate ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR }) : 'Selecione um dia'}
               </h2>
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <span className="capitalize">{selectedDate ? format(selectedDate, "EEEE", { locale: ptBR }) : ''}</span>
-                {selectedDate && isSameDay(selectedDate, new Date()) && (
-                  <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-none px-2 py-0 h-5 text-[10px]">HOJE</Badge>
-                )}
+              <p className="text-sm text-muted-foreground capitalize">
+                {selectedDate ? format(selectedDate, "EEEE", { locale: ptBR }) : ''}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Total de atendimentos</p>
+              <p className="text-xs text-muted-foreground uppercase font-bold">Total</p>
               <p className="text-3xl font-headline font-bold text-primary">{appointmentsForSelectedDate?.length || 0}</p>
             </div>
           </div>
@@ -125,13 +121,9 @@ export default function BarberAppointmentsPage() {
           ) : !appointmentsForSelectedDate || appointmentsForSelectedDate.length === 0 ? (
             <Card className="border-dashed border-2 bg-muted/10 py-24 text-center">
               <CardContent className="space-y-4">
-                <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mx-auto opacity-30">
-                  <CalendarDays className="w-10 h-10" />
-                </div>
-                <div className="max-w-xs mx-auto">
-                  <h3 className="text-xl font-bold">Agenda livre</h3>
-                  <p className="text-muted-foreground text-sm">Não há agendamentos para esta data até o momento.</p>
-                </div>
+                <CalendarDays className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+                <h3 className="text-xl font-bold">Agenda livre</h3>
+                <p className="text-muted-foreground text-sm">Nenhum agendamento para este dia.</p>
               </CardContent>
             </Card>
           ) : (
@@ -139,47 +131,34 @@ export default function BarberAppointmentsPage() {
               {appointmentsForSelectedDate.map(apt => {
                 const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
                 return (
-                  <Card key={apt.id} className="hover:border-primary/40 transition-all group overflow-hidden border-l-4 border-l-primary bg-card/60">
+                  <Card key={apt.id} className="hover:border-primary/40 transition-all border-l-4 border-l-primary bg-card/60">
                     <CardContent className="p-0">
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
-                        <div className="bg-primary/10 p-6 flex flex-col items-center justify-center min-w-[130px] border-r border-border/50">
-                          <Clock className="w-5 h-5 text-primary mb-2" />
-                          <span className="text-3xl font-bold text-primary">{format(date, 'HH:mm')}</span>
+                        <div className="bg-primary/10 p-6 flex flex-col items-center justify-center min-w-[120px]">
+                          <Clock className="w-5 h-5 text-primary mb-1" />
+                          <span className="text-2xl font-bold text-primary">{format(date, 'HH:mm')}</span>
                         </div>
                         
                         <div className="p-6 flex-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/20">
-                                <User className="w-5 h-5 text-primary" />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-xl group-hover:text-primary transition-colors">
-                                  {apt.clientName}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">Cliente DarthBarber</p>
-                              </div>
+                              <User className="w-5 h-5 text-primary" />
+                              <h4 className="font-bold text-xl">{apt.clientName}</h4>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="secondary" className="flex items-center gap-1.5 bg-muted/80 font-normal">
-                                <Scissors className="w-3.5 h-3.5" />
+                              <Badge variant="secondary" className="bg-muted/80">
+                                <Scissors className="w-3.5 h-3.5 mr-1" />
                                 {apt.serviceName}
                               </Badge>
-                              <Badge variant="secondary" className="flex items-center gap-1.5 bg-muted/80 font-normal">
-                                <Clock className="w-3.5 h-3.5" />
+                              <Badge variant="secondary" className="bg-muted/80">
                                 {apt.durationMinutes} min
                               </Badge>
                             </div>
                           </div>
                           
-                          <div className="flex flex-col items-end gap-3 self-end sm:self-center">
-                            <div className="flex items-center gap-2 text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full border border-green-500/20">
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span className="text-xs font-bold uppercase tracking-widest">Confirmado</span>
-                            </div>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                              ID: {apt.id.slice(0, 8)}
-                            </span>
+                          <div className="flex items-center gap-2 text-green-500 font-bold uppercase text-xs">
+                            <CheckCircle2 className="w-4 h-4" />
+                            Confirmado
                           </div>
                         </div>
                       </div>

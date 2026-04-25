@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -81,7 +80,7 @@ export function Navbar() {
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0 focus-visible:ring-0">
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0">
                   <User className="w-5 h-5 text-primary" />
                 </Button>
               </DropdownMenuTrigger>
@@ -95,14 +94,14 @@ export function Navbar() {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer focus:bg-primary/10">
+                <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/profile" className="flex items-center w-full">
-                    <Settings className="w-4 h-4 mr-2 text-primary" />
+                    <Settings className="w-4 h-4 mr-2" />
                     Editar Perfil
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer focus:bg-red-500/10">
+                <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sair da Conta
                 </DropdownMenuItem>
