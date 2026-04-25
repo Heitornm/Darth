@@ -7,10 +7,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     function isMasterBarber() {
       return isSignedIn() && (
         request.auth.token.email == 'darthbarber@darth.com.br' || 
@@ -20,7 +16,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId) || isMasterBarber();
+      allow write: if isSignedIn() && (request.auth.uid == userId || isMasterBarber());
     }
 
     match /services/{serviceId} {
@@ -29,11 +25,11 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Leitura: Mestre ou dono do e-mail
+      // Leitura: Mestre ou dono do e-mail (necessário filtro where na query)
       allow read: if isSignedIn() && (
         isMasterBarber() || 
         (resource != null && resource.data.clientEmail == request.auth.token.email) ||
-        (resource == null)
+        (resource == null) // Permite a verificação inicial
       );
       
       // Criação: Mestre ou usuário logado vinculando seu próprio e-mail
