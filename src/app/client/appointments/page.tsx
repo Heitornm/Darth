@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors, User as UserIcon, CheckCircle2 } from 'lucide-react';
-import { format, addMinutes, isWithinInterval, parseISO } from 'date-fns';
+import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2 } from 'lucide-react';
+import { format, addMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Calendar } from '@/components/ui/calendar';
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useFirestore, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
@@ -32,7 +31,6 @@ const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00'
 ];
 
-// O UID do barbeiro mestre definido pelo usuário
 const MASTER_BARBER_ID = 'darth-barber-main'; 
 
 export default function ClientAppointmentsPage() {
@@ -46,9 +44,9 @@ export default function ClientAppointmentsPage() {
   const [time, setTime] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  // Busca agendamentos do dia para verificar disponibilidade
+  // Busca agendamentos do dia para verificar disponibilidade - Garantindo que só rode se tiver usuário
   const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !date) return null;
+    if (!db || !date || !user) return null;
     const start = new Date(date);
     start.setHours(0,0,0,0);
     const end = new Date(date);
@@ -59,7 +57,7 @@ export default function ClientAppointmentsPage() {
       where("dataHora", ">=", Timestamp.fromDate(start)),
       where("dataHora", "<=", Timestamp.fromDate(end))
     );
-  }, [db, date]);
+  }, [db, date, user]);
 
   const { data: existingAppointments } = useCollection(appointmentsQuery);
 
@@ -74,10 +72,8 @@ export default function ClientAppointmentsPage() {
     const end = addMinutes(start, selectedService.durationMinutes);
 
     return !existingAppointments.some(apt => {
-      const aptStart = apt.dataHora.toDate();
-      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30); // Fallback to 30
-
-      // Lógica de sobreposição: (StartA < EndB) e (EndA > StartB)
+      const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
       return (start < aptEnd) && (end > aptStart);
     });
   };
@@ -98,15 +94,6 @@ export default function ClientAppointmentsPage() {
       return;
     }
 
-    if (!isSlotAvailable(time)) {
-      toast({
-        title: "Horário ocupado",
-        description: "Este horário conflita com outro agendamento. Escolha outro.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     const [hours, minutes] = time.split(':').map(Number);
     const appointmentDate = new Date(date);
@@ -115,10 +102,11 @@ export default function ClientAppointmentsPage() {
     const appointmentData = {
       clientId: user.uid,
       clientName: user.displayName || user.email,
-      barberId: MASTER_BARBER_ID, // Sempre agendando com o DarthBarber
+      barberId: MASTER_BARBER_ID,
       serviceId,
       serviceName: selectedService?.name,
       durationMinutes: selectedService?.durationMinutes,
+      price: selectedService?.price,
       dataHora: Timestamp.fromDate(appointmentDate),
       status: 'pendente',
       createdAt: Timestamp.now(),
@@ -130,7 +118,7 @@ export default function ClientAppointmentsPage() {
       title: "Sucesso!",
       description: "Seu agendamento foi realizado com sucesso.",
     });
-    router.push('/');
+    router.push('/client/my-appointments');
   };
 
   return (

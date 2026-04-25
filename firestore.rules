@@ -24,7 +24,7 @@ service cloud.firestore {
     // Agendamentos
     match /appointments/{appointmentId} {
       // Permite leitura (get e list) para qualquer usuário autenticado.
-      // Isso é necessário para que clientes vejam horários ocupados e o barbeiro veja sua agenda.
+      // Essencial para verificar horários ocupados e para o barbeiro ver sua agenda.
       allow read: if isSignedIn();
       
       // Permite criar agendamento se o clientId corresponder ao usuário logado
