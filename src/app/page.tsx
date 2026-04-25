@@ -16,9 +16,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(false);
-    const timer = setTimeout(() => setMounted(true), 100);
-    return () => clearTimeout(timer);
+    setMounted(true);
   }, []);
 
   const barberImage = PlaceHolderImages.find(img => img.id === 'barber-profile');
