@@ -41,7 +41,6 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({ title: "Bem-vindo de volta!", description: "Acesso realizado com sucesso." });
-      router.push('/');
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -76,7 +75,6 @@ export default function LoginPage() {
       }
 
       toast({ title: "Conta criada!", description: `Bem-vindo, ${name}.` });
-      router.push('/');
     } catch (error: any) {
       toast({
         variant: "destructive",

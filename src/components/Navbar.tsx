@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn as LogInIcon, ClipboardList, Settings } from 'lucide-react';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu, 
@@ -19,34 +20,28 @@ const BARBER_EMAIL = "darthbarber@darth.com.br";
 export function Navbar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (user && db) {
+      getDoc(doc(db, 'users', user.uid)).then(d => {
+        if (d.exists()) setUserRole(d.data().role);
+      });
+    }
+  }, [user, db]);
 
   const handleLogout = async () => {
     await auth.signOut();
     router.push('/');
   };
 
-  const isBarber = user?.email === BARBER_EMAIL;
+  const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
-  if (!mounted) {
-    return (
-      <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-18 flex items-center justify-between py-3">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary p-2 rounded-xl">
-              <Scissors className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="font-headline font-bold text-2xl tracking-tighter">DarthBarber</span>
-          </div>
-        </div>
-      </nav>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
