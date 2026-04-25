@@ -6,9 +6,15 @@ import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
 import { LogIn, Scissors, ChevronRight } from 'lucide-react';
 import { useUser } from '@/firebase';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="flex flex-col items-center min-h-[85vh] px-4 py-12 md:py-20">
@@ -27,7 +33,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center gap-6">
-          {!isUserLoading && (
+          {mounted && !isUserLoading && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {user ? (
                 <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
