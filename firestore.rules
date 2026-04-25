@@ -29,15 +29,14 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Regra de leitura: Mestre vê tudo, Cliente vê apenas o dele.
-      // Importante: O cliente DEVE usar o filtro where("clientId", "==", auth.uid) na query.
+      // Permite leitura se for o barbeiro mestre ou se o agendamento pertencer ao usuário (clientId)
       allow read: if isSignedIn() && (
         isMasterBarber() || 
         (resource != null && resource.data.clientId == request.auth.uid) ||
-        (request.query.limit <= 100 && request.resource == null && request.auth.uid != null)
+        (resource == null && request.auth.uid != null) // Permite que a query de listagem seja avaliada pelo filtro
       );
       
-      // Apenas o cliente logado pode criar seu agendamento
+      // Apenas o cliente logado pode criar seu agendamento vinculando seu próprio UID
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
       // Apenas o barbeiro mestre ou o próprio cliente podem editar/cancelar

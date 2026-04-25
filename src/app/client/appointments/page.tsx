@@ -88,7 +88,7 @@ export default function ClientAppointmentsPage() {
           title: "Sucesso!",
           description: "Seu agendamento foi realizado com sucesso.",
         });
-        // REDIRECIONAMENTO APÓS SUCESSO
+        // Redireciona o cliente para visualizar suas reservas
         router.push('/client/my-appointments');
       })
       .catch(async (err) => {

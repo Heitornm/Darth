@@ -55,7 +55,7 @@ export function Navbar() {
             <div className="bg-primary p-2 rounded-xl">
               <Scissors className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="font-headline font-bold text-2xl tracking-tighter">DarthBarber</span>
+            <span className="font-headline font-bold text-2xl tracking-tighter text-foreground">DarthBarber</span>
           </div>
         </div>
       </nav>
@@ -69,7 +69,7 @@ export function Navbar() {
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
             <Scissors className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="font-headline font-bold text-2xl tracking-tighter hidden sm:block">DarthBarber</span>
+          <span className="font-headline font-bold text-2xl tracking-tighter hidden sm:block text-foreground">DarthBarber</span>
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
