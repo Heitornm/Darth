@@ -23,21 +23,20 @@ service cloud.firestore {
 
     // Agendamentos
     match /appointments/{appointmentId} {
-      // Permite leitura (get e list) para qualquer usuário autenticado.
-      // Essencial para verificar horários ocupados e para o barbeiro ver sua agenda.
-      allow get, list: if isSignedIn();
+      // Permite leitura completa para usuários logados (essencial para listagem e verificação de horários)
+      allow read: if isSignedIn();
       
-      // Permite criar agendamento se o clientId corresponder ao usuário logado
+      // Permite criar se o clientId for o próprio usuário
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
-      // Permite atualizar ou excluir se for o dono do agendamento ou o barbeiro mestre
+      // Permite atualizar ou excluir se for o dono ou o barbeiro mestre
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
         isMasterBarber()
       );
     }
     
-    // Bloqueio padrão para outros caminhos
+    // Bloqueio padrão
     match /{path=**} {
       allow read, write: if false;
     }

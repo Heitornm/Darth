@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Home, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Home, RotateCcw, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -14,38 +14,47 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log do erro para fins de monitoramento interno
-    console.error('App Error:', error);
+    // Silencia erros conhecidos de permissão no console se desejar, ou apenas loga para debug
+    console.error('App Runtime Error:', error);
   }, [error]);
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <Card className="max-w-md w-full border-destructive/20 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto bg-destructive/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="text-destructive w-8 h-8" />
+    <div className="min-h-[85vh] flex items-center justify-center p-4 bg-background">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
+      
+      <Card className="max-w-md w-full border-destructive/20 bg-card/60 backdrop-blur-xl shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-500">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto bg-destructive/10 w-20 h-20 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20">
+            <ShieldAlert className="text-destructive w-10 h-10 animate-pulse" />
           </div>
-          <CardTitle className="text-2xl font-headline font-bold">Oops!</CardTitle>
+          <CardTitle className="text-3xl font-headline font-bold tracking-tight">Oops!</CardTitle>
         </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <p className="text-xl font-medium">Não foi possível atender a solicitação.</p>
-          <p className="text-muted-foreground text-sm">
-            Ocorreu um erro inesperado ao processar sua ação. Nossa equipe já foi notificada.
-          </p>
+        <CardContent className="text-center space-y-6 pt-2">
+          <div className="space-y-2">
+            <p className="text-xl font-bold text-foreground/90">Não foi possível atender a solicitação.</p>
+            <p className="text-muted-foreground text-sm leading-relaxed px-4">
+              Ocorreu uma instabilidade momentânea ou erro de permissão. 
+              Não se preocupe, seus dados estão seguros.
+            </p>
+          </div>
+          
+          <div className="p-3 bg-muted/30 rounded-lg text-[10px] font-mono text-muted-foreground break-all opacity-50">
+            Erro: {error.message || "Erro desconhecido no sistema."}
+          </div>
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row gap-3">
+        <CardFooter className="flex flex-col gap-3 pb-8 px-8">
           <Button 
-            variant="outline" 
-            className="w-full gap-2" 
+            variant="default" 
+            className="w-full h-12 gap-2 font-bold shadow-lg shadow-primary/20"
             onClick={() => reset()}
           >
             <RotateCcw className="w-4 h-4" />
             Tentar Novamente
           </Button>
-          <Button asChild className="w-full gap-2">
+          <Button asChild variant="outline" className="w-full h-12 gap-2 border-primary/20 hover:bg-primary/5">
             <Link href="/">
               <Home className="w-4 h-4" />
-              Tela Inicial
+              Voltar para Tela Inicial
             </Link>
           </Button>
         </CardFooter>
