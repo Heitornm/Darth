@@ -60,7 +60,7 @@ export default function Home() {
                 </Button>
               )}
 
-              {/* Card de Apresentação do Barbeiro - Layout Vertical com Foto Maior */}
+              {/* Card de Apresentação do Barbeiro */}
               <Card className="max-w-[320px] w-full border-primary/20 bg-card/40 backdrop-blur-sm shadow-xl hover:border-primary/40 transition-all duration-300 transform hover:-translate-y-1">
                 <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
                   <Avatar className="h-28 w-28 border-4 border-primary/20 shadow-2xl">
@@ -78,7 +78,7 @@ export default function Home() {
                       <Star className="w-4 h-4 text-accent fill-accent animate-pulse" />
                     </div>
                     <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest px-4 py-1 bg-primary/5 rounded-full border border-primary/10">
-                      Mestre em Visagismo
+                      Barbeiro Profissional
                     </p>
                     <p className="text-xs text-muted-foreground italic pt-2">
                       "Transformando o clássico em mestre."
