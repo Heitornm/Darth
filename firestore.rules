@@ -24,14 +24,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite listagem para qualquer usuário logado (necessário para verificação de disponibilidade e gestão)
-      allow list: if isSignedIn();
-      
-      // Permite leitura individual se for o dono do agendamento ou o barbeiro mestre
-      allow get: if isSignedIn() && (
-        resource.data.clientId == request.auth.uid || 
-        isMasterBarber()
-      );
+      // Permite leitura para qualquer usuário logado (necessário para verificação de disponibilidade)
+      allow read: if isSignedIn();
       
       // Permite criação se o cliente for o próprio usuário logado
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
