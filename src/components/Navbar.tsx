@@ -33,6 +33,7 @@ export function Navbar() {
 
   const isBarber = user?.email === BARBER_EMAIL;
 
+  // Previne erros de hidratação retornando uma versão estável até o cliente estar pronto
   if (!mounted) {
     return (
       <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">

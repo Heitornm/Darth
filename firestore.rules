@@ -14,7 +14,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /services/{serviceId} {
@@ -23,12 +24,19 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite listagem para qualquer usuário logado (necessário para verificação de disponibilidade)
+      // Permite listagem para qualquer usuário logado (necessário para verificação de disponibilidade e gestão)
       allow list: if isSignedIn();
-      allow get: if isSignedIn() && (request.auth.uid == resource.data.clientId || isMasterBarber());
       
+      // Permite leitura individual se for o dono do agendamento ou o barbeiro mestre
+      allow get: if isSignedIn() && (
+        request.auth.uid == resource.data.clientId || 
+        isMasterBarber()
+      );
+      
+      // Permite criação se o cliente for o próprio usuário logado
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
+      // Permite atualização e deleção pelo dono ou pelo barbeiro mestre
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
         isMasterBarber()
