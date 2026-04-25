@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ export default function Home() {
 
         <div className="flex flex-col items-center gap-10">
           {mounted && !isUserLoading ? (
-            <div className="flex flex-col items-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="flex flex-col items-center gap-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {user ? (
                 <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
                   <Link href="/client/appointments">
@@ -59,23 +60,29 @@ export default function Home() {
                 </Button>
               )}
 
-              {/* Card de Apresentação do Barbeiro */}
-              <Card className="max-w-xs w-full border-primary/20 bg-card/40 backdrop-blur-sm shadow-xl hover:border-primary/40 transition-all duration-300">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <Avatar className="h-14 w-14 border-2 border-primary/20">
+              {/* Card de Apresentação do Barbeiro - Layout Vertical com Foto Maior */}
+              <Card className="max-w-[320px] w-full border-primary/20 bg-card/40 backdrop-blur-sm shadow-xl hover:border-primary/40 transition-all duration-300 transform hover:-translate-y-1">
+                <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
+                  <Avatar className="h-28 w-28 border-4 border-primary/20 shadow-2xl">
                     <AvatarImage 
                       src={barberImage?.imageUrl} 
                       alt="Darth Barber" 
                       data-ai-hint={barberImage?.imageHint}
                     />
-                    <AvatarFallback className="bg-primary/10 text-primary">DB</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">DB</AvatarFallback>
                   </Avatar>
-                  <div className="text-left">
-                    <div className="flex items-center gap-1">
-                      <p className="font-headline font-bold text-foreground">Darth Barber</p>
-                      <Star className="w-3 h-3 text-accent fill-accent" />
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      <h2 className="font-headline font-bold text-2xl text-foreground tracking-tight">Darth Barber</h2>
+                      <Star className="w-4 h-4 text-accent fill-accent animate-pulse" />
                     </div>
-                    <p className="text-xs text-muted-foreground font-medium">Mestre em Visagismo e Barboterapia</p>
+                    <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest px-4 py-1 bg-primary/5 rounded-full border border-primary/10">
+                      Mestre em Visagismo
+                    </p>
+                    <p className="text-xs text-muted-foreground italic pt-2">
+                      "Transformando o clássico em mestre."
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -83,7 +90,7 @@ export default function Home() {
           ) : (
             <div className="flex flex-col items-center gap-8">
               <div className="h-16 w-64 bg-muted animate-pulse rounded-full"></div>
-              <div className="h-20 w-64 bg-muted animate-pulse rounded-xl"></div>
+              <div className="h-40 w-64 bg-muted animate-pulse rounded-2xl"></div>
             </div>
           )}
         </div>
