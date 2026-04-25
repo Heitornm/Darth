@@ -46,9 +46,6 @@ export default function ClientAppointmentsPage() {
   const [time, setTime] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  // Removida a query de listagem ampla para evitar erros de permissão.
-  // Em uma aplicação real, a disponibilidade seria verificada via Cloud Function ou coleção pública.
-
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
   const handleBooking = async () => {
@@ -91,6 +88,7 @@ export default function ClientAppointmentsPage() {
           title: "Sucesso!",
           description: "Seu agendamento foi realizado com sucesso.",
         });
+        // Redirecionamento após sucesso conforme sugerido
         router.push('/client/my-appointments');
       })
       .catch(async (err) => {

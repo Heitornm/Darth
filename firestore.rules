@@ -29,11 +29,12 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Regra restritiva: Usuário só lê se for dono ou se for o barbeiro mestre
+      // Regra definitiva: Lê se for dono ou mestre. 
+      // Permite listagem se a query for filtrada pelo clientId do usuário logado.
       allow read: if isSignedIn() && (
-        resource == null || // Permite getDoc em docs inexistentes ou durante criação
-        resource.data.clientId == request.auth.uid || 
-        isMasterBarber()
+        isMasterBarber() || 
+        (resource != null && resource.data.clientId == request.auth.uid) ||
+        (resource == null) // Permite queries que podem resultar em documentos vazios
       );
       
       // Permite criação se o clientId for o do usuário logado
@@ -41,8 +42,8 @@ service cloud.firestore {
 
       // Permite atualização/deleção apenas pelo dono ou pelo barbeiro mestre
       allow update, delete: if isSignedIn() && (
-        resource.data.clientId == request.auth.uid || 
-        isMasterBarber()
+        isMasterBarber() || 
+        resource.data.clientId == request.auth.uid
       );
     }
     
