@@ -25,14 +25,9 @@ export default function BarberDashboardPage() {
   useEffect(() => {
     setMounted(true);
     setCurrentDate(new Date());
-    if (!isUserLoading && (!user || user.email !== BARBER_EMAIL)) {
-      // Se não for o barbeiro, redireciona após carregar
-      router.push('/login');
-    }
-  }, [user, isUserLoading, router]);
+  }, []);
 
   const appointmentsQuery = useMemoFirebase(() => {
-    // Só executa a query se for o barbeiro mestre logado
     if (!db || !user || user.email !== BARBER_EMAIL) return null;
     
     const today = new Date();
@@ -48,7 +43,6 @@ export default function BarberDashboardPage() {
 
   const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
 
-  // Evita erros de hidratação
   if (!mounted) return null;
 
   if (isUserLoading || isLoading) {
@@ -59,18 +53,33 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // Se houver erro de permissão ou o usuário não for o barbeiro, mostra card de acesso restrito
-  if (error || (user && user.email !== BARBER_EMAIL)) {
+  // Se não for o barbeiro mestre, mostra aviso de acesso restrito
+  if (!user || user.email !== BARBER_EMAIL) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mb-4 opacity-50" />
-            <h3 className="text-xl font-headline font-bold mb-2">Acesso Restrito</h3>
+            <h3 className="text-xl font-headline font-bold mb-2">Acesso Administrativo</h3>
             <p className="text-muted-foreground max-w-md">
-              Você não tem permissão para visualizar a agenda administrativa. 
-              Certifique-se de estar logado como o Barbeiro Mestre ({BARBER_EMAIL}).
+              Esta área é reservada para o Barbeiro Mestre ({BARBER_EMAIL}). 
+              Por favor, faça login com a conta correta.
             </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Tratamento amigável de erro de carregamento
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="border-muted bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-headline font-bold mb-2">Ops! Algo deu errado</h3>
+            <p className="text-muted-foreground">Não foi possível carregar sua agenda no momento.</p>
           </CardContent>
         </Card>
       </div>
@@ -103,7 +112,7 @@ export default function BarberDashboardPage() {
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
             <Scissors className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
             <h3 className="text-xl font-headline font-semibold mb-2">Sem agendamentos para hoje</h3>
-            <p className="text-muted-foreground">Aproveite o tempo livre para organizar a barbearia!</p>
+            <p className="text-muted-foreground">Nenhum cliente agendado para o dia de hoje.</p>
           </CardContent>
         </Card>
       ) : (
