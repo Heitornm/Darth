@@ -44,7 +44,7 @@ export default function BarberAppointmentsPage() {
       where("barberId", "==", MASTER_BARBER_ID),
       orderBy("dataHora", "asc")
     );
-  }, [db, user, userRole, mounted, isAuthorized]);
+  }, [db, user, mounted, isAuthorized]);
 
   const { data: allAppointments, isLoading, error } = useCollection(appointmentsQuery);
 
@@ -84,14 +84,14 @@ export default function BarberAppointmentsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4">
-          <Card className="border-primary/20 sticky top-24 overflow-hidden mx-auto max-w-sm lg:max-w-none">
-            <CardHeader className="bg-primary/5 py-3">
-              <CardTitle className="font-headline flex items-center gap-2 text-md">
+          <Card className="border-primary/20 sticky top-24 overflow-hidden mx-auto max-w-fit lg:max-w-none">
+            <CardHeader className="bg-primary/5 py-3 border-b border-primary/10">
+              <CardTitle className="font-headline flex items-center gap-2 text-sm uppercase tracking-tighter">
                 <CalendarIcon className="w-4 h-4 text-primary" />
-                Calendário
+                Seletor de Data
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-1">
+            <CardContent className="p-2">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -104,7 +104,7 @@ export default function BarberAppointmentsPage() {
                   hasApt: (date) => datesWithAppointments.some(d => isSameDay(d, date))
                 }}
                 modifiersClassNames={{
-                  hasApt: "bg-green-500/20 text-green-500 font-bold border-green-500/50 border"
+                  hasApt: "bg-green-500/10 text-green-500 font-bold ring-1 ring-inset ring-green-500/30 rounded-full"
                 }}
               />
             </CardContent>
@@ -146,9 +146,9 @@ export default function BarberAppointmentsPage() {
               {appointmentsForSelectedDate.map(apt => {
                 const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
                 return (
-                  <Card key={apt.id} className="border-l-4 border-l-primary overflow-hidden">
+                  <Card key={apt.id} className="border-l-4 border-l-primary overflow-hidden hover:shadow-lg transition-all duration-300">
                     <CardContent className="p-0 flex items-stretch">
-                      <div className="bg-primary/10 p-6 flex flex-col items-center justify-center min-w-[100px]">
+                      <div className="bg-primary/5 p-6 flex flex-col items-center justify-center min-w-[100px] border-r border-primary/10">
                         <Clock className="w-5 h-5 text-primary mb-1" />
                         <span className="text-xl font-bold text-primary">{format(date, 'HH:mm')}</span>
                       </div>
@@ -158,17 +158,20 @@ export default function BarberAppointmentsPage() {
                             <User className="w-4 h-4 text-primary" />
                             <h4 className="font-bold text-lg">{apt.clientName}</h4>
                           </div>
-                          <div className="flex gap-2">
-                            <Badge variant="secondary"><Scissors className="w-3 h-3 mr-1" />{apt.serviceName}</Badge>
-                            <Badge variant="outline">{apt.durationMinutes} min</Badge>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary" className="bg-secondary/50"><Scissors className="w-3 h-3 mr-1" />{apt.serviceName}</Badge>
+                            <Badge variant="outline" className="border-primary/20">{apt.durationMinutes} min</Badge>
                           </div>
                           {apt.aiSummary && (
-                            <p className="text-xs text-muted-foreground italic mt-2 border-l-2 pl-2 border-primary/20">
-                              "{apt.aiSummary}"
-                            </p>
+                            <div className="mt-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
+                              <p className="text-[10px] font-bold text-primary uppercase mb-1 tracking-widest">Resumo do Estilo (IA):</p>
+                              <p className="text-xs text-muted-foreground italic leading-relaxed">
+                                "{apt.aiSummary}"
+                              </p>
+                            </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase">
+                        <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase bg-green-500/5 px-3 py-1.5 rounded-full border border-green-500/20">
                           <CheckCircle2 className="w-4 h-4" /> Confirmado
                         </div>
                       </div>

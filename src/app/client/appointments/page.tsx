@@ -163,7 +163,7 @@ export default function ClientAppointmentsPage() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                        {date ? format(date, "P", { locale: ptBR }) : "Escolha a data"}
+                        {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -174,8 +174,8 @@ export default function ClientAppointmentsPage() {
                         initialFocus
                         locale={ptBR}
                         captionLayout="dropdown-buttons"
-                        fromYear={2024}
-                        toYear={2026}
+                        fromYear={new Date().getFullYear()}
+                        toYear={new Date().getFullYear() + 2}
                         disabled={{ before: new Date() }}
                       />
                     </PopoverContent>
