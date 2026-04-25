@@ -23,20 +23,12 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      allow read: if isSignedIn() && (
+      allow read, list: if isSignedIn() && (
         isMasterBarber() || 
         resource.data.clientId == request.auth.uid ||
         resource.data.barberId == request.auth.uid
       );
       
-      allow list: if isSignedIn() && (
-        isMasterBarber() || 
-        request.query.limit <= 100 && (
-          (resource == null) || // For security reasons, queries must be filtered
-          (resource.data.clientId == request.auth.uid)
-        )
-      );
-
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
@@ -46,7 +38,10 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow create: if isSignedIn();
-      allow read, update, delete: if isSignedIn() && resource.data.toId == request.auth.uid;
+      allow read, list, update, delete: if isSignedIn() && (
+        isMasterBarber() ||
+        resource.data.toId == request.auth.uid
+      );
     }
     
     match /{path=**} {

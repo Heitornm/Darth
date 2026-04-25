@@ -11,7 +11,7 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
 import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
 
-const MASTER_BARBER_ID = 'darth-barber-main';
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 export default function BarberAppointmentsPage() {

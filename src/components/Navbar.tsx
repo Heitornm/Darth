@@ -75,7 +75,7 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="flex items-center min-w-[40px]">
+          <div className="flex items-center min-w-[40px] justify-end">
             {!mounted || isUserLoading ? (
               <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse"></div>
             ) : user ? (

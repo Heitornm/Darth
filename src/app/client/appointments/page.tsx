@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -34,7 +33,7 @@ const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00'
 ];
 
-const MASTER_BARBER_ID = 'darth-barber-main'; 
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1'; 
 
 export default function ClientAppointmentsPage() {
   const router = useRouter();
