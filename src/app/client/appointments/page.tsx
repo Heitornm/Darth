@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -172,6 +173,9 @@ export default function ClientAppointmentsPage() {
                         onSelect={setDate}
                         initialFocus
                         locale={ptBR}
+                        captionLayout="dropdown-buttons"
+                        fromYear={2024}
+                        toYear={2026}
                         disabled={{ before: new Date() }}
                       />
                     </PopoverContent>

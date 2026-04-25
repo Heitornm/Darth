@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -33,7 +34,7 @@ export default function BarberAppointmentsPage() {
     }
   }, [user, db, mounted]);
   
-  const isAuthorized = userRole === 'barber' || user?.email === BARBER_EMAIL;
+  const isAuthorized = userRole === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user || !mounted || !isAuthorized) return null;
@@ -76,27 +77,29 @@ export default function BarberAppointmentsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <header className="mb-10">
+      <header className="mb-10 text-center lg:text-left">
         <h1 className="text-4xl font-headline font-bold text-primary mb-2">Agendamentos</h1>
         <p className="text-muted-foreground">Gerencie sua agenda de atendimentos.</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4">
-          <Card className="border-primary/20 sticky top-24 overflow-hidden">
-            <CardHeader className="bg-primary/5">
-              <CardTitle className="font-headline flex items-center gap-2 text-lg">
-                <CalendarIcon className="w-5 h-5 text-primary" />
+          <Card className="border-primary/20 sticky top-24 overflow-hidden mx-auto max-w-sm lg:max-w-none">
+            <CardHeader className="bg-primary/5 py-3">
+              <CardTitle className="font-headline flex items-center gap-2 text-md">
+                <CalendarIcon className="w-4 h-4 text-primary" />
                 Calendário
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-1">
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 locale={ptBR}
-                className="w-full"
+                captionLayout="dropdown-buttons"
+                fromYear={2024}
+                toYear={2026}
                 modifiers={{
                   hasApt: (date) => datesWithAppointments.some(d => isSameDay(d, date))
                 }}
