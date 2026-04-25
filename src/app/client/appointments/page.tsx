@@ -71,6 +71,7 @@ export default function ClientAppointmentsPage() {
 
     const appointmentData = {
       clientId: user.uid,
+      clientEmail: user.email,
       clientName: user.displayName || user.email,
       barberId: MASTER_BARBER_ID,
       serviceId,
@@ -88,7 +89,6 @@ export default function ClientAppointmentsPage() {
           title: "Sucesso!",
           description: "Seu agendamento foi realizado com sucesso.",
         });
-        // Redireciona o cliente para visualizar suas reservas
         router.push('/client/my-appointments');
       })
       .catch(async (err) => {

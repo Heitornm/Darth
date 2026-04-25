@@ -55,7 +55,7 @@ export function Navbar() {
             <div className="bg-primary p-2 rounded-xl">
               <Scissors className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="font-headline font-bold text-2xl tracking-tighter text-foreground">DarthBarber</span>
+            <span className="font-headline font-bold text-2xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
           </div>
         </div>
       </nav>

@@ -29,20 +29,20 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura se for o barbeiro mestre ou se o agendamento pertencer ao usuário (clientId)
+      // Permite leitura se for o barbeiro mestre ou se o agendamento pertencer ao e-mail do usuário
       allow read: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && resource.data.clientId == request.auth.uid) ||
-        (resource == null && request.auth.uid != null) // Permite que a query de listagem seja avaliada pelo filtro
+        (resource != null && resource.data.clientEmail == request.auth.token.email) ||
+        (resource == null)
       );
       
-      // Apenas o cliente logado pode criar seu agendamento vinculando seu próprio UID
-      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
+      // Apenas usuários logados podem criar agendamentos vinculando seu e-mail
+      allow create: if isSignedIn() && request.resource.data.clientEmail == request.auth.token.email;
 
-      // Apenas o barbeiro mestre ou o próprio cliente podem editar/cancelar
+      // Apenas o barbeiro mestre ou o próprio dono podem editar/cancelar
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && resource.data.clientId == request.auth.uid)
+        (resource != null && resource.data.clientEmail == request.auth.token.email)
       );
     }
     

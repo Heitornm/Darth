@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -18,14 +19,14 @@ export default function MyAppointmentsPage() {
     if (!db || !user) return null;
     return query(
       collection(db, "appointments"),
-      where("clientId", "==", user.uid),
+      where("clientEmail", "==", user.email),
       orderBy("dataHora", "desc")
     );
   }, [db, user]);
 
   const { data: appointments, isLoading } = useCollection(myAppointmentsQuery);
 
-  if (isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse">Carregando seus agendamentos...</div>;
+  if (isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Carregando seus agendamentos...</div>;
 
   if (!user) {
     return (
