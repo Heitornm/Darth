@@ -14,9 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, Timestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 const SERVICES = [
   { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
@@ -44,7 +46,6 @@ export default function ClientAppointmentsPage() {
   const [time, setTime] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  // Busca agendamentos do dia para verificar disponibilidade - Garantindo que só rode se tiver usuário
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !date || !user) return null;
     const start = new Date(date);
@@ -112,13 +113,23 @@ export default function ClientAppointmentsPage() {
       createdAt: Timestamp.now(),
     };
 
-    addDocumentNonBlocking(collection(db, "appointments"), appointmentData);
-    
-    toast({
-      title: "Sucesso!",
-      description: "Seu agendamento foi realizado com sucesso.",
-    });
-    router.push('/client/my-appointments');
+    addDoc(collection(db, "appointments"), appointmentData)
+      .then(() => {
+        toast({
+          title: "Sucesso!",
+          description: "Seu agendamento foi realizado com sucesso.",
+        });
+        router.push('/client/my-appointments');
+      })
+      .catch(async (err) => {
+        const error = new FirestorePermissionError({
+          path: 'appointments',
+          operation: 'create',
+          requestResourceData: appointmentData,
+        });
+        errorEmitter.emit('permission-error', error);
+      })
+      .finally(() => setLoading(false));
   };
 
   return (
@@ -177,6 +188,7 @@ export default function ClientAppointmentsPage() {
                         onSelect={setDate}
                         initialFocus
                         locale={ptBR}
+                        disabled={{ before: new Date() }}
                       />
                     </PopoverContent>
                   </Popover>

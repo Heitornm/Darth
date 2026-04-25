@@ -45,6 +45,7 @@ export function Navbar() {
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
+  // Evita erros de hidratação renderizando apenas após o mount
   if (!mounted) {
     return (
       <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
@@ -71,7 +72,7 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          {/* Apenas exibe links se o usuário estiver autenticado e carregado */}
+          {/* Exibe links apenas se logado e carregado */}
           {!isUserLoading && user && (
             <div className="flex items-center gap-1 sm:gap-2 mr-2">
               {isBarber ? (
@@ -123,7 +124,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild size="sm" className="gap-2 rounded-full px-6">
+            <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
               <Link href="/login">
                 <LogIn className="w-4 h-4" />
                 Entrar

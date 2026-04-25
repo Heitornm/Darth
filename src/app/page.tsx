@@ -38,7 +38,7 @@ export default function Home() {
               ) : (
                 <Link href="/login">
                   <LogIn className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  Entrar
+                  Entrar para Agendar
                   <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
                 </Link>
               )}
