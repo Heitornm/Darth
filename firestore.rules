@@ -24,20 +24,20 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Regra de leitura (get/list): Mestre ou dono do agendamento
+      // Leitura individual ou lista: Mestre tem acesso total, Cliente vê apenas os seus
       allow read: if isSignedIn() && (
         isMasterBarber() || 
         resource.data.clientId == request.auth.uid ||
         resource.data.clientEmail == request.auth.token.email
       );
       
-      // Criação: Usuário logado vinculando seu próprio ID
+      // Criação: Qualquer logado pode criar para si mesmo
       allow create: if isSignedIn() && (
         isMasterBarber() || 
-        (request.resource.data.clientId == request.auth.uid)
+        request.resource.data.clientId == request.auth.uid
       );
 
-      // Edição/Exclusão: Mestre ou dono
+      // Edição/Exclusão: Mestre ou o próprio cliente
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
         (resource != null && resource.data.clientId == request.auth.uid)
