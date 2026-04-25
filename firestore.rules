@@ -24,17 +24,11 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura individual se for o mestre ou o dono
-      allow get: if isSignedIn() && (
+      // Regra de leitura (get/list): Mestre ou dono do agendamento
+      allow read: if isSignedIn() && (
         isMasterBarber() || 
-        resource.data.clientId == request.auth.uid || 
+        resource.data.clientId == request.auth.uid ||
         resource.data.clientEmail == request.auth.token.email
-      );
-
-      // Permite listagem (query) se for o mestre ou se houver filtro pelo clientId do usuário
-      allow list: if isSignedIn() && (
-        isMasterBarber() || 
-        resource.data.clientId == request.auth.uid
       );
       
       // Criação: Usuário logado vinculando seu próprio ID
