@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings } from 'lucide-react';
+import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings, Sparkles } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -23,22 +23,22 @@ export function Navbar() {
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (user && db && mounted) {
+    if (user && db && isMounted) {
       getDoc(doc(db, 'users', user.uid)).then(d => {
         if (d.exists()) setUserRole(d.data().role);
       });
     } else if (!user) {
       setUserRole(null);
     }
-  }, [user, db, mounted]);
+  }, [user, db, isMounted]);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -57,9 +57,10 @@ export function Navbar() {
           <span className="font-headline font-bold text-xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
         </Link>
         
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {mounted && !isUserLoading && user && (
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <NavLink href="/services" icon={<Sparkles className="w-4 h-4" />} label="Serviços" />
+            {isMounted && !isUserLoading && user && (
               <>
                 {isBarber ? (
                   <>
@@ -77,12 +78,12 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center min-w-[40px] justify-end">
-            {!mounted || isUserLoading ? (
+            {!isMounted || isUserLoading ? (
               <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse border border-primary/10"></div>
             ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0">
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0 focus-visible:ring-0">
                     <User className="w-5 h-5 text-primary" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -108,10 +109,10 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button asChild size="sm" className="rounded-full px-6 bg-primary hover:bg-primary/90">
+              <Button asChild size="sm" className="rounded-full px-4 sm:px-6 bg-primary hover:bg-primary/90">
                 <Link href="/login" className="flex items-center gap-2">
                   <LogIn className="w-4 h-4" />
-                  Entrar
+                  <span className="hidden xs:inline">Entrar</span>
                 </Link>
               </Button>
             )}
@@ -124,7 +125,7 @@ export function Navbar() {
 
 function NavLink({ href, icon, label }: { href: string, icon: any, label: string }) {
   return (
-    <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary transition-all gap-2 h-9 rounded-xl px-3">
+    <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary transition-all gap-2 h-9 rounded-xl px-2 sm:px-3">
       <Link href={href}>
         {icon}
         <span className="hidden lg:inline">{label}</span>
