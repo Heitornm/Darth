@@ -46,19 +46,24 @@ export function Navbar() {
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
+  // Renderização estável do Logo para evitar erro de hidratação
+  const Logo = (
+    <Link href="/" className="flex items-center gap-2 group">
+      <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
+        <Scissors className="w-6 h-6 text-primary-foreground" />
+      </div>
+      <span className="font-headline font-bold text-2xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
+    </Link>
+  );
+
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-4 h-18 flex items-center justify-between py-3">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
-            <Scissors className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <span className="font-headline font-bold text-2xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
-        </Link>
+        {Logo}
         
         <div className="flex items-center gap-1 sm:gap-4">
           {mounted && !isUserLoading && user && (
-            <div className="flex items-center gap-1 sm:gap-2 mr-2 animate-in fade-in duration-500">
+            <div className="flex items-center gap-1 sm:gap-2 mr-2">
               {isBarber ? (
                 <>
                   <NavLink href="/barber/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Agenda" />
@@ -75,48 +80,50 @@ export function Navbar() {
 
           {mounted && user && !isUserLoading && <div className="h-6 w-px bg-border mx-2"></div>}
 
-          {mounted ? (
-            user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0">
-                    <User className="w-5 h-5 text-primary" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 mt-2">
-                  <div className="flex items-center justify-start gap-2 p-2">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
-                      <p className="text-xs leading-none text-muted-foreground truncate max-w-[180px]">
-                        {user.email}
-                      </p>
+          <div className="min-w-[40px] flex justify-end">
+            {mounted && !isUserLoading ? (
+              user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0">
+                      <User className="w-5 h-5 text-primary" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 mt-2">
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
+                        <p className="text-xs leading-none text-muted-foreground truncate max-w-[180px]">
+                          {user.email}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href="/profile" className="flex items-center w-full">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Editar Perfil
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sair da Conta
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/profile" className="flex items-center w-full">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Editar Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sair da Conta
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
+                  <Link href="/login">
+                    <LogIn className="w-4 h-4" />
+                    Entrar
+                  </Link>
+                </Button>
+              )
             ) : (
-              <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
-                <Link href="/login">
-                  <LogIn className="w-4 h-4" />
-                  Entrar
-                </Link>
-              </Button>
-            )
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
-          )}
+              <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse"></div>
+            )}
+          </div>
         </div>
       </div>
     </nav>

@@ -9,15 +9,21 @@ import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Clock, Scissors } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useState, useEffect } from 'react';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 export default function MyAppointmentsPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const myAppointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    if (!db || !user || !isClient) return null;
     
     const appointmentsRef = collection(db, "appointments");
     
@@ -26,17 +32,17 @@ export default function MyAppointmentsPage() {
       return query(appointmentsRef, orderBy("dataHora", "desc"));
     }
 
-    // SE FOR CLIENTE: O filtro 'where' é OBRIGATÓRIO para bater com a regra de segurança
+    // SE FOR CLIENTE: O filtro 'where' pelo clientId é OBRIGATÓRIO para bater com a regra de segurança
     return query(
       appointmentsRef,
       where("clientId", "==", user.uid),
       orderBy("dataHora", "desc")
     );
-  }, [db, user]);
+  }, [db, user, isClient]);
 
   const { data: appointments, isLoading } = useCollection(myAppointmentsQuery);
 
-  if (isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Carregando seus agendamentos...</div>;
+  if (!isClient || isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Sincronizando suas reservas...</div>;
 
   if (!user) {
     return (

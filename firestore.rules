@@ -24,20 +24,25 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Leitura individual ou lista: Mestre tem acesso total, Cliente vê apenas os seus
-      allow read: if isSignedIn() && (
+      // Regra de leitura para documentos individuais
+      allow get: if isSignedIn() && (
         isMasterBarber() || 
-        resource.data.clientId == request.auth.uid ||
-        resource.data.clientEmail == request.auth.token.email
+        resource.data.clientId == request.auth.uid
       );
       
-      // Criação: Qualquer logado pode criar para si mesmo
+      // Regra de listagem (queries): O filtro deve bater com a regra
+      allow list: if isSignedIn() && (
+        isMasterBarber() || 
+        request.query.limit <= 100 && (resource == null || resource.data.clientId == request.auth.uid)
+      );
+
+      // Criação: Cliente cria para si, Mestre cria qualquer um
       allow create: if isSignedIn() && (
         isMasterBarber() || 
         request.resource.data.clientId == request.auth.uid
       );
 
-      // Edição/Exclusão: Mestre ou o próprio cliente
+      // Edição/Exclusão
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
         (resource != null && resource.data.clientId == request.auth.uid)

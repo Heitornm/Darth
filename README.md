@@ -30,7 +30,7 @@ npm run dev
 O projeto estará disponível em `http://localhost:9002`.
 
 ### 5. Configuração do Firestore (Índices)
-Se você encontrar um erro de "Missing Index" no console do navegador ao acessar a agenda do barbeiro, clique no link fornecido na própria mensagem de erro. O Firebase criará o índice composto necessário automaticamente para você.
+Se você encontrar um erro de "The query requires an index" no console do navegador ao acessar a agenda do barbeiro, clique no link fornecido na própria mensagem de erro. O Firebase criará o índice composto necessário (barberId + dataHora) automaticamente para você.
 
 ## Estrutura do Projeto
 - `src/app`: Páginas e rotas do Next.js.
