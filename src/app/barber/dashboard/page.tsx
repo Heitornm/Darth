@@ -27,7 +27,6 @@ export default function BarberDashboardPage() {
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user || user.email !== BARBER_EMAIL) return null;
     
-    // Query simplificada para garantir compatibilidade com as regras de segurança
     return query(
       collection(db, "appointments"),
       where("barberId", "==", MASTER_BARBER_ID),
@@ -36,6 +35,12 @@ export default function BarberDashboardPage() {
   }, [db, user]);
 
   const { data: appointments, isLoading, error } = useCollection(appointmentsQuery);
+
+  // Evita Hydration Mismatch renderizando data apenas no cliente
+  const [currentDate, setCurrentDate] = useState<string>("");
+  useEffect(() => {
+    setCurrentDate(format(new Date(), "PPPP", { locale: ptBR }));
+  }, []);
 
   if (!mounted) return null;
 
@@ -47,6 +52,7 @@ export default function BarberDashboardPage() {
     );
   }
 
+  // Verifica se o usuário é o barbeiro autorizado
   if (!user || user.email !== BARBER_EMAIL) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -71,7 +77,7 @@ export default function BarberDashboardPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Agenda do Mestre</h1>
           <p className="text-muted-foreground flex items-center gap-2">
             <CalendarIcon className="w-4 h-4" />
-            {format(new Date(), "PPPP", { locale: ptBR })}
+            {currentDate || "Carregando data..."}
           </p>
         </div>
         <div className="flex gap-4">
@@ -89,8 +95,8 @@ export default function BarberDashboardPage() {
         <Card className="border-muted bg-muted/20">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-headline font-bold mb-2">Erro de Carregamento</h3>
-            <p className="text-muted-foreground">Não foi possível carregar a agenda. Verifique as permissões do banco de dados.</p>
+            <h3 className="text-xl font-headline font-bold mb-2">Problema de Conexão</h3>
+            <p className="text-muted-foreground">Não foi possível carregar a agenda no momento. Tente novamente mais tarde.</p>
           </CardContent>
         </Card>
       ) : !appointments || appointments.length === 0 ? (

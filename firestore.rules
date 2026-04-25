@@ -10,31 +10,34 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == 'darthbarber@darth.com.br';
     }
 
+    // Perfil de usuário
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Serviços disponíveis
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isMasterBarber();
     }
 
+    // Agendamentos
     match /appointments/{appointmentId} {
-      // Permite leitura e listagem para qualquer usuário logado. 
-      // Isso é necessário para verificar disponibilidade e para o barbeiro ver sua agenda.
-      allow read, list: if isSignedIn();
+      // Permite leitura (get e list) para qualquer usuário autenticado.
+      // Isso é necessário para que clientes vejam horários ocupados e o barbeiro veja sua agenda.
+      allow read: if isSignedIn();
       
-      // Apenas o cliente logado pode criar seu próprio agendamento
-      allow create: if isSignedIn() 
-        && request.resource.data.clientId == request.auth.uid;
+      // Permite criar agendamento se o clientId corresponder ao usuário logado
+      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
-      // Apenas o cliente dono ou o barbeiro mestre podem editar/excluir
+      // Permite atualizar ou excluir se for o dono do agendamento ou o barbeiro mestre
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
         isMasterBarber()
       );
     }
     
+    // Bloqueio padrão para outros caminhos
     match /{path=**} {
       allow read, write: if false;
     }
