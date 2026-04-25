@@ -109,12 +109,14 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
-              <Link href="/login">
-                <LogIn className="w-4 h-4" />
-                Entrar
-              </Link>
-            </Button>
+            mounted && (
+              <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
+                <Link href="/login">
+                  <LogIn className="w-4 h-4" />
+                  Entrar
+                </Link>
+              </Button>
+            )
           )}
         </div>
       </div>

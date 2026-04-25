@@ -25,23 +25,23 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Leitura: Mestre ou dono do e-mail (necessário filtro where na query)
-      allow read: if isSignedIn() && (
+      // Leitura/Lista: Mestre ou dono do registro (pelo UID ou Email)
+      allow read, list: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && resource.data.clientEmail == request.auth.token.email) ||
-        (resource == null) // Permite a verificação inicial
+        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email)) ||
+        (resource == null) // Permite a query inicial que será filtrada
       );
       
-      // Criação: Mestre ou usuário logado vinculando seu próprio e-mail
+      // Criação: Mestre ou usuário logado vinculando seu próprio ID/Email
       allow create: if isSignedIn() && (
         isMasterBarber() || 
-        request.resource.data.clientEmail == request.auth.token.email
+        (request.resource.data.clientId == request.auth.uid && request.resource.data.clientEmail == request.auth.token.email)
       );
 
       // Edição/Exclusão: Mestre ou dono
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
-        (resource != null && resource.data.clientEmail == request.auth.token.email)
+        (resource != null && (resource.data.clientId == request.auth.uid || resource.data.clientEmail == request.auth.token.email))
       );
     }
     
