@@ -1,9 +1,10 @@
 
 "use client";
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings } from 'lucide-react';
+import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn as LogInIcon, ClipboardList, Settings } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { 
@@ -20,6 +21,11 @@ export function Navbar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -27,6 +33,21 @@ export function Navbar() {
   };
 
   const isBarber = user?.email === BARBER_EMAIL;
+
+  if (!mounted) {
+    return (
+      <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
+        <div className="container mx-auto px-4 h-18 flex items-center justify-between py-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary p-2 rounded-xl">
+              <Scissors className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <span className="font-headline font-bold text-2xl tracking-tighter">DarthBarber</span>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
@@ -90,7 +111,7 @@ export function Navbar() {
           ) : (
             <Button asChild size="sm" className="gap-2 rounded-full px-6">
               <Link href="/login">
-                <LogIn className="w-4 h-4" />
+                <LogInIcon className="w-4 h-4" />
                 Entrar
               </Link>
             </Button>

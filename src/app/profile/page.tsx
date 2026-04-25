@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -52,12 +53,10 @@ export default function ProfilePage() {
 
     setLoading(true);
     try {
-      // 1. Update Auth Display Name
       if (name !== user.displayName) {
         await updateProfile(user, { displayName: name });
       }
 
-      // 2. Update Auth Email
       if (email !== user.email) {
         try {
           await updateEmail(user, email);
@@ -70,7 +69,6 @@ export default function ProfilePage() {
         }
       }
 
-      // 3. Update Password
       if (password) {
         if (password.length < 6) {
           throw new Error("A senha deve ter pelo menos 6 caracteres.");
@@ -87,7 +85,6 @@ export default function ProfilePage() {
         }
       }
 
-      // 4. Update Firestore Profile
       updateDocumentNonBlocking(doc(db, 'users', user.uid), {
         name,
         email,

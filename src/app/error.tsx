@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Home, RotateCcw, ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Home, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -14,7 +15,6 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log do erro para monitoramento interno (sem console.error direto para o usuário)
     console.debug('Application error handled by boundary:', error);
   }, [error]);
 
