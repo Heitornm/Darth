@@ -76,6 +76,7 @@ export default function LoginPage() {
       }
 
       toast({ title: "Conta criada!", description: `Bem-vindo, ${name}.` });
+      router.push('/');
     } catch (error: any) {
       toast({
         variant: "destructive",

@@ -29,20 +29,19 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura se o usuário for o dono do agendamento ou o barbeiro mestre.
-      // Inclui suporte para listagem (queries filtradas por clientId ou barberId).
+      // Permite leitura se for o barbeiro mestre ou se o documento pertencer ao usuário logado.
+      // O Firestore exige que a query do cliente contenha um filtro que bata com essa regra.
       allow read: if isSignedIn() && (
         isMasterBarber() || 
         (resource != null && resource.data.clientId == request.auth.uid) ||
-        (resource != null && resource.data.barberId == request.auth.uid) ||
-        (resource == null) // Permite queries que podem resultar em documentos vazios
+        (resource != null && resource.data.barberId == request.auth.uid)
       );
       
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
 
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
-        resource.data.clientId == request.auth.uid
+        (resource != null && resource.data.clientId == request.auth.uid)
       );
     }
     

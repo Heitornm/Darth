@@ -28,21 +28,25 @@ export default function Home() {
 
         <div className="flex flex-col items-center gap-6">
           {!isUserLoading && (
-            <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {user ? (
-                <Link href="/client/appointments">
-                  <Scissors className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  Agendar Agora
-                  <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
+                  <Link href="/client/appointments">
+                    <Scissors className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    Agendar Agora
+                    <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
               ) : (
-                <Link href="/login">
-                  <LogIn className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  Entrar para Agendar
-                  <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
+                  <Link href="/login">
+                    <LogIn className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    Entrar para Agendar
+                    <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
               )}
-            </Button>
+            </div>
           )}
         </div>
       </div>

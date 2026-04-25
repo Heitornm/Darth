@@ -88,7 +88,6 @@ export default function ClientAppointmentsPage() {
           title: "Sucesso!",
           description: "Seu agendamento foi realizado com sucesso.",
         });
-        // Redirecionamento após sucesso conforme sugerido
         router.push('/client/my-appointments');
       })
       .catch(async (err) => {
@@ -185,7 +184,7 @@ export default function ClientAppointmentsPage() {
               <Button 
                 className="w-full h-12 text-lg font-headline bg-primary hover:bg-primary/90"
                 onClick={handleBooking}
-                disabled={loading || !user}
+                disabled={loading}
               >
                 {loading ? "Processando..." : user ? "Confirmar Agendamento" : "Faça Login para Agendar"}
               </Button>
