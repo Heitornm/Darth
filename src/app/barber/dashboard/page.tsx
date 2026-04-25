@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -20,23 +19,18 @@ export default function BarberDashboardPage() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
   const [mounted, setMounted] = useState(false);
-  const [currentDate, setCurrentDate] = useState<Date | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    setCurrentDate(new Date());
   }, []);
 
   const appointmentsQuery = useMemoFirebase(() => {
     if (!db || !user || user.email !== BARBER_EMAIL) return null;
     
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
+    // Query simplificada para garantir compatibilidade com as regras de segurança
     return query(
       collection(db, "appointments"),
       where("barberId", "==", MASTER_BARBER_ID),
-      where("dataHora", ">=", Timestamp.fromDate(today)),
       orderBy("dataHora", "asc")
     );
   }, [db, user]);
@@ -53,7 +47,6 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // Se não for o barbeiro mestre, mostra aviso de acesso restrito
   if (!user || user.email !== BARBER_EMAIL) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -71,21 +64,6 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // Tratamento amigável de erro de carregamento
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="border-muted bg-muted/20">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-headline font-bold mb-2">Ops! Algo deu errado</h3>
-            <p className="text-muted-foreground">Não foi possível carregar sua agenda no momento.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -93,32 +71,40 @@ export default function BarberDashboardPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">Agenda do Mestre</h1>
           <p className="text-muted-foreground flex items-center gap-2">
             <CalendarIcon className="w-4 h-4" />
-            {currentDate ? format(currentDate, "PPPP", { locale: ptBR }) : "Carregando data..."}
+            {format(new Date(), "PPPP", { locale: ptBR })}
           </p>
         </div>
         <div className="flex gap-4">
           <Card className="bg-primary/10 border-primary/20 px-4 py-2 flex items-center gap-3">
              <TrendingUp className="text-primary w-5 h-5" />
              <div>
-               <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Hoje</p>
+               <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Ativo</p>
                <p className="text-lg font-bold">{appointments?.length || 0}</p>
              </div>
           </Card>
         </div>
       </div>
 
-      {!appointments || appointments.length === 0 ? (
+      {error ? (
+        <Card className="border-muted bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-headline font-bold mb-2">Erro de Carregamento</h3>
+            <p className="text-muted-foreground">Não foi possível carregar a agenda. Verifique as permissões do banco de dados.</p>
+          </CardContent>
+        </Card>
+      ) : !appointments || appointments.length === 0 ? (
         <Card className="border-dashed border-2 bg-transparent">
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
             <Scissors className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
-            <h3 className="text-xl font-headline font-semibold mb-2">Sem agendamentos para hoje</h3>
-            <p className="text-muted-foreground">Nenhum cliente agendado para o dia de hoje.</p>
+            <h3 className="text-xl font-headline font-semibold mb-2">Nenhum agendamento encontrado</h3>
+            <p className="text-muted-foreground">Sua agenda está livre por enquanto.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
           {appointments.map((apt) => {
-            const date = apt.dataHora.toDate();
+            const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
             return (
               <Card key={apt.id} className="hover:border-primary/50 transition-colors group overflow-hidden relative">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>

@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,7 +10,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == 'darthbarber@darth.com.br';
     }
 
-    // Regras simplificadas e robustas para evitar erros de permissão
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
@@ -22,22 +20,21 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura e listagem para qualquer usuário logado.
-      // Isso resolve o erro de permissão no dashboard e na verificação de horários.
+      // Permite leitura e listagem para qualquer usuário logado. 
+      // Isso é necessário para verificar disponibilidade e para o barbeiro ver sua agenda.
       allow read, list: if isSignedIn();
       
-      // Apenas o cliente logado pode criar seu agendamento
+      // Apenas o cliente logado pode criar seu próprio agendamento
       allow create: if isSignedIn() 
         && request.resource.data.clientId == request.auth.uid;
 
-      // Apenas o cliente ou o barbeiro mestre podem editar/excluir
+      // Apenas o cliente dono ou o barbeiro mestre podem editar/excluir
       allow update, delete: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
         isMasterBarber()
       );
     }
     
-    // Bloqueio padrão para segurança
     match /{path=**} {
       allow read, write: if false;
     }
