@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -8,6 +9,7 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
         "role": { "type": "string", "enum": ["client", "barber"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },

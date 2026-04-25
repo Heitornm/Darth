@@ -3,13 +3,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList } from 'lucide-react';
+import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, UserCircle } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
+  DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 
@@ -44,10 +45,18 @@ export function Navbar() {
               <span className="hidden sm:inline">Agendamentos</span>
             </Link>
           ) : (
-            <Link href="/client/appointments" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Agendar</span>
-            </Link>
+            <>
+              <Link href="/client/appointments" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                <span className="hidden sm:inline">Agendar</span>
+              </Link>
+              {user && (
+                <Link href="/client/my-appointments" className="text-sm font-medium hover:text-accent transition-colors flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4" />
+                  <span className="hidden sm:inline">Meus Agendamentos</span>
+                </Link>
+              )}
+            </>
           )}
 
           {isBarber && (
@@ -70,8 +79,15 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground truncate">
-                  {user.email}
+                  {user.displayName || user.email}
                 </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer flex items-center w-full">
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    Editar Perfil
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sair
