@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn as LogInIcon, ClipboardList, Settings } from 'lucide-react';
+import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -71,7 +71,8 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          {user && (
+          {/* Apenas exibe links se o usuário estiver autenticado e carregado */}
+          {!isUserLoading && user && (
             <div className="flex items-center gap-1 sm:gap-2 mr-2">
               {isBarber ? (
                 <>
@@ -87,7 +88,7 @@ export function Navbar() {
             </div>
           )}
 
-          {user && <div className="h-6 w-px bg-border mx-2"></div>}
+          {user && !isUserLoading && <div className="h-6 w-px bg-border mx-2"></div>}
 
           {isUserLoading ? (
             <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
@@ -124,7 +125,7 @@ export function Navbar() {
           ) : (
             <Button asChild size="sm" className="gap-2 rounded-full px-6">
               <Link href="/login">
-                <LogInIcon className="w-4 h-4" />
+                <LogIn className="w-4 h-4" />
                 Entrar
               </Link>
             </Button>

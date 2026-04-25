@@ -4,7 +4,7 @@
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
-import { Calendar, ChevronRight, LogIn } from 'lucide-react';
+import { LogIn, Scissors, ChevronRight } from 'lucide-react';
 import { useUser } from '@/firebase';
 
 export default function Home() {
@@ -31,14 +31,14 @@ export default function Home() {
             <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
               {user ? (
                 <Link href="/client/appointments">
-                  <Calendar className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                  <Scissors className="w-6 h-6 group-hover:scale-110 transition-transform" />
                   Agendar Agora
                   <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
                 </Link>
               ) : (
                 <Link href="/login">
                   <LogIn className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  Entrar para Agendar
+                  Entrar
                   <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
                 </Link>
               )}
