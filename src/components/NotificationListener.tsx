@@ -42,7 +42,7 @@ export function NotificationListener() {
             ),
           });
           
-          // Marcar como lida localmente para não repetir, mas idealmente disparar update no DB
+          // Marcar como lida
           if (db) {
             const notifRef = doc(db, 'notifications', notif.id);
             updateDoc(notifRef, { read: true });
@@ -50,7 +50,6 @@ export function NotificationListener() {
         }
       });
       
-      // Atualizar o tempo da última processada para o tempo da mais recente do lote
       const newest = Math.max(...notifications.map(n => 
         n.createdAt instanceof Timestamp ? n.createdAt.toMillis() : 0
       ));

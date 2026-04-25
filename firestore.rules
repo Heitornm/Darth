@@ -24,7 +24,14 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      allow read, list: if isSignedIn() && (
+      // O Barbeiro Mestre pode listar tudo. Clientes só listam se filtrarem pelo seu próprio clientId.
+      allow list: if isSignedIn() && (
+        isMasterBarber() || 
+        request.query.filters.clientId == request.auth.uid
+      );
+      
+      // Leitura individual permitida para os envolvidos ou admin
+      allow get: if isSignedIn() && (
         isMasterBarber() || 
         resource.data.clientId == request.auth.uid ||
         resource.data.barberId == request.auth.uid
@@ -42,7 +49,7 @@ service cloud.firestore {
       allow read, list: if isSignedIn() && (
         isMasterBarber() ||
         (resource != null && resource.data.toId == request.auth.uid) ||
-        (resource == null) // Permite listar queries que garantem o filtro toId
+        (request.query.limit <= 10 && request.query.filters.toId == request.auth.uid)
       );
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||

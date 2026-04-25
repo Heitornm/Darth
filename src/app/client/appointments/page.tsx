@@ -86,10 +86,8 @@ export default function ClientAppointmentsPage() {
     };
 
     try {
-      // 1. Criar o agendamento
       await addDoc(collection(db, "appointments"), appointmentData);
 
-      // 2. Notificar o barbeiro
       const notificationData = {
         toId: MASTER_BARBER_ID,
         fromName: user.displayName || 'Cliente',

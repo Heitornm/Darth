@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
 export function Navbar() {
   const { user, isUserLoading } = useUser();
@@ -44,7 +45,7 @@ export function Navbar() {
     router.push('/');
   };
 
-  const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
+  const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50 h-16">
