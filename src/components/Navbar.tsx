@@ -58,7 +58,7 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          {/* Navegação condicional - Apenas se montado e logado */}
+          {/* Navegação condicional - Apenas após montagem para evitar erro de hidratação */}
           {mounted && !isUserLoading && user && (
             <div className="flex items-center gap-1 sm:gap-2 mr-2 animate-in fade-in duration-500">
               {isBarber ? (
