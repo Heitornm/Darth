@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -43,7 +42,7 @@ export function NotificationListener() {
             ),
           });
           
-          // Marcar como lida para não repetir
+          // Marcar como lida localmente para não repetir, mas idealmente disparar update no DB
           if (db) {
             const notifRef = doc(db, 'notifications', notif.id);
             updateDoc(notifRef, { read: true });

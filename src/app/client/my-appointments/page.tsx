@@ -2,7 +2,7 @@
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,14 +16,14 @@ const BARBER_EMAIL = "darthbarber@darth.com.br";
 export default function MyAppointmentsPage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
-  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setMounted(true);
   }, []);
 
   const myAppointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !isClient) return null;
+    if (!db || !user || !mounted) return null;
     
     const appointmentsRef = collection(db, "appointments");
     
@@ -38,11 +38,18 @@ export default function MyAppointmentsPage() {
       where("clientId", "==", user.uid),
       orderBy("dataHora", "desc")
     );
-  }, [db, user, isClient]);
+  }, [db, user, mounted]);
 
   const { data: appointments, isLoading } = useCollection(myAppointmentsQuery);
 
-  if (!isClient || isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Sincronizando suas reservas...</div>;
+  if (!mounted || isUserLoading || isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center space-y-4 animate-pulse">
+        <div className="h-10 w-64 bg-muted mx-auto rounded"></div>
+        <div className="h-24 w-full max-w-2xl bg-muted mx-auto rounded"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -62,7 +69,7 @@ export default function MyAppointmentsPage() {
 
       {!appointments || appointments.length === 0 ? (
         <Card className="border-dashed border-2 bg-muted/10 py-20 text-center">
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
               <CalendarDays className="w-8 h-8 text-muted-foreground/50" />
             </div>

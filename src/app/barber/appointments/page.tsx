@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -13,6 +12,7 @@ import { collection, query, where, Timestamp, orderBy, doc, getDoc } from 'fireb
 import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const MASTER_BARBER_ID = 'darth-barber-main';
+const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 export default function BarberAppointmentsPage() {
   const { user, isUserLoading } = useUser();
@@ -33,19 +33,17 @@ export default function BarberAppointmentsPage() {
     }
   }, [user, db, mounted]);
   
-  const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !mounted) return null;
-    
-    // Permitir se for barbeiro ou se tiver o email do master
-    const isAuthorized = userRole === 'barber' || user.email === "darthbarber@darth.com.br";
-    if (!isAuthorized) return null;
+  const isAuthorized = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
+  const appointmentsQuery = useMemoFirebase(() => {
+    if (!db || !user || !mounted || !isAuthorized) return null;
+    
     return query(
       collection(db, "appointments"), 
       where("barberId", "==", MASTER_BARBER_ID),
       orderBy("dataHora", "asc")
     );
-  }, [db, user, userRole, mounted]);
+  }, [db, user, userRole, mounted, isAuthorized]);
 
   const { data: allAppointments, isLoading, error } = useCollection(appointmentsQuery);
 
@@ -62,8 +60,6 @@ export default function BarberAppointmentsPage() {
 
   if (!mounted || isUserLoading) return <div className="p-20 text-center animate-pulse">Sincronizando agenda...</div>;
 
-  const isAuthorized = userRole === 'barber' || user?.email === "darthbarber@darth.com.br";
-
   if (!isAuthorized) {
     return (
       <div className="container mx-auto px-4 py-20 max-w-md">
@@ -71,7 +67,7 @@ export default function BarberAppointmentsPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Acesso Negado</AlertTitle>
           <AlertDescription>
-            Você não tem permissão para acessar a agenda de barbeiros. Por favor, entre com uma conta de barbeiro.
+            Você não tem permissão para acessar a agenda de barbeiros. Por favor, entre com uma conta de barbeiro autorizada.
           </AlertDescription>
         </Alert>
       </div>
@@ -132,11 +128,11 @@ export default function BarberAppointmentsPage() {
             <div className="py-20 text-center animate-pulse">Carregando horários...</div>
           ) : error ? (
             <div className="p-10 text-center text-destructive">
-               Erro ao carregar agendamentos. Verifique suas permissões.
+               Erro ao carregar agendamentos. Verifique se os índices do Firestore foram criados clicando no link do console.
             </div>
           ) : !appointmentsForSelectedDate || appointmentsForSelectedDate.length === 0 ? (
             <Card className="border-dashed border-2 py-24 text-center">
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pt-6">
                 <CalendarDays className="w-10 h-10 text-muted-foreground/30 mx-auto" />
                 <h3 className="text-xl font-bold">Nenhum agendamento</h3>
                 <p className="text-muted-foreground text-sm">Sua agenda está livre para este dia.</p>

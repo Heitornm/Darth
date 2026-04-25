@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -48,17 +47,17 @@ export function Navbar() {
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL;
 
   return (
-    <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-18 flex items-center justify-between py-3">
+    <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50 h-16">
+      <div className="container mx-auto px-4 h-full flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
-            <Scissors className="w-6 h-6 text-primary-foreground" />
+            <Scissors className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-headline font-bold text-2xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
+          <span className="font-headline font-bold text-xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
         </Link>
         
-        <div className="flex items-center gap-1 sm:gap-4">
-          <div className="flex items-center gap-1 sm:gap-2 mr-2 min-h-[40px]">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             {mounted && !isUserLoading && user && (
               <>
                 {isBarber ? (
@@ -76,9 +75,7 @@ export function Navbar() {
             )}
           </div>
 
-          {mounted && user && !isUserLoading && <div className="h-6 w-px bg-border mx-2"></div>}
-
-          <div className="min-w-[40px] flex justify-end items-center">
+          <div className="flex items-center min-w-[40px]">
             {!mounted || isUserLoading ? (
               <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse"></div>
             ) : user ? (
@@ -89,13 +86,11 @@ export function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 mt-2">
-                  <div className="flex items-center justify-start gap-2 p-2">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
-                      <p className="text-xs leading-none text-muted-foreground truncate max-w-[180px]">
-                        {user.email}
-                      </p>
-                    </div>
+                  <div className="flex flex-col space-y-1 p-2">
+                    <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
+                    <p className="text-xs leading-none text-muted-foreground truncate">
+                      {user.email}
+                    </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild className="cursor-pointer">
@@ -112,8 +107,8 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
-                <Link href="/login">
+              <Button asChild size="sm" className="rounded-full px-6 bg-primary hover:bg-primary/90">
+                <Link href="/login" className="flex items-center gap-2">
                   <LogIn className="w-4 h-4" />
                   Entrar
                 </Link>
@@ -128,7 +123,7 @@ export function Navbar() {
 
 function NavLink({ href, icon, label }: { href: string, icon: any, label: string }) {
   return (
-    <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary hover:bg-primary/5 transition-all gap-2 h-10 rounded-xl px-3">
+    <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary transition-all gap-2 h-9 rounded-xl px-3">
       <Link href={href}>
         {icon}
         <span className="hidden lg:inline">{label}</span>
