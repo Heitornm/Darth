@@ -28,8 +28,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite leitura e listagem para qualquer usuário logado para checar disponibilidade
-      allow read, list: if isSignedIn();
+      // Permite leitura para qualquer usuário logado (necessário para checar disponibilidade de horários)
+      allow read: if isSignedIn();
       
       // Permite criação se o clientId for o do usuário logado
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
