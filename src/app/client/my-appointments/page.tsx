@@ -27,7 +27,6 @@ export default function MyAppointmentsPage() {
     }
 
     // SE FOR CLIENTE: O filtro 'where' é OBRIGATÓRIO para bater com a regra de segurança
-    // O Firestore exige que a query seja tão restritiva quanto a regra de listagem.
     return query(
       appointmentsRef,
       where("clientId", "==", user.uid),

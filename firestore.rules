@@ -34,7 +34,7 @@ service cloud.firestore {
       // Permite listagem (query) se for o mestre ou se houver filtro pelo clientId do usuário
       allow list: if isSignedIn() && (
         isMasterBarber() || 
-        request.query.filters.clientId == request.auth.uid
+        resource.data.clientId == request.auth.uid
       );
       
       // Criação: Usuário logado vinculando seu próprio ID

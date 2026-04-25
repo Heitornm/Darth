@@ -57,7 +57,7 @@ export function Navbar() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-4">
-          {mounted && !isUserLoading && user ? (
+          {mounted && !isUserLoading && user && (
             <div className="flex items-center gap-1 sm:gap-2 mr-2 animate-in fade-in duration-500">
               {isBarber ? (
                 <>
@@ -71,44 +71,42 @@ export function Navbar() {
                 </>
               )}
             </div>
-          ) : null}
+          )}
 
           {mounted && user && !isUserLoading && <div className="h-6 w-px bg-border mx-2"></div>}
 
-          {!mounted || isUserLoading ? (
-            <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
-          ) : user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0">
-                  <User className="w-5 h-5 text-primary" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2">
-                <div className="flex items-center justify-start gap-2 p-2">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
-                    <p className="text-xs leading-none text-muted-foreground truncate max-w-[180px]">
-                      {user.email}
-                    </p>
+          {mounted ? (
+            user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0">
+                    <User className="w-5 h-5 text-primary" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 mt-2">
+                  <div className="flex items-center justify-start gap-2 p-2">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
+                      <p className="text-xs leading-none text-muted-foreground truncate max-w-[180px]">
+                        {user.email}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/profile" className="flex items-center w-full">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Editar Perfil
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sair da Conta
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            mounted && (
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href="/profile" className="flex items-center w-full">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Editar Perfil
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sair da Conta
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
               <Button asChild size="sm" className="gap-2 rounded-full px-6 bg-primary hover:bg-primary/90">
                 <Link href="/login">
                   <LogIn className="w-4 h-4" />
@@ -116,6 +114,8 @@ export function Navbar() {
                 </Link>
               </Button>
             )
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-muted animate-pulse"></div>
           )}
         </div>
       </div>
