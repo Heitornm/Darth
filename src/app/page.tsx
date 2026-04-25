@@ -3,9 +3,12 @@
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
-import { LogIn, Scissors, ChevronRight } from 'lucide-react';
+import { LogIn, Scissors, ChevronRight, Star } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
@@ -16,6 +19,8 @@ export default function Home() {
     const timer = setTimeout(() => setMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  const barberImage = PlaceHolderImages.find(img => img.id === 'barber-profile');
 
   return (
     <div className="flex flex-col items-center min-h-[85vh] px-4 py-12 md:py-20">
@@ -33,9 +38,9 @@ export default function Home() {
           <ServiceCarousel />
         </div>
 
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-10">
           {mounted && !isUserLoading ? (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="flex flex-col items-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {user ? (
                 <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
                   <Link href="/client/appointments">
@@ -53,9 +58,33 @@ export default function Home() {
                   </Link>
                 </Button>
               )}
+
+              {/* Card de Apresentação do Barbeiro */}
+              <Card className="max-w-xs w-full border-primary/20 bg-card/40 backdrop-blur-sm shadow-xl hover:border-primary/40 transition-all duration-300">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <Avatar className="h-14 w-14 border-2 border-primary/20">
+                    <AvatarImage 
+                      src={barberImage?.imageUrl} 
+                      alt="Darth Barber" 
+                      data-ai-hint={barberImage?.imageHint}
+                    />
+                    <AvatarFallback className="bg-primary/10 text-primary">DB</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <div className="flex items-center gap-1">
+                      <p className="font-headline font-bold text-foreground">Darth Barber</p>
+                      <Star className="w-3 h-3 text-accent fill-accent" />
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium">Mestre em Visagismo e Barboterapia</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           ) : (
-            <div className="h-16 w-64 bg-muted animate-pulse rounded-full"></div>
+            <div className="flex flex-col items-center gap-8">
+              <div className="h-16 w-64 bg-muted animate-pulse rounded-full"></div>
+              <div className="h-20 w-64 bg-muted animate-pulse rounded-xl"></div>
+            </div>
           )}
         </div>
       </div>

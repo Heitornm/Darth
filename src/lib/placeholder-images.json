@@ -7,6 +7,12 @@
       "imageHint": "barbershop interior"
     },
     {
+      "id": "barber-profile",
+      "description": "Master Barber Profile",
+      "imageUrl": "https://picsum.photos/seed/barber-man/200/200",
+      "imageHint": "man barber"
+    },
+    {
       "id": "srv-corte-classico",
       "description": "Classic Haircut Service",
       "imageUrl": "https://picsum.photos/seed/haircut1/600/400",
