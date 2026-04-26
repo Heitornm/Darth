@@ -9,8 +9,8 @@
     {
       "id": "barber-profile",
       "description": "Master Barber Profile",
-      "imageUrl": "https://picsum.photos/seed/barber-man/200/200",
-      "imageHint": "man barber"
+      "imageUrl": "https://picsum.photos/seed/vader-barber/400/400",
+      "imageHint": "barber vader"
     },
     {
       "id": "srv-corte-classico",
