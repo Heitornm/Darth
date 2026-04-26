@@ -3,37 +3,37 @@
     {
       "id": "hero-barber",
       "description": "Modern barbershop interior",
-      "imageUrl": "https://picsum.photos/seed/barber-hero/1200/800",
+      "imageUrl": "/images/hero-barber.jpg",
       "imageHint": "barbershop interior"
     },
     {
       "id": "barber-profile",
       "description": "Darth Barber Profile Icon",
-      "imageUrl": "https://picsum.photos/seed/barber-vader-profile/600/600",
+      "imageUrl": "/images/barber-profile.png",
       "imageHint": "darth barber"
     },
     {
       "id": "srv-corte-classico",
       "description": "Classic Haircut Service",
-      "imageUrl": "https://picsum.photos/seed/haircut1/600/400",
+      "imageUrl": "/images/srv-corte-classico.jpg",
       "imageHint": "classic haircut"
     },
     {
       "id": "srv-barba-completa",
       "description": "Full Beard Service",
-      "imageUrl": "https://picsum.photos/seed/beard1/600/400",
+      "imageUrl": "/images/srv-barba-completa.jpg",
       "imageHint": "beard grooming"
     },
     {
       "id": "srv-combo-imperial",
       "description": "Haircut and Beard Combo",
-      "imageUrl": "https://picsum.photos/seed/combo1/600/400",
+      "imageUrl": "/images/srv-combo-imperial.jpg",
       "imageHint": "barber combo"
     },
     {
       "id": "srv-corte-premium",
       "description": "Premium Haircut Service",
-      "imageUrl": "https://picsum.photos/seed/haircut2/600/400",
+      "imageUrl": "/images/srv-corte-premium.jpg",
       "imageHint": "luxury haircut"
     }
   ]
