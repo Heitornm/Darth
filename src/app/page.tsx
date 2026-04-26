@@ -4,7 +4,7 @@
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
-import { LogIn, Scissors, ChevronRight, Star } from 'lucide-react';
+import { LogIn, Scissors, ChevronRight, Star, ClipboardList } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -57,13 +57,23 @@ export default function Home() {
           {mounted && !isUserLoading ? (
             <div className="flex flex-col items-center gap-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {user ? (
-                <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
-                  <Link href="/client/appointments">
-                    <Scissors className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    Agendar Agora
-                    <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
+                userRole === 'barber' ? (
+                  <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
+                    <Link href="/barber/appointments">
+                      <ClipboardList className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                      Minha Agenda
+                      <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
+                    <Link href="/client/appointments">
+                      <Scissors className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                      Agendar Agora
+                      <ChevronRight className="w-5 h-5 opacity-50 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                )
               ) : (
                 <Button asChild size="lg" className="h-16 px-12 text-xl font-headline bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/20 gap-3 group rounded-full">
                   <Link href="/login">
@@ -74,7 +84,6 @@ export default function Home() {
                 </Button>
               )}
 
-              {/* Card de Apresentação do Barbeiro em Destaque - visível apenas para clientes */}
               {userRole === 'client' && (
                 <div className="w-full flex justify-center pt-8">
                   <Card className="max-w-[420px] w-full border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl hover:border-primary/40 transition-all duration-500 transform hover:-translate-y-2 group overflow-hidden">
