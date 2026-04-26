@@ -1,6 +1,7 @@
 
 "use client";
 
+import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, Scissors, ChevronRight, CheckCircle2, Star } from 'lucide-react';
@@ -72,9 +73,11 @@ export default function ServicesPage() {
           <Card key={service.id} className="group overflow-hidden border-primary/10 bg-card/50 hover:border-primary/40 transition-all duration-500 shadow-xl">
             <div className="grid sm:grid-cols-5 h-full">
               <div className="sm:col-span-2 relative h-64 sm:h-auto overflow-hidden">
-                <img 
+                <Image 
                   src={service.image} 
-                  alt={service.name} 
+                  alt={service.name}
+                  width={600}
+                  height={400}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   data-ai-hint={service.hint}
                 />

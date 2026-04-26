@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { 
@@ -76,9 +77,11 @@ export function ServiceCarousel() {
             >
               <div className="bg-card border border-border/50 rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 h-full group flex flex-col">
                 <div className="aspect-[4/3] overflow-hidden relative">
-                  <img 
+                  <Image 
                     src={service.image} 
                     alt={service.name} 
+                    width={600}
+                    height={400}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     data-ai-hint={service.hint}
                   />
@@ -111,8 +114,13 @@ export function ServiceCarousel() {
         <DialogContent className="sm:max-w-[550px] border-primary/20 bg-card overflow-hidden p-0 gap-0">
           {selectedService && (
             <>
-              <div className="w-full aspect-video overflow-hidden">
-                <img src={selectedService.image} alt={selectedService.name} className="w-full h-full object-cover" />
+              <div className="w-full aspect-video overflow-hidden relative">
+                <Image 
+                  src={selectedService.image} 
+                  alt={selectedService.name} 
+                  fill
+                  className="object-cover" 
+                />
               </div>
               <div className="p-8 space-y-6">
                 <DialogHeader>

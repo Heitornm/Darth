@@ -60,7 +60,7 @@ export default function Home() {
 
               {/* Card de Apresentação do Barbeiro em Destaque */}
               <div className="w-full flex justify-center pt-8">
-                <Card className="max-w-[380px] w-full border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl hover:border-primary/40 transition-all duration-500 transform hover:-translate-y-2 group overflow-hidden">
+                <Card className="max-w-[420px] w-full border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl hover:border-primary/40 transition-all duration-500 transform hover:-translate-y-2 group overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
                   <CardContent className="p-12 flex flex-col items-center gap-8 text-center relative z-10">
                     <div className="relative">
