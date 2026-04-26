@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,12 +22,13 @@ export interface UseCollectionResult<T> {
 }
 
 export interface InternalQuery extends Query<DocumentData> {
-  _query: {
+  _query?: {
     path: {
       canonicalString(): string;
       toString(): string;
     }
-  }
+  };
+  path?: string;
 }
 
 /**
@@ -39,11 +41,10 @@ export function useCollection<T = any>(
   type ResultItemType = WithId<T>;
 
   const [data, setData] = useState<ResultItemType[] | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(!!target); // Inicia true se houver um target
+  const [isLoading, setIsLoading] = useState<boolean>(!!target);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // Se não houver target, reseta o estado e retorna
     if (!target) {
       setData(null);
       setIsLoading(false);
@@ -67,13 +68,16 @@ export function useCollection<T = any>(
         setError(null);
       },
       (err: FirestoreError) => {
-        console.error("Firestore Hook Error:", err);
-
         // Extração segura do path para o erro contextual
-        const path: string =
-          target.type === 'collection'
-            ? (target as CollectionReference).path
-            : (target as unknown as InternalQuery)._query.path.canonicalString();
+        let path = 'unknown';
+        if ('path' in target && typeof target.path === 'string') {
+          path = target.path;
+        } else {
+          const internal = target as InternalQuery;
+          if (internal._query?.path) {
+            path = internal._query.path.canonicalString();
+          }
+        }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
@@ -92,10 +96,9 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [target]);
 
-  // Validação de segurança para garantir o uso de useMemo
   if (target && !target.__memo) {
     throw new Error(
-      'O parâmetro de useCollection não foi memoizado corretamente. Utilize useMemo ou um hook de memoização do Firebase.'
+      'O parâmetro de useCollection não foi memoizado corretamente. Utilize useMemoFirebase.'
     );
   }
 
