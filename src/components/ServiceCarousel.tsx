@@ -25,8 +25,8 @@ const SERVICES = [
     price: 50, 
     durationMinutes: 30, 
     desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || '',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageHint || ''
+    image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || 'https://picsum.photos/seed/srv1/600/400',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageHint || 'classic haircut'
   },
   { 
     id: 'srv-2', 
@@ -34,8 +34,8 @@ const SERVICES = [
     price: 40, 
     durationMinutes: 30, 
     desc: 'Tratamento completo para sua barba. Inclui design personalizado, toalha quente e óleos premium.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || '',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageHint || ''
+    image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || 'https://picsum.photos/seed/srv2/600/400',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageHint || 'beard grooming'
   },
   { 
     id: 'srv-3', 
@@ -43,8 +43,8 @@ const SERVICES = [
     price: 80, 
     durationMinutes: 60, 
     desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || '',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageHint || ''
+    image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || 'https://picsum.photos/seed/srv3/600/400',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageHint || 'barber combo'
   },
   { 
     id: 'srv-4', 
@@ -52,8 +52,8 @@ const SERVICES = [
     price: 70, 
     durationMinutes: 45, 
     desc: 'Para quem busca exclusividade. Lavagem premium e técnicas avançadas de visagismo.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || '',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageHint || ''
+    image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || 'https://picsum.photos/seed/srv4/600/400',
+    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageHint || 'luxury haircut'
   },
 ];
 
