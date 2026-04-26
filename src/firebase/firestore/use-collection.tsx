@@ -68,19 +68,18 @@ export function useCollection<T = any>(
         setError(null);
       },
       async (err: FirestoreError) => {
-        // Extração segura do path para o erro contextual
         let path = 'unknown';
         try {
-          if ('path' in target && typeof target.path === 'string') {
+          if (target && 'path' in target && typeof target.path === 'string') {
             path = target.path;
-          } else {
-            const internal = target as InternalQuery;
+          } else if (target && '_query' in (target as any)) {
+            const internal = target as any;
             if (internal._query?.path) {
               path = internal._query.path.canonicalString();
             }
           }
         } catch (e) {
-          path = 'appointments'; // Fallback comum para este app
+          path = 'appointments';
         }
 
         const contextualError = new FirestorePermissionError({
@@ -92,7 +91,6 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
-        // Emite o erro para o sistema global de notificações
         errorEmitter.emit('permission-error', contextualError);
       }
     );

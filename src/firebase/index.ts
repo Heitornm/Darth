@@ -9,12 +9,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache } from 'firebas
 // Robust initialization to prevent INTERNAL ASSERTION FAILED and other hydration/state issues
 export function initializeFirebase() {
   if (!getApps().length) {
-    let firebaseApp: FirebaseApp;
-    try {
-      firebaseApp = initializeApp();
-    } catch (e) {
-      firebaseApp = initializeApp(firebaseConfig);
-    }
+    const firebaseApp = initializeApp(firebaseConfig);
 
     // Initialize Firestore with explicit settings to avoid some common "Unexpected state" issues in dev
     const firestore = initializeFirestore(firebaseApp, {
