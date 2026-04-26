@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
 export default function MyAppointmentsPage() {
   const { user, isUserLoading } = useUser();
@@ -27,13 +29,13 @@ export default function MyAppointmentsPage() {
     
     const appointmentsRef = collection(db, "appointments");
     
-    // 1. Lógica para o Administrador (Barbeiro)
-    if (user.email === BARBER_EMAIL) {
+    // 1. Lógica para o Administrador (Barbeiro Mestre)
+    if (user.email === BARBER_EMAIL || user.uid === MASTER_BARBER_ID) {
       return query(appointmentsRef, orderBy("dataHora", "desc"));
     }
 
-    // 2. Lógica para o Cliente (CORREÇÃO AQUI)
-    // Onde 'clientId' deve ser o nome exato do campo no seu Firestore
+    // 2. Lógica para o Cliente: Filtra OBRIGATORIAMENTE pelo seu clientId
+    // Isso deve bater exatamente com a regra no firestore.rules
     return query(
       appointmentsRef,
       where("clientId", "==", user.uid),
@@ -43,7 +45,6 @@ export default function MyAppointmentsPage() {
 
   const { data: appointments, isLoading } = useCollection(myAppointmentsQuery);
 
-  // ... restante do componente (loading, empty state, renderização) permanece igual
   if (!mounted || isUserLoading || isLoading) {
     return (
       <div className="container mx-auto px-4 py-20 text-center space-y-4 animate-pulse">

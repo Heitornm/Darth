@@ -3,11 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Comentário para forçar redeploy e garantir permissões consistentes
+    // Função para verificar se o usuário está logado
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Função para verificar se é o Barbeiro Mestre (Admin)
     function isMasterBarber() {
       return isSignedIn() && (
         request.auth.token.email == 'darthbarber@darth.com.br' ||
@@ -26,13 +27,15 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // O Barbeiro Mestre pode listar tudo. Clientes só listam se filtrarem pelo seu próprio clientId.
+      // Permite listagem se for o Master ou se o filtro da query bater com o UID do usuário (seja como cliente ou barbeiro)
       allow list: if isSignedIn() && (
         isMasterBarber() || 
-        request.query.filters.clientId == request.auth.uid
+        (request.query.limit <= 50 && (
+          request.query.filters.clientId == request.auth.uid ||
+          request.query.filters.barberId == request.auth.uid
+        ))
       );
       
-      // Leitura individual permitida para os envolvidos ou admin
       allow get: if isSignedIn() && (
         isMasterBarber() || 
         resource.data.clientId == request.auth.uid ||
