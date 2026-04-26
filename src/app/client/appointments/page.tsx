@@ -3,8 +3,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, AlertCircle } from 'lucide-react';
+import { format, addMinutes, isAfter, isBefore, isEqual } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Calendar } from '@/components/ui/calendar';
@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser } from '@/firebase';
-import { collection, Timestamp, addDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, Timestamp, addDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -48,6 +48,47 @@ export default function ClientAppointmentsPage() {
 
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
+  // Query para buscar agendamentos do dia selecionado e evitar conflitos
+  const appointmentsQuery = useMemoFirebase(() => {
+    if (!db || !date) return null;
+    
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+    
+    return query(
+      collection(db, "appointments"),
+      where("barberId", "==", MASTER_BARBER_ID),
+      where("dataHora", ">=", Timestamp.fromDate(start)),
+      where("dataHora", "<=", Timestamp.fromDate(end)),
+      where("status", "!=", "cancelado")
+    );
+  }, [db, date]);
+
+  const { data: dayAppointments, isLoading: isLoadingApts } = useCollection(appointmentsQuery);
+
+  const isTimeSlotAvailable = (timeSlot: string) => {
+    if (!date || !selectedService || !dayAppointments) return true;
+    
+    const [hours, minutes] = timeSlot.split(':').map(Number);
+    const slotStart = new Date(date);
+    slotStart.setHours(hours, minutes, 0, 0);
+    const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
+
+    // Verifica se o slot está no passado (se for hoje)
+    if (isBefore(slotStart, new Date())) return false;
+
+    return !dayAppointments.some(apt => {
+      const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
+      
+      // Condição de sobreposição: (Início A < Fim B) && (Fim A > Início B)
+      const overlaps = isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
+      return overlaps;
+    });
+  };
+
   const handleBooking = () => {
     if (!user || !db) {
       toast({ title: "Login necessário", description: "Faça login para agendar." });
@@ -59,6 +100,15 @@ export default function ClientAppointmentsPage() {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isTimeSlotAvailable(time)) {
+      toast({
+        title: "Horário Indisponível",
+        description: "Este horário acabou de ser reservado ou conflita com outro serviço.",
         variant: "destructive",
       });
       return;
@@ -83,10 +133,8 @@ export default function ClientAppointmentsPage() {
       createdAt: Timestamp.now(),
     };
 
-    // Padrão não-bloqueante para mutações Firestore
     addDoc(collection(db, "appointments"), appointmentData)
       .then(() => {
-        // Criar notificação para o barbeiro após sucesso do agendamento
         const notificationData = {
           toId: MASTER_BARBER_ID,
           fromName: user.displayName || 'Cliente',
@@ -96,14 +144,11 @@ export default function ClientAppointmentsPage() {
           createdAt: Timestamp.now()
         };
         
-        addDoc(collection(db, "notifications"), notificationData).catch(async () => {
-          // Erro silencioso para notificações se falhar, ou emitir se for crítico
-          console.warn("Falha ao criar notificação.");
-        });
+        addDoc(collection(db, "notifications"), notificationData).catch(() => {});
 
         toast({
           title: "Sucesso!",
-          description: "Seu agendamento foi realizado com sucesso.",
+          description: "Seu agendamento foi realizado e aguarda confirmação.",
         });
         router.push('/client/my-appointments');
       })
@@ -140,7 +185,7 @@ export default function ClientAppointmentsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Serviço</Label>
-                <Select value={serviceId} onValueChange={setServiceId}>
+                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Escolha um serviço" />
                   </SelectTrigger>
@@ -174,12 +219,9 @@ export default function ClientAppointmentsPage() {
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={(d) => { setDate(d); setTime(""); }}
                         initialFocus
                         locale={ptBR}
-                        captionLayout="dropdown-buttons"
-                        fromYear={new Date().getFullYear()}
-                        toYear={new Date().getFullYear() + 2}
                         disabled={{ before: new Date() }}
                       />
                     </PopoverContent>
@@ -188,17 +230,25 @@ export default function ClientAppointmentsPage() {
 
                 <div className="space-y-2">
                   <Label>Horário</Label>
-                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
+                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId || isLoadingApts}>
                     <SelectTrigger className="w-full">
                       <Clock className="w-4 h-4 mr-2 text-primary" />
-                      <SelectValue placeholder="Hora" />
+                      <SelectValue placeholder={isLoadingApts ? "Carregando..." : "Hora"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIME_SLOTS.map(slot => (
-                        <SelectItem key={slot} value={slot}>
-                          {slot}
-                        </SelectItem>
-                      ))}
+                      {TIME_SLOTS.map(slot => {
+                        const available = isTimeSlotAvailable(slot);
+                        return (
+                          <SelectItem 
+                            key={slot} 
+                            value={slot} 
+                            disabled={!available}
+                            className={!available ? "opacity-50 line-through" : ""}
+                          >
+                            {slot} {!available && "(Ocupado)"}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -207,7 +257,7 @@ export default function ClientAppointmentsPage() {
               <Button 
                 className="w-full h-12 text-lg font-headline bg-primary hover:bg-primary/90 mt-4"
                 onClick={handleBooking}
-                disabled={loading}
+                disabled={loading || !date || !serviceId || !time}
               >
                 {loading ? "Processando..." : user ? "Confirmar Agendamento" : "Faça Login para Agendar"}
               </Button>
@@ -237,6 +287,14 @@ export default function ClientAppointmentsPage() {
                 <span className="text-muted-foreground">Data e Hora:</span>
                 <span className="font-medium">{date && time ? `${format(date, "P", { locale: ptBR })} às ${time}` : '---'}</span>
               </div>
+              
+              {!isLoadingApts && date && serviceId && !time && (
+                <div className="bg-primary/10 p-4 rounded-lg flex items-start gap-2 text-primary text-xs italic">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <p>Selecione um horário disponível. Horários ocupados ou que conflitam com outros agendamentos estão desativados.</p>
+                </div>
+              )}
+
               <div className="pt-4 flex items-start gap-2 text-muted-foreground italic">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                 <p>Nossos agendamentos garantem a qualidade e o estilo que você merece.</p>
