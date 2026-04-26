@@ -67,21 +67,25 @@ export function useCollection<T = any>(
         setIsLoading(false);
         setError(null);
       },
-      (err: FirestoreError) => {
+      async (err: FirestoreError) => {
         // Extração segura do path para o erro contextual
         let path = 'unknown';
-        if ('path' in target && typeof target.path === 'string') {
-          path = target.path;
-        } else {
-          const internal = target as InternalQuery;
-          if (internal._query?.path) {
-            path = internal._query.path.canonicalString();
+        try {
+          if ('path' in target && typeof target.path === 'string') {
+            path = target.path;
+          } else {
+            const internal = target as InternalQuery;
+            if (internal._query?.path) {
+              path = internal._query.path.canonicalString();
+            }
           }
+        } catch (e) {
+          path = 'appointments'; // Fallback comum para este app
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path,
+          path: path.replace(/^\/databases\/\(default\)\/documents\//, ''),
         });
 
         setError(contextualError);

@@ -27,11 +27,16 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite listagem baseada em filtros de consulta
+      // Permite listagem se:
+      // 1. For o Barbeiro Mestre
+      // 2. O usuário for o dono do agendamento (clientId)
+      // 3. O usuário for o barbeiro do agendamento (barberId)
+      // 4. For uma consulta de disponibilidade (filtro por barberId)
       allow list: if isSignedIn() && (
         isMasterBarber() || 
-        ('barberId' in request.query.filters) ||
-        ('clientId' in request.query.filters && request.query.filters.clientId == request.auth.uid)
+        resource.data.clientId == request.auth.uid ||
+        resource.data.barberId == request.auth.uid ||
+        (request.query.filters != null && 'barberId' in request.query.filters)
       );
       
       allow get: if isSignedIn() && (
@@ -52,7 +57,7 @@ service cloud.firestore {
       allow read, list: if isSignedIn() && (
         isMasterBarber() ||
         (resource != null && resource.data.toId == request.auth.uid) ||
-        ('toId' in request.query.filters && request.query.filters.toId == request.auth.uid)
+        (request.query.filters != null && 'toId' in request.query.filters && request.query.filters.toId == request.auth.uid)
       );
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||
