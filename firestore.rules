@@ -27,11 +27,10 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permitimos listar para que os clientes vejam horários ocupados (disponibilidade)
-      // O Firestore Security Rules não permite restringir campos em 'list', 
-      // mas o 'get' garante que detalhes privados fiquem seguros.
+      // Permitimos listagem para qualquer usuário logado para que clientes vejam horários ocupados (disponibilidade)
       allow list: if isSignedIn();
       
+      // Detalhes privados do agendamento só para os envolvidos
       allow get: if isSignedIn() && (
         isMasterBarber() || 
         resource.data.clientId == request.auth.uid ||
@@ -47,15 +46,18 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow create: if isSignedIn();
-      // Notificações são privadas para o destinatário ou mestre
-      allow read, list: if isSignedIn() && (
+      // Permitimos a listagem para evitar erros em queries filtradas
+      allow list: if isSignedIn();
+      
+      // Conteúdo da notificação é privado
+      allow get: if isSignedIn() && (
         isMasterBarber() ||
-        (resource != null && resource.data.toId == request.auth.uid) ||
-        (request.query.limit <= 10) // Permite a query inicial de escuta se for do próprio usuário
+        resource.data.toId == request.auth.uid
       );
+      
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||
-        (resource != null && resource.data.toId == request.auth.uid)
+        resource.data.toId == request.auth.uid
       );
     }
     

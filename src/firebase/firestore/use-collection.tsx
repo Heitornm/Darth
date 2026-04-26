@@ -70,8 +70,8 @@ export function useCollection<T = any>(
       async (err: FirestoreError) => {
         let path = 'unknown';
         try {
-          if (target && 'path' in target && typeof target.path === 'string') {
-            path = target.path;
+          if (target && 'path' in target && typeof (target as any).path === 'string') {
+            path = (target as any).path;
           } else if (target && '_query' in (target as any)) {
             const internal = target as any;
             if (internal._query?.path) {
@@ -79,7 +79,7 @@ export function useCollection<T = any>(
             }
           }
         } catch (e) {
-          path = 'appointments';
+          path = 'collection';
         }
 
         const contextualError = new FirestorePermissionError({
