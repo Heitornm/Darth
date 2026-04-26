@@ -69,7 +69,7 @@ export default function Home() {
                           src={barberImage?.imageUrl} 
                           alt="Darth Barber" 
                           data-ai-hint={barberImage?.imageHint}
-                          className="object-cover"
+                          className="object-cover scale-105 transition-transform duration-500"
                         />
                         <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">DB</AvatarFallback>
                       </Avatar>
