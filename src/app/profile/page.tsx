@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useUser, useAuth, useFirestore, updateDocumentNonBlocking } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { useUser, useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { updateProfile, updateEmail, updatePassword } from 'firebase/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,11 @@ export default function ProfilePage() {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
-            setPhone(userDoc.data().phone || '');
+            const userData = userDoc.data();
+            setPhone(userData.phone || '');
+            // Se o nome no Firestore for diferente do Auth, podemos optar por um ou outro. 
+            // Aqui garantimos que o Firestore reflita o que o usuário quer.
+            if (userData.name && !user.displayName) setName(userData.name);
           }
         } catch (e) {
           console.error("Erro ao buscar dados do perfil:", e);
@@ -47,14 +52,16 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !db) return;
 
     setLoading(true);
     try {
+      // 1. Atualiza Perfil de Autenticação (Nome)
       if (name !== user.displayName) {
         await updateProfile(user, { displayName: name });
       }
 
+      // 2. Atualiza Email (se alterado)
       if (email !== user.email) {
         try {
           await updateEmail(user, email);
@@ -67,17 +74,24 @@ export default function ProfilePage() {
         }
       }
 
+      // 3. Atualiza Senha (se preenchida)
       if (password) {
         await updatePassword(user, password);
         setPassword('');
       }
 
-      updateDocumentNonBlocking(doc(db, 'users', user.uid), {
-        name,
-        email,
-        phone,
-        updatedAt: new Date().toISOString()
-      });
+      // 4. Atualiza Firestore (Nome, Email, Telefone)
+      // Usamos setDocumentNonBlocking com merge: true para garantir que o doc exista
+      setDocumentNonBlocking(
+        doc(db, 'users', user.uid), 
+        {
+          name,
+          email,
+          phone,
+          updatedAt: Timestamp.now()
+        }, 
+        { merge: true }
+      );
 
       toast({
         title: "Sucesso!",
