@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Scissors, Mail, Lock, User as UserIcon, UserCircle, Briefcase, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -65,14 +67,24 @@ export default function LoginPage() {
       await updateProfile(newUser, { displayName: name });
 
       if (db) {
-        await setDoc(doc(db, 'users', newUser.uid), {
+        const userData = {
           id: newUser.uid,
           name: name,
           email: email,
           role: role,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
-        });
+        };
+
+        // Padrão não-bloqueante para mutações Firestore
+        setDoc(doc(db, 'users', newUser.uid), userData)
+          .catch(async (err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: `users/${newUser.uid}`,
+              operation: 'create',
+              requestResourceData: userData,
+            }));
+          });
       }
 
       toast({ title: "Conta criada!", description: `Bem-vindo, ${name}.` });
@@ -83,7 +95,6 @@ export default function LoginPage() {
         title: "Erro no Cadastro",
         description: error.message || "Não foi possível criar sua conta.",
       });
-    } finally {
       setIsLoading(false);
     }
   };

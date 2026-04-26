@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { useFirestore, useUser } from '@/firebase';
 import { collection, Timestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
 const SERVICES = [
@@ -47,7 +48,7 @@ export default function ClientAppointmentsPage() {
 
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
-  const handleBooking = async () => {
+  const handleBooking = () => {
     if (!user || !db) {
       toast({ title: "Login necessário", description: "Faça login para agendar." });
       router.push('/login');
@@ -82,35 +83,42 @@ export default function ClientAppointmentsPage() {
       createdAt: Timestamp.now(),
     };
 
-    try {
-      await addDoc(collection(db, "appointments"), appointmentData);
+    // Padrão não-bloqueante para mutações Firestore
+    addDoc(collection(db, "appointments"), appointmentData)
+      .then(() => {
+        // Criar notificação para o barbeiro após sucesso do agendamento
+        const notificationData = {
+          toId: MASTER_BARBER_ID,
+          fromName: user.displayName || 'Cliente',
+          type: 'new_appointment',
+          message: `Novo agendamento: ${selectedService?.name} em ${format(appointmentDate, "dd/MM 'às' HH:mm")}`,
+          read: false,
+          createdAt: Timestamp.now()
+        };
+        
+        addDoc(collection(db, "notifications"), notificationData).catch(async () => {
+          // Erro silencioso para notificações se falhar, ou emitir se for crítico
+          console.warn("Falha ao criar notificação.");
+        });
 
-      const notificationData = {
-        toId: MASTER_BARBER_ID,
-        fromName: user.displayName || 'Cliente',
-        type: 'new_appointment',
-        message: `Novo agendamento: ${selectedService?.name} em ${format(appointmentDate, "dd/MM 'às' HH:mm")}`,
-        read: false,
-        createdAt: Timestamp.now()
-      };
-      
-      addDoc(collection(db, "notifications"), notificationData);
-
-      toast({
-        title: "Sucesso!",
-        description: "Seu agendamento foi realizado com sucesso.",
+        toast({
+          title: "Sucesso!",
+          description: "Seu agendamento foi realizado com sucesso.",
+        });
+        router.push('/client/my-appointments');
+      })
+      .catch(async (err) => {
+        const error = new FirestorePermissionError({
+          path: 'appointments',
+          operation: 'create',
+          requestResourceData: appointmentData,
+        } satisfies SecurityRuleContext);
+        
+        errorEmitter.emit('permission-error', error);
+      })
+      .finally(() => {
+        setLoading(false);
       });
-      router.push('/client/my-appointments');
-    } catch (err) {
-      const error = new FirestorePermissionError({
-        path: 'appointments',
-        operation: 'create',
-        requestResourceData: appointmentData,
-      });
-      errorEmitter.emit('permission-error', error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (

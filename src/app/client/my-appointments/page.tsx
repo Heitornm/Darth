@@ -27,21 +27,23 @@ export default function MyAppointmentsPage() {
     
     const appointmentsRef = collection(db, "appointments");
     
-    // Se for o barbeiro mestre, ele pode listar tudo para fins de gerenciamento
+    // 1. Lógica para o Administrador (Barbeiro)
     if (user.email === BARBER_EMAIL) {
       return query(appointmentsRef, orderBy("dataHora", "desc"));
     }
 
-    // SE FOR CLIENTE: O filtro 'where' pelo clientId é OBRIGATÓRIO para bater com a regra de segurança
+    // 2. Lógica para o Cliente (CORREÇÃO AQUI)
+    // Onde 'clientId' deve ser o nome exato do campo no seu Firestore
     return query(
       appointmentsRef,
       where("clientId", "==", user.uid),
-      orderBy("dataHora", "desc")
+      orderBy("dataHora", "desc") 
     );
   }, [db, user, mounted]);
 
   const { data: appointments, isLoading } = useCollection(myAppointmentsQuery);
 
+  // ... restante do componente (loading, empty state, renderização) permanece igual
   if (!mounted || isUserLoading || isLoading) {
     return (
       <div className="container mx-auto px-4 py-20 text-center space-y-4 animate-pulse">
