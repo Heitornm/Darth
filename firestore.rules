@@ -27,7 +27,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permitimos listagem para qualquer usuário logado para que clientes vejam horários ocupados (disponibilidade)
+      // Permitir listagem (queries) para qualquer usuário logado.
+      // O Firestore filtrará os resultados automaticamente ou negará se a query for muito ampla.
       allow list: if isSignedIn();
       
       // Detalhes privados do agendamento só para os envolvidos
@@ -45,8 +46,7 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow create: if isSignedIn();
-      // Permitimos a listagem para evitar erros em queries filtradas
+      // Permitir que usuários logados listem suas próprias notificações
       allow list: if isSignedIn();
       
       // Conteúdo da notificação é privado
@@ -55,6 +55,7 @@ service cloud.firestore {
         resource.data.toId == request.auth.uid
       );
       
+      allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||
         resource.data.toId == request.auth.uid

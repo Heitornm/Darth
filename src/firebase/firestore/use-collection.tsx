@@ -70,13 +70,11 @@ export function useCollection<T = any>(
       async (err: FirestoreError) => {
         let path = 'unknown';
         try {
-          if (target && 'path' in target && typeof (target as any).path === 'string') {
+          // Tenta extrair o caminho da coleção para o erro contextual
+          if ('path' in target && typeof (target as any).path === 'string') {
             path = (target as any).path;
-          } else if (target && '_query' in (target as any)) {
-            const internal = target as any;
-            if (internal._query?.path) {
-              path = internal._query.path.canonicalString();
-            }
+          } else if ((target as any)._query?.path) {
+            path = (target as any)._query.path.canonicalString();
           }
         } catch (e) {
           path = 'collection';
@@ -91,6 +89,7 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
+        // Dispara a propagação do erro global para o overlay do Next.js
         errorEmitter.emit('permission-error', contextualError);
       }
     );
