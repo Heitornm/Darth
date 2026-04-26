@@ -70,11 +70,13 @@ export function useCollection<T = any>(
       async (err: FirestoreError) => {
         let path = 'unknown';
         try {
-          // Tenta extrair o caminho da coleção para o erro contextual
           if ('path' in target && typeof (target as any).path === 'string') {
             path = (target as any).path;
-          } else if ((target as any)._query?.path) {
-            path = (target as any)._query.path.canonicalString();
+          } else {
+            const internal = target as any;
+            if (internal._query?.path) {
+              path = internal._query.path.canonicalString?.() || internal._query.path.toString?.() || 'collection';
+            }
           }
         } catch (e) {
           path = 'collection';
