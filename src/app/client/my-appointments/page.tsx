@@ -7,10 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Clock, Scissors } from 'lucide-react';
+import { CalendarDays, Clock, Scissors, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
@@ -29,13 +30,10 @@ export default function MyAppointmentsPage() {
     
     const appointmentsRef = collection(db, "appointments");
     
-    // 1. Lógica para o Administrador (Barbeiro Mestre)
     if (user.email === BARBER_EMAIL || user.uid === MASTER_BARBER_ID) {
       return query(appointmentsRef, orderBy("dataHora", "desc"));
     }
 
-    // 2. Lógica para o Cliente: Filtra OBRIGATORIAMENTE pelo seu clientId
-    // Isso deve bater exatamente com a regra no firestore.rules
     return query(
       appointmentsRef,
       where("clientId", "==", user.uid),
@@ -90,13 +88,21 @@ export default function MyAppointmentsPage() {
             const isPast = date < new Date();
             
             return (
-              <Card key={apt.id} className={`overflow-hidden border-l-4 ${isPast ? 'border-l-muted' : 'border-l-primary'}`}>
+              <Card key={apt.id} className={`overflow-hidden border-l-4 ${
+                apt.status === 'cancelado' ? 'border-l-destructive' : 
+                apt.status === 'confirmado' ? 'border-l-green-500' : 
+                'border-l-primary'
+              }`}>
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <Badge variant={isPast ? "secondary" : "default"} className="uppercase text-[10px]">
-                          {isPast ? "Finalizado" : apt.status}
+                        <Badge variant={
+                          apt.status === 'confirmado' ? 'default' : 
+                          apt.status === 'cancelado' ? 'destructive' : 
+                          'outline'
+                        } className="uppercase text-[10px]">
+                          {apt.status}
                         </Badge>
                         <span className="text-sm font-bold text-primary">
                           {format(date, "dd 'de' MMMM", { locale: ptBR })}
@@ -119,8 +125,21 @@ export default function MyAppointmentsPage() {
                     
                     {!isPast && (
                       <div className="flex flex-col items-end gap-2 text-right">
-                        <p className="text-xs text-muted-foreground italic">Compareça com 5 min de antecedência</p>
-                        <Badge variant="outline" className="border-accent text-accent">CONFIRMADO</Badge>
+                        {apt.status === 'pendente' && (
+                          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase bg-primary/5 px-3 py-1.5 rounded-full border border-primary/20">
+                            <AlertCircle className="w-4 h-4 animate-pulse" /> Aguardando Confirmação
+                          </div>
+                        )}
+                        {apt.status === 'confirmado' && (
+                          <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase bg-green-500/5 px-3 py-1.5 rounded-full border border-green-500/20">
+                            <CheckCircle2 className="w-4 h-4" /> Confirmado
+                          </div>
+                        )}
+                        {apt.status === 'cancelado' && (
+                          <div className="flex items-center gap-2 text-destructive font-bold text-xs uppercase bg-destructive/5 px-3 py-1.5 rounded-full border border-destructive/20">
+                            <XCircle className="w-4 h-4" /> Cancelado
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

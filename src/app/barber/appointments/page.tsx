@@ -8,9 +8,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { Button } from '@/components/ui/button';
+import { useFirestore, useUser, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
-import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const BARBER_EMAIL = "darthbarber@darth.com.br";
@@ -58,6 +59,12 @@ export default function BarberAppointmentsPage() {
     const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
     return startOfDay(date);
   }) || [];
+
+  const handleStatusUpdate = (appointmentId: string, newStatus: 'confirmado' | 'cancelado') => {
+    if (!db) return;
+    const docRef = doc(db, 'appointments', appointmentId);
+    updateDocumentNonBlocking(docRef, { status: newStatus });
+  };
 
   if (!mounted || isUserLoading) return <div className="p-20 text-center animate-pulse">Sincronizando agenda...</div>;
 
@@ -162,17 +169,39 @@ export default function BarberAppointmentsPage() {
                             <Badge variant="secondary" className="bg-secondary/50"><Scissors className="w-3 h-3 mr-1" />{apt.serviceName}</Badge>
                             <Badge variant="outline" className="border-primary/20">{apt.durationMinutes} min</Badge>
                           </div>
-                          {apt.aiSummary && (
-                            <div className="mt-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
-                              <p className="text-[10px] font-bold text-primary uppercase mb-1 tracking-widest">Resumo do Estilo (IA):</p>
-                              <p className="text-xs text-muted-foreground italic leading-relaxed">
-                                "{apt.aiSummary}"
-                              </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {apt.status === 'pendente' ? (
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                className="bg-green-600 hover:bg-green-700 h-8 gap-1"
+                                onClick={() => handleStatusUpdate(apt.id, 'confirmado')}
+                              >
+                                <CheckCircle2 className="w-4 h-4" /> Confirmar
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="h-8 gap-1"
+                                onClick={() => handleStatusUpdate(apt.id, 'cancelado')}
+                              >
+                                <XCircle className="w-4 h-4" /> Cancelar
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className={cn(
+                              "flex items-center gap-2 font-bold text-xs uppercase px-3 py-1.5 rounded-full border",
+                              apt.status === 'confirmado' ? "text-green-500 bg-green-500/5 border-green-500/20" : "text-destructive bg-destructive/5 border-destructive/20"
+                            )}>
+                              {apt.status === 'confirmado' ? (
+                                <><CheckCircle2 className="w-4 h-4" /> Confirmado</>
+                              ) : (
+                                <><XCircle className="w-4 h-4" /> Cancelado</>
+                              )}
                             </div>
                           )}
-                        </div>
-                        <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase bg-green-500/5 px-3 py-1.5 rounded-full border border-green-500/20">
-                          <CheckCircle2 className="w-4 h-4" /> Confirmado
                         </div>
                       </div>
                     </CardContent>
