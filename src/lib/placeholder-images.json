@@ -9,31 +9,31 @@
     {
       "id": "barber-profile",
       "description": "Darth Barber Profile Icon",
-      "imageUrl": "/images/darthBarberPerfil.png",
+      "imageUrl": "/images/barber-profile.png",
       "imageHint": "darth barber"
     },
     {
       "id": "srv-corte-classico",
       "description": "Classic Haircut Service",
-      "imageUrl": "/images/corteClassico.png",
+      "imageUrl": "/images/srv-corte-classico.png",
       "imageHint": "classic haircut"
     },
     {
       "id": "srv-barba-completa",
       "description": "Full Beard Service",
-      "imageUrl": "/images/barbaCompleta.png",
+      "imageUrl": "/images/srv-barba-completa.png",
       "imageHint": "beard grooming"
     },
     {
       "id": "srv-combo-imperial",
       "description": "Haircut and Beard Combo",
-      "imageUrl": "/images/comboImperial.png",
+      "imageUrl": "/images/srv-combo-imperial.png",
       "imageHint": "barber combo"
     },
     {
       "id": "srv-corte-premium",
       "description": "Premium Haircut Service",
-      "imageUrl": "/images/cortePremium.png",
+      "imageUrl": "/images/srv-corte-premium.png",
       "imageHint": "luxury haircut"
     }
   ]
