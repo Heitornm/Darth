@@ -5,19 +5,35 @@ import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
 import { LogIn, Scissors, ChevronRight, Star } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
+  const db = useFirestore();
   const [mounted, setMounted] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (user && db && mounted) {
+      const userRef = doc(db, 'users', user.uid);
+      getDoc(userRef).then((docSnap) => {
+        if (docSnap.exists()) {
+          setUserRole(docSnap.data().role);
+        }
+      });
+    } else {
+      setUserRole(null);
+    }
+  }, [user, db, mounted]);
 
   const barberImage = PlaceHolderImages.find(img => img.id === 'barber-profile');
 
@@ -58,42 +74,44 @@ export default function Home() {
                 </Button>
               )}
 
-              {/* Card de Apresentação do Barbeiro em Destaque */}
-              <div className="w-full flex justify-center pt-8">
-                <Card className="max-w-[420px] w-full border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl hover:border-primary/40 transition-all duration-500 transform hover:-translate-y-2 group overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-                  <CardContent className="p-12 flex flex-col items-center gap-8 text-center relative z-10">
-                    <div className="relative">
-                      <Avatar className="h-48 w-48 border-4 border-primary/30 shadow-[0_0_30px_rgba(var(--primary),0.2)] group-hover:border-primary/60 transition-colors duration-500">
-                        <AvatarImage 
-                          src={barberImage?.imageUrl} 
-                          alt="Darth Barber" 
-                          data-ai-hint={barberImage?.imageHint}
-                          className="object-cover scale-[1.55] transition-transform duration-500"
-                        />
-                        <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">DB</AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -bottom-2 -right-2 bg-accent p-2 rounded-full shadow-lg border-2 border-background">
-                        <Star className="w-5 h-5 text-accent-foreground fill-accent-foreground" />
+              {/* Card de Apresentação do Barbeiro em Destaque - visível apenas para clientes */}
+              {userRole === 'client' && (
+                <div className="w-full flex justify-center pt-8">
+                  <Card className="max-w-[420px] w-full border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl hover:border-primary/40 transition-all duration-500 transform hover:-translate-y-2 group overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+                    <CardContent className="p-12 flex flex-col items-center gap-8 text-center relative z-10">
+                      <div className="relative">
+                        <Avatar className="h-48 w-48 border-4 border-primary/30 shadow-[0_0_30px_rgba(var(--primary),0.2)] group-hover:border-primary/60 transition-colors duration-500">
+                          <AvatarImage 
+                            src={barberImage?.imageUrl} 
+                            alt="Darth Barber" 
+                            data-ai-hint={barberImage?.imageHint}
+                            className="object-cover scale-[1.55] transition-transform duration-500"
+                          />
+                          <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">DB</AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -bottom-2 -right-2 bg-accent p-2 rounded-full shadow-lg border-2 border-background">
+                          <Star className="w-5 h-5 text-accent-foreground fill-accent-foreground" />
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <h2 className="font-headline font-bold text-3xl text-foreground tracking-tight group-hover:text-primary transition-colors">
-                        Darth Barber
-                      </h2>
-                      <div className="flex flex-col items-center gap-3">
-                        <span className="text-xs font-bold uppercase tracking-[0.2em] px-5 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
-                          Barbeiro Profissional
-                        </span>
-                        <p className="text-sm text-muted-foreground italic max-w-[200px] leading-relaxed">
-                          "Dominando a arte do corte com a precisão de um mestre."
-                        </p>
+                      
+                      <div className="space-y-3">
+                        <h2 className="font-headline font-bold text-3xl text-foreground tracking-tight group-hover:text-primary transition-colors">
+                          Darth Barber
+                        </h2>
+                        <div className="flex flex-col items-center gap-3">
+                          <span className="text-xs font-bold uppercase tracking-[0.2em] px-5 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+                            Barbeiro Profissional
+                          </span>
+                          <p className="text-sm text-muted-foreground italic max-w-[200px] leading-relaxed">
+                            "Dominando a arte do corte com a precision de um mestre."
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-8">
