@@ -27,16 +27,12 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permite listagem se:
-      // 1. For o Barbeiro Mestre
-      // 2. O usuário for o dono do agendamento (clientId)
-      // 3. O usuário for o barbeiro do agendamento (barberId)
-      // 4. For uma consulta de disponibilidade (filtro por barberId)
+      // Permite listagem se o usuário for o dono, o barbeiro ou o mestre.
+      // O Firestore garante que a query seja filtrada automaticamente pelo UID.
       allow list: if isSignedIn() && (
         isMasterBarber() || 
         resource.data.clientId == request.auth.uid ||
-        resource.data.barberId == request.auth.uid ||
-        (request.query.filters != null && 'barberId' in request.query.filters)
+        resource.data.barberId == request.auth.uid
       );
       
       allow get: if isSignedIn() && (
@@ -54,14 +50,14 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow create: if isSignedIn();
+      // Permite ler/listar se a notificação for destinada ao usuário logado ou se for o mestre
       allow read, list: if isSignedIn() && (
         isMasterBarber() ||
-        (resource != null && resource.data.toId == request.auth.uid) ||
-        (request.query.filters != null && 'toId' in request.query.filters && request.query.filters.toId == request.auth.uid)
+        (resource != null && resource.data.toId == request.auth.uid)
       );
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||
-        resource.data.toId == request.auth.uid
+        (resource != null && resource.data.toId == request.auth.uid)
       );
     }
     
