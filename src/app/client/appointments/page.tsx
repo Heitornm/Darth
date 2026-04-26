@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -19,7 +18,6 @@ import { collection, Timestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { StyleAssistant } from '@/components/StyleAssistant';
 
 const SERVICES = [
   { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
@@ -46,7 +44,6 @@ export default function ClientAppointmentsPage() {
   const [serviceId, setServiceId] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [aiSummary, setAiSummary] = useState("");
 
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
@@ -82,7 +79,6 @@ export default function ClientAppointmentsPage() {
       price: selectedService?.price,
       dataHora: Timestamp.fromDate(appointmentDate),
       status: 'pendente',
-      aiSummary: aiSummary,
       createdAt: Timestamp.now(),
     };
 
@@ -200,10 +196,6 @@ export default function ClientAppointmentsPage() {
                 </div>
               </div>
 
-              <div className="pt-2">
-                <StyleAssistant onSummaryGenerated={setAiSummary} />
-              </div>
-
               <Button 
                 className="w-full h-12 text-lg font-headline bg-primary hover:bg-primary/90 mt-4"
                 onClick={handleBooking}
@@ -237,12 +229,6 @@ export default function ClientAppointmentsPage() {
                 <span className="text-muted-foreground">Data e Hora:</span>
                 <span className="font-medium">{date && time ? `${format(date, "P", { locale: ptBR })} às ${time}` : '---'}</span>
               </div>
-              {aiSummary && (
-                <div className="bg-primary/5 p-3 rounded-lg border border-primary/10 mt-2">
-                  <p className="text-[10px] font-bold text-primary uppercase mb-1">Nota para o Barbeiro:</p>
-                  <p className="text-xs italic">"{aiSummary}"</p>
-                </div>
-              )}
               <div className="pt-4 flex items-start gap-2 text-muted-foreground italic">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                 <p>Nossos agendamentos garantem a qualidade e o estilo que você merece.</p>
