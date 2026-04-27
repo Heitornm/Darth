@@ -103,38 +103,32 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [userAuthState.user, firestore]);
 
   useEffect(() => {
-    if (!firestore) return;
-
-    setIsAppointmentsLoading(true);
-    
-    const isBarber = userProfile?.role === 'barber' || 
-                     userAuthState.user?.email === BARBER_EMAIL || 
-                     userAuthState.user?.uid === MASTER_BARBER_ID;
-
-    // Para o calendário de disponibilidade na Home funcionar, clientes logados precisam ver TODOS os agendamentos do barbeiro
-    const q = (userAuthState.user && !isBarber)
-      ? query(collection(firestore, 'appointments'), where('barberId', '==', MASTER_BARBER_ID), orderBy('dataHora', 'desc'))
-      : (isBarber 
-          ? query(collection(firestore, 'appointments'), where('barberId', '==', MASTER_BARBER_ID), orderBy('dataHora', 'desc'))
-          : null);
-
-    if (!q) {
+    if (!firestore || !userAuthState.user) {
       setAppointments(null);
       setIsAppointmentsLoading(false);
       return;
     }
+
+    setIsAppointmentsLoading(true);
+    
+    // Qualquer usuário logado pode listar agendamentos do barbeiro mestre para ver disponibilidade
+    const q = query(
+      collection(firestore, 'appointments'), 
+      where('barberId', '==', MASTER_BARBER_ID), 
+      orderBy('dataHora', 'desc')
+    );
 
     const unsubscribe = onSnapshot(q, (snap) => {
       const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       setAppointments(apts);
       setIsAppointmentsLoading(false);
     }, (err) => {
-      console.error("Global Appointments Error:", err);
+      console.error("Global Appointments Fetch Error:", err);
       setIsAppointmentsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [userAuthState.user, userProfile?.role, firestore]);
+  }, [userAuthState.user, firestore]);
 
   const contextValue = useMemo((): FirebaseContextState => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);

@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, AlertCircle, Star } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, Star } from 'lucide-react';
 import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 

@@ -156,7 +156,6 @@ export default function Home() {
                   mode="single"
                   selected={selectedDate}
                   onSelect={(d) => {
-                    // Impede seleção de dia lotado ou passado
                     if (d && !isBefore(startOfDay(d), startOfDay(new Date())) && !isDayFull(d)) {
                       setSelectedDate(d);
                     }
