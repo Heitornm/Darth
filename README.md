@@ -1,39 +1,60 @@
 # DarthBarber - Modern Grooming
 
-Este é um sistema de agendamento para barbearias moderno, utilizando Next.js, Firebase e Genkit para assistente de estilo com IA.
+Este é um sistema de agendamento premium para barbearias, desenvolvido com **Next.js 15**, **Firebase** e **Genkit AI**. O projeto oferece uma experiência completa tanto para clientes quanto para barbeiros, incluindo um assistente de estilo inteligente movido a IA.
 
-## Como rodar localmente
+## 🚀 Tecnologias Utilizadas
+
+- **Frontend:** Next.js 15 (App Router), React 19, Tailwind CSS, ShadCN UI.
+- **Backend:** Firebase (Firestore, Authentication).
+- **IA:** Genkit + Google Gemini (Modelo Flash 2.5).
+- **Estilização:** Lucide Icons, Space Grotesk (Font).
+
+## 📅 Regras de Agendamento & Disponibilidade
+
+O sistema possui uma lógica visual rigorosa para facilitar a reserva:
+- **Expediente:** O horário de atendimento é das **08:00 às 21:00**, de segunda a sábado.
+- **Calendário Inteligente:**
+  - **Verde (Disponível):** Dias que ainda possuem slots de tempo livres dentro do expediente.
+  - **Vermelho (Lotado):** Dias onde a soma da duração dos serviços agendados atingiu o limite de 780 minutos (expediente completo).
+  - **Bloqueio:** Datas lotadas ou passadas ficam desabilitadas para clique, impedindo agendamentos impossíveis.
+
+## 🤖 Assistente de Estilo AI
+
+Na tela de agendamento, o cliente pode usar o **Darth Assistant**:
+1. O cliente descreve o corte desejado em linguagem natural (ex: "Quero um fade baixo mas com franja longa").
+2. A IA (Gemini) processa a descrição e gera um resumo técnico padronizado.
+3. Esse resumo é enviado diretamente para a agenda do barbeiro, garantindo que a expectativa do cliente seja atendida com precisão.
+
+## 🛠️ Configuração Local
 
 ### 1. Pré-requisitos
-- Node.js 18 ou superior.
-- Uma conta no Google Cloud/Firebase para serviços de backend.
-- Uma chave de API do Google AI (Gemini) para as funcionalidades de IA.
+- Node.js 18+ instalado.
+- Conta no [Google AI Studio](https://aistudio.google.com/app/apikey) para obter a `GEMINI_API_KEY`.
 
 ### 2. Instalação
-Clone o repositório e instale as dependências:
 ```bash
 npm install
 ```
 
-### 3. Configuração de Variáveis de Ambiente
+### 3. Variáveis de Ambiente
 Crie um arquivo `.env.local` na raiz do projeto:
 ```env
 GEMINI_API_KEY=sua_chave_aqui
 ```
-*Dica: Você pode gerar sua chave gratuitamente no [Google AI Studio](https://aistudio.google.com/app/apikey).*
 
-### 4. Executando o Projeto
-Inicie o servidor de desenvolvimento do Next.js:
+### 4. Execução
 ```bash
+# Rodar o app Next.js
 npm run dev
+
+# Rodar o ambiente de desenvolvimento Genkit (IA)
+npm run genkit:dev
 ```
-O projeto estará disponível em `http://localhost:9002`.
 
-### 5. Configuração do Firestore (Índices)
-Se você encontrar um erro de "The query requires an index" no console do navegador ao acessar a agenda do barbeiro, clique no link fornecido na própria mensagem de erro. O Firebase criará o índice composto necessário (barberId + dataHora) automaticamente para você.
+## 🔐 Segurança & Índices
 
-## Estrutura do Projeto
-- `src/app`: Páginas e rotas do Next.js.
-- `src/ai`: Fluxos e configurações do Genkit.
-- `src/firebase`: Configuração e hooks do Firebase.
-- `src/components`: Componentes UI reutilizáveis.
+- **Segurança:** As regras do Firestore estão configuradas para permitir que qualquer usuário autenticado consulte a disponibilidade global (necessário para as cores do calendário), enquanto as ações de editar/cancelar são restritas aos donos dos documentos.
+- **Índices:** Ao realizar buscas complexas (como filtrar agendamentos por data e barbeiro), o Firebase pode solicitar um índice. Verifique o console do navegador e clique no link automático fornecido pelo Firebase para criá-lo instantaneamente.
+
+---
+*DarthBarber - Que a força do estilo esteja com você.*
