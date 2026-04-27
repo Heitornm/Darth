@@ -27,9 +27,9 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Regras atualizadas em 2024-05-20 para resolver erro de permissão na listagem
       // Permitimos a leitura (get e list) para qualquer usuário autenticado.
-      // A privacidade dos dados é mantida pelos filtros aplicados nas queries do frontend.
+      // Isso é necessário para que clientes vejam a disponibilidade de horários (outros agendamentos)
+      // e para que barbeiros vejam sua própria agenda.
       allow read: if isSignedIn();
       
       allow create: if isSignedIn();
@@ -40,7 +40,7 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      // Permitir leitura de notificações para usuários logados
+      // Permitir leitura de notificações para usuários logados para que o listener funcione
       allow read: if isSignedIn();
       
       allow create: if isSignedIn();
