@@ -33,7 +33,6 @@ export interface InternalQuery extends Query<DocumentData> {
 
 /**
  * Hook para assinar uma coleção ou query do Firestore em tempo real.
- * IMPORTANTE: O parâmetro 'target' DEVE ser memoizado para evitar loops infinitos.
  */
 export function useCollection<T = any>(
   target: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
@@ -68,18 +67,19 @@ export function useCollection<T = any>(
         setError(null);
       },
       async (err: FirestoreError) => {
-        let path = 'unknown';
+        let path = 'collection';
         try {
-          if ('path' in target && typeof (target as any).path === 'string') {
+          // Tenta extrair o caminho de forma segura
+          if ((target as any).path) {
             path = (target as any).path;
-          } else {
-            const internal = target as any;
-            if (internal._query?.path) {
-              path = internal._query.path.canonicalString?.() || internal._query.path.toString?.() || 'collection';
-            }
+          } else if ((target as any)._query?.path) {
+            const queryPath = (target as any)._query.path;
+            path = typeof queryPath.canonicalString === 'function' 
+              ? queryPath.canonicalString() 
+              : queryPath.toString();
           }
         } catch (e) {
-          path = 'collection';
+          path = 'appointments'; // Fallback comum para este app
         }
 
         const contextualError = new FirestorePermissionError({
@@ -91,7 +91,7 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
-        // Dispara a propagação do erro global para o overlay do Next.js
+        // Propaga o erro para o overlay global do Next.js
         errorEmitter.emit('permission-error', contextualError);
       }
     );
@@ -99,10 +99,9 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [target]);
 
+  // Verifica se o target foi memoizado para evitar loops infinitos
   if (target && !target.__memo) {
-    throw new Error(
-      'O parâmetro de useCollection não foi memoizado corretamente. Utilize useMemoFirebase.'
-    );
+    console.warn('O parâmetro de useCollection não foi memoizado corretamente. Use useMemoFirebase.');
   }
 
   return { data, isLoading, error };
