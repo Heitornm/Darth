@@ -3,12 +3,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Função para verificar se o usuário está logado
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Função para verificar se é o Barbeiro Mestre (Admin)
     function isMasterBarber() {
       return isSignedIn() && (
         request.auth.token.email == 'darthbarber@darth.com.br' ||
@@ -27,11 +25,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Permitimos a leitura (get e list) para qualquer usuário autenticado.
-      // Isso é vital para que clientes vejam a disponibilidade (mesmo de outros clientes)
-      // e evitem agendamentos duplicados.
+      // Liberamos leitura total para usuários logados para que possam ver disponibilidade
       allow read: if isSignedIn();
-      
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
@@ -40,10 +35,7 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      // Permitir leitura de notificações para usuários logados.
-      // O filtro por destinatário (toId) é aplicado no código via query.
       allow read: if isSignedIn();
-      
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||

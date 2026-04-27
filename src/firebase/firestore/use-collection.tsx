@@ -69,7 +69,6 @@ export function useCollection<T = any>(
       async (err: FirestoreError) => {
         let path = 'collection';
         try {
-          // Tenta extrair o caminho de forma segura
           if ((target as any).path) {
             path = (target as any).path;
           } else if ((target as any)._query?.path) {
@@ -79,7 +78,7 @@ export function useCollection<T = any>(
               : queryPath.toString();
           }
         } catch (e) {
-          path = 'appointments'; // Fallback comum para este app
+          path = 'appointments';
         }
 
         const contextualError = new FirestorePermissionError({
@@ -91,18 +90,12 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
-        // Propaga o erro para o overlay global do Next.js
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
   }, [target]);
-
-  // Verifica se o target foi memoizado para evitar loops infinitos
-  if (target && !target.__memo) {
-    console.warn('O parâmetro de useCollection não foi memoizado corretamente. Use useMemoFirebase.');
-  }
 
   return { data, isLoading, error };
 }

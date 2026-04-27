@@ -103,21 +103,26 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [userAuthState.user, firestore]);
 
   useEffect(() => {
-    if (!userAuthState.user || !firestore) {
-      setAppointments(null);
-      setIsAppointmentsLoading(false);
-      return;
-    }
+    if (!firestore) return;
 
     setIsAppointmentsLoading(true);
     
     const isBarber = userProfile?.role === 'barber' || 
-                     userAuthState.user.email === BARBER_EMAIL || 
-                     userAuthState.user.uid === MASTER_BARBER_ID;
+                     userAuthState.user?.email === BARBER_EMAIL || 
+                     userAuthState.user?.uid === MASTER_BARBER_ID;
 
-    const q = isBarber 
+    // Para o calendário de disponibilidade na Home funcionar, clientes logados precisam ver TODOS os agendamentos do barbeiro
+    const q = (userAuthState.user && !isBarber)
       ? query(collection(firestore, 'appointments'), where('barberId', '==', MASTER_BARBER_ID), orderBy('dataHora', 'desc'))
-      : query(collection(firestore, 'appointments'), where('clientId', '==', userAuthState.user.uid), orderBy('dataHora', 'desc'));
+      : (isBarber 
+          ? query(collection(firestore, 'appointments'), where('barberId', '==', MASTER_BARBER_ID), orderBy('dataHora', 'desc'))
+          : null);
+
+    if (!q) {
+      setAppointments(null);
+      setIsAppointmentsLoading(false);
+      return;
+    }
 
     const unsubscribe = onSnapshot(q, (snap) => {
       const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
