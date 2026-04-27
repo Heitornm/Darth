@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
-import { collection, Timestamp, addDoc, query, where } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import { collection, Timestamp, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -41,8 +41,7 @@ const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
 export default function ClientAppointmentsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const db = useFirestore();
-  const { user, appointments } = useFirebase();
+  const { user, appointments, firestore } = useFirebase();
   
   const [date, setDate] = useState<Date>();
   const [serviceId, setServiceId] = useState<string>("");
@@ -88,7 +87,7 @@ export default function ClientAppointmentsPage() {
   };
 
   const handleBooking = () => {
-    if (!user || !db) {
+    if (!user || !firestore) {
       toast({ title: "Login necessário", description: "Faça login para agendar." });
       router.push('/login');
       return;
@@ -118,7 +117,7 @@ export default function ClientAppointmentsPage() {
       createdAt: Timestamp.now(),
     };
 
-    addDoc(collection(db, "appointments"), appointmentData)
+    addDoc(collection(firestore, "appointments"), appointmentData)
       .then(() => {
         const notificationData = {
           toId: MASTER_BARBER_ID,
@@ -128,7 +127,7 @@ export default function ClientAppointmentsPage() {
           read: false,
           createdAt: Timestamp.now()
         };
-        addDoc(collection(db, "notifications"), notificationData).catch(() => {});
+        addDoc(collection(firestore, "notifications"), notificationData).catch(() => {});
         toast({ title: "Sucesso!", description: "Seu agendamento foi realizado e aguarda confirmação." });
         router.push('/client/my-appointments');
       })
