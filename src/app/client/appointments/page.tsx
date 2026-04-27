@@ -197,7 +197,7 @@ export default function ClientAppointmentsPage() {
                           available: (d) => !isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date()))
                         }}
                         modifiersClassNames={{
-                          full: "bg-destructive/20 text-destructive font-bold cursor-not-allowed",
+                          full: "bg-destructive text-destructive-foreground font-bold cursor-not-allowed hover:bg-destructive hover:text-destructive-foreground",
                           available: "bg-green-500/10 text-green-500 font-bold"
                         }}
                       />

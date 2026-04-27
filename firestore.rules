@@ -25,8 +25,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Liberamos leitura total para usuários logados para que possam ver disponibilidade e evitar conflitos
-      allow read: if isSignedIn();
+      // Liberamos leitura para usuários logados para que o calendário de disponibilidade funcione
+      allow read, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() || 
@@ -35,8 +35,8 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      // Liberamos leitura para o listener global de notificações
-      allow read: if isSignedIn();
+      // Liberamos leitura para o sistema de notificações em tempo real
+      allow read, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||

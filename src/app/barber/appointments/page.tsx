@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { format, isSameDay, startOfDay } from 'date-fns';
+import { useState, useEffect, useMemo } from 'react';
+import { format, isSameDay, startOfDay, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils';
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const BARBER_EMAIL = "darthbarber@darth.com.br";
+const WORK_START = 8;
+const WORK_END = 21;
+const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
 
 export default function BarberAppointmentsPage() {
   const { user, userProfile, appointments, isUserLoading, isAppointmentsLoading, firestore } = useFirebase();
@@ -28,6 +31,26 @@ export default function BarberAppointmentsPage() {
   
   const isAuthorized = userProfile?.role === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 
+  // Calcula a ocupação de cada dia para colorir o calendário
+  const availabilityData = useMemo(() => {
+    if (!appointments) return {};
+    
+    const stats: Record<string, number> = {};
+    appointments.forEach(apt => {
+      if (apt.status === 'cancelado') return;
+      const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const dayKey = format(date, 'yyyy-MM-dd');
+      stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
+    });
+    return stats;
+  }, [appointments]);
+
+  const isDayFull = (date: Date) => {
+    const dayKey = format(date, 'yyyy-MM-dd');
+    const occupied = availabilityData[dayKey] || 0;
+    return occupied >= TOTAL_MINUTES_PER_DAY;
+  };
+
   // Filtra agendamentos para a data selecionada
   const appointmentsForSelectedDate = appointments?.filter(apt => {
     if (!selectedDate) return false;
@@ -38,12 +61,6 @@ export default function BarberAppointmentsPage() {
     const dateB = b.dataHora instanceof Timestamp ? b.dataHora.toMillis() : new Date(b.dataHora).getTime();
     return dateA - dateB;
   });
-
-  // Mapeia datas que possuem agendamentos para destacar no calendário
-  const datesWithAppointments = appointments?.map(apt => {
-    const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
-    return startOfDay(date);
-  }) || [];
 
   const handleStatusUpdate = (appointmentId: string, newStatus: 'confirmado' | 'cancelado') => {
     if (!firestore) return;
@@ -92,14 +109,20 @@ export default function BarberAppointmentsPage() {
                 locale={ptBR}
                 className="rounded-md border-none"
                 modifiers={{
-                  hasApt: (date) => datesWithAppointments.some(d => isSameDay(d, date))
+                  hasApt: (date) => (availabilityData[format(date, 'yyyy-MM-dd')] || 0) > 0,
+                  full: (date) => isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date()))
                 }}
                 modifiersClassNames={{
-                  hasApt: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full font-bold"
+                  hasApt: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full font-bold",
+                  full: "bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground"
                 }}
               />
             </CardContent>
           </Card>
+          <div className="mt-4 flex gap-4 text-[10px] font-bold uppercase">
+            <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary" /> Tem Agendamento</span>
+            <span className="flex items-center gap-1.5"><div className="w-2 h-2 bg-destructive" /> Dia Lotado</span>
+          </div>
         </div>
 
         {/* Coluna da Lista de Agendamentos */}

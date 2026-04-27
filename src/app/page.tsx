@@ -165,13 +165,13 @@ export default function Home() {
                     available: (date) => !isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date()))
                   }}
                   modifiersClassNames={{
-                    full: "bg-destructive/20 text-destructive font-bold cursor-not-allowed",
+                    full: "bg-destructive text-destructive-foreground font-bold cursor-not-allowed hover:bg-destructive hover:text-destructive-foreground",
                     available: "bg-green-500/10 text-green-500 font-bold"
                   }}
                 />
                 <div className="mt-6 p-4 bg-muted/20 rounded-xl text-xs text-muted-foreground italic flex gap-2">
                   <Star className="w-4 h-4 text-primary shrink-0" />
-                  Dias marcados em <span className="text-green-500 font-bold">Verde</span> possuem horários livres entre 08h e 21h. Dias em <span className="text-destructive font-bold">Vermelho</span> estão totalmente ocupados.
+                  Dias em <span className="text-green-500 font-bold">Verde</span> possuem horários livres. Dias em <span className="text-destructive font-bold">Vermelho</span> estão totalmente lotados (08h-21h).
                 </div>
               </CardContent>
             </Card>
