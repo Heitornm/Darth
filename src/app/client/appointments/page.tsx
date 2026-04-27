@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -50,7 +50,6 @@ export default function ClientAppointmentsPage() {
 
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
-  // Calcula ocupação por dia para o calendário
   const availabilityData = useMemo(() => {
     if (!appointments) return {};
     const stats: Record<string, number> = {};
@@ -94,7 +93,7 @@ export default function ClientAppointmentsPage() {
     }
 
     if (!date || !serviceId || !time) {
-      toast({ title: "Campos obrigatórios", description: "Por favor, preencha todos os campos.", variant: "destructive" });
+      toast({ title: "Campos obrigatórios", description: "Preencha tudo.", variant: "destructive" });
       return;
     }
 
@@ -119,19 +118,10 @@ export default function ClientAppointmentsPage() {
 
     addDoc(collection(firestore, "appointments"), appointmentData)
       .then(() => {
-        const notificationData = {
-          toId: MASTER_BARBER_ID,
-          fromName: user.displayName || 'Cliente',
-          type: 'new_appointment',
-          message: `Novo agendamento: ${selectedService?.name} em ${format(appointmentDate, "dd/MM 'às' HH:mm")}`,
-          read: false,
-          createdAt: Timestamp.now()
-        };
-        addDoc(collection(firestore, "notifications"), notificationData).catch(() => {});
-        toast({ title: "Sucesso!", description: "Seu agendamento foi realizado e aguarda confirmação." });
+        toast({ title: "Sucesso!", description: "Seu agendamento foi realizado." });
         router.push('/client/my-appointments');
       })
-      .catch(async (err) => {
+      .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'appointments',
           operation: 'create',
@@ -143,32 +133,28 @@ export default function ClientAppointmentsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="text-center mb-12 space-y-4">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary">Agende seu Estilo</h1>
-        <p className="text-muted-foreground text-lg">Confira a disponibilidade e reserve seu momento.</p>
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-primary/20 bg-card shadow-xl">
-            <CardHeader className="bg-primary/5 border-b border-primary/10">
+          <Card className="border-primary/20">
+            <CardHeader className="bg-primary/5">
               <CardTitle className="font-headline flex items-center gap-3 text-primary">
-                <Scissors className="w-5 h-5" />
-                Configuração do Agendamento
+                <Scissors className="w-5 h-5" /> Reserva
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-8">
               <div className="space-y-3">
-                <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">1. Qual o serviço?</Label>
+                <Label>1. Serviço</Label>
                 <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
                   <SelectTrigger className="w-full h-12">
-                    <SelectValue placeholder="Escolha um serviço mestre" />
+                    <SelectValue placeholder="Escolha um serviço" />
                   </SelectTrigger>
                   <SelectContent>
                     {SERVICES.map(srv => (
-                      <SelectItem key={srv.id} value={srv.id}>
-                        {srv.name} — R$ {srv.price} ({srv.durationMinutes}min)
-                      </SelectItem>
+                      <SelectItem key={srv.id} value={srv.id}>{srv.name} — R$ {srv.price}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -176,10 +162,10 @@ export default function ClientAppointmentsPage() {
 
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">2. Qual o dia?</Label>
+                  <Label>2. Dia</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal border-primary/20 hover:bg-primary/5", !date && "text-muted-foreground")}>
+                      <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
                         {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
                       </Button>
@@ -188,12 +174,7 @@ export default function ClientAppointmentsPage() {
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={(d) => { 
-                          if (d && !isDayFull(d)) {
-                            setDate(d); 
-                            setTime(""); 
-                          }
-                        }}
+                        onSelect={(d) => { if (d && !isDayFull(d)) { setDate(d); setTime(""); } }}
                         locale={ptBR}
                         disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
                         modifiers={{
@@ -207,27 +188,19 @@ export default function ClientAppointmentsPage() {
                       />
                     </PopoverContent>
                   </Popover>
-                  <div className="flex gap-4 mt-2">
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-500 uppercase"><div className="w-2 h-2 rounded-full bg-green-500" /> Disponível</span>
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-destructive uppercase"><div className="w-2 h-2 rounded-full bg-destructive" /> Lotado</span>
-                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">3. Qual o horário?</Label>
+                  <Label>3. Hora</Label>
                   <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
                     <SelectTrigger className="w-full h-12">
                       <Clock className="w-4 h-4 mr-3 text-primary" />
                       <SelectValue placeholder="Escolha a hora" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
+                    <SelectContent>
                       {TIME_SLOTS.map(slot => {
                         const available = isTimeSlotAvailable(slot);
-                        return (
-                          <SelectItem key={slot} value={slot} disabled={!available}>
-                            {slot} {!available && "(Ocupado)"}
-                          </SelectItem>
-                        );
+                        return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
                       })}
                     </SelectContent>
                   </Select>
@@ -235,46 +208,12 @@ export default function ClientAppointmentsPage() {
               </div>
 
               <Button 
-                className="w-full h-14 text-xl font-headline bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+                className="w-full h-14 text-xl font-headline"
                 onClick={handleBooking}
                 disabled={loading || !date || !serviceId || !time}
               >
-                {loading ? "Processando seu lugar..." : user ? "Confirmar Reserva Mestre" : "Faça Login para Agendar"}
+                Confirmar Reserva
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="border-muted bg-muted/20 border-dashed">
-            <CardHeader>
-              <CardTitle className="font-headline text-lg">Resumo da Reserva</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5 text-sm">
-              <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">Serviço</span>
-                <span className="font-bold">{selectedService?.name || '---'}</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">Investimento</span>
-                <span className="font-bold text-accent">{selectedService ? `R$ ${selectedService.price}` : '---'}</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-border/50 pb-3">
-                <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">Agenda</span>
-                <span className="font-bold">
-                  {date && time ? `${format(date, "dd/MM/yy")} às ${time}` : '---'}
-                </span>
-              </div>
-              
-              <div className="p-4 bg-primary/10 rounded-xl flex items-start gap-3 text-primary text-xs leading-relaxed italic">
-                <Star className="w-4 h-4 shrink-0 fill-primary" />
-                <p>Nossos mestres garantem a precisão. Datas em vermelho indicam que o barbeiro atingiu o limite de atendimentos no expediente das 08h às 21h.</p>
-              </div>
-
-              <div className="pt-2 flex items-center gap-2 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                Qualidade DarthBarber
-              </div>
             </CardContent>
           </Card>
         </div>

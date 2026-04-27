@@ -1,21 +1,20 @@
 
-"use client";
+'use client';
 
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/ServiceCarousel';
 import Link from 'next/link';
 import { LogIn, Scissors, ChevronRight, Star, ClipboardList, Calendar as CalendarIcon, Clock } from 'lucide-react';
-import { useUser, useFirestore, useFirebase } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { Calendar } from '@/components/ui/calendar';
 import { ptBR } from 'date-fns/locale';
 import { isSameDay, isBefore, startOfDay, format } from 'date-fns';
 
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const WORK_START = 8;
 const WORK_END = 21;
 const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60; // 780 min
@@ -68,7 +67,6 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start text-left">
-          {/* Coluna 1: Perfil e Call to Actions */}
           <div className="space-y-8 order-2 lg:order-1">
             <Card className="border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl overflow-hidden group">
               <CardContent className="p-8 flex items-center gap-6">
@@ -84,11 +82,6 @@ export default function Home() {
                 <div>
                   <h2 className="font-headline font-bold text-2xl text-primary">Darth Barber</h2>
                   <p className="text-muted-foreground text-sm italic">"Precision e estilo em cada corte."</p>
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">
-                      Mestre Barbeiro
-                    </span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -136,7 +129,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Coluna 2: Calendário de Disponibilidade */}
           <div className="order-1 lg:order-2">
             <Card className="border-primary/20 bg-card/60 shadow-2xl">
               <CardHeader className="border-b border-primary/10 pb-4">
@@ -172,10 +164,6 @@ export default function Home() {
                     available: "bg-green-500/10 text-green-500 font-bold"
                   }}
                 />
-                <div className="mt-6 p-4 bg-muted/20 rounded-xl text-xs text-muted-foreground italic flex gap-2">
-                  <Star className="w-4 h-4 text-primary shrink-0" />
-                  Dias em <span className="text-green-500 font-bold">Verde</span> possuem horários livres. Dias em <span className="text-destructive font-bold">Vermelho</span> estão totalmente lotados (08h-21h) e não podem ser selecionados.
-                </div>
               </CardContent>
             </Card>
           </div>

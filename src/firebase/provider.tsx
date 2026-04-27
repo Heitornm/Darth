@@ -8,7 +8,6 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
-const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -111,7 +110,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     setIsAppointmentsLoading(true);
     
-    // Qualquer usuário logado pode listar agendamentos do barbeiro mestre para ver disponibilidade
+    // Todos os usuários autenticados precisam ver a agenda mestre para calcular disponibilidade (Verde/Vermelho)
     const q = query(
       collection(firestore, 'appointments'), 
       where('barberId', '==', MASTER_BARBER_ID), 
