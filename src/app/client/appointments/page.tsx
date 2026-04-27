@@ -189,7 +189,12 @@ export default function ClientAppointmentsPage() {
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={(d) => { setDate(d); setTime(""); }}
+                        onSelect={(d) => { 
+                          if (d && !isDayFull(d)) {
+                            setDate(d); 
+                            setTime(""); 
+                          }
+                        }}
                         locale={ptBR}
                         disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
                         modifiers={{
@@ -197,7 +202,7 @@ export default function ClientAppointmentsPage() {
                           available: (d) => !isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date()))
                         }}
                         modifiersClassNames={{
-                          full: "bg-destructive text-destructive-foreground font-bold cursor-not-allowed hover:bg-destructive hover:text-destructive-foreground",
+                          full: "!bg-destructive !text-destructive-foreground !opacity-100 font-bold cursor-not-allowed",
                           available: "bg-green-500/10 text-green-500 font-bold"
                         }}
                       />

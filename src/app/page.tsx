@@ -18,7 +18,7 @@ import { isSameDay, isBefore, startOfDay, format } from 'date-fns';
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const WORK_START = 8;
 const WORK_END = 21;
-const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
+const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60; // 780 min
 
 export default function Home() {
   const { user, isUserLoading, userProfile, appointments } = useFirebase();
@@ -156,7 +156,9 @@ export default function Home() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={setSelectedDate}
+                  onSelect={(d) => {
+                    if (d && !isDayFull(d)) setSelectedDate(d);
+                  }}
                   locale={ptBR}
                   className="w-full"
                   disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date())) || isDayFull(date)}
@@ -165,7 +167,7 @@ export default function Home() {
                     available: (date) => !isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date()))
                   }}
                   modifiersClassNames={{
-                    full: "bg-destructive text-destructive-foreground font-bold cursor-not-allowed hover:bg-destructive hover:text-destructive-foreground",
+                    full: "!bg-destructive !text-destructive-foreground !opacity-100 font-bold cursor-not-allowed",
                     available: "bg-green-500/10 text-green-500 font-bold"
                   }}
                 />

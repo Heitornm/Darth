@@ -114,7 +114,7 @@ export default function BarberAppointmentsPage() {
                 }}
                 modifiersClassNames={{
                   hasApt: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full font-bold",
-                  full: "bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground"
+                  full: "!bg-destructive !text-destructive-foreground !opacity-100"
                 }}
               />
             </CardContent>
