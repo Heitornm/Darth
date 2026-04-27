@@ -22,7 +22,6 @@ const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60; // 780 min
 
 export default function Home() {
   const { user, isUserLoading, userProfile, appointments } = useFirebase();
-  const db = useFirestore();
   const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
@@ -157,7 +156,10 @@ export default function Home() {
                   mode="single"
                   selected={selectedDate}
                   onSelect={(d) => {
-                    if (d && !isDayFull(d)) setSelectedDate(d);
+                    // Impede seleção de dia lotado ou passado
+                    if (d && !isBefore(startOfDay(d), startOfDay(new Date())) && !isDayFull(d)) {
+                      setSelectedDate(d);
+                    }
                   }}
                   locale={ptBR}
                   className="w-full"
@@ -173,7 +175,7 @@ export default function Home() {
                 />
                 <div className="mt-6 p-4 bg-muted/20 rounded-xl text-xs text-muted-foreground italic flex gap-2">
                   <Star className="w-4 h-4 text-primary shrink-0" />
-                  Dias em <span className="text-green-500 font-bold">Verde</span> possuem horários livres. Dias em <span className="text-destructive font-bold">Vermelho</span> estão totalmente lotados (08h-21h).
+                  Dias em <span className="text-green-500 font-bold">Verde</span> possuem horários livres. Dias em <span className="text-destructive font-bold">Vermelho</span> estão totalmente lotados (08h-21h) e não podem ser selecionados.
                 </div>
               </CardContent>
             </Card>

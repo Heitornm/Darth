@@ -25,7 +25,8 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Aberto para leitura por usuários logados para permitir cálculo de disponibilidade global
+      // Aberto para leitura por usuários logados para permitir cálculo de disponibilidade global e histórico
+      // O erro de permissão ocorria por restrições na listagem que impediam o cálculo de ocupação do barbeiro
       allow read, list: if isSignedIn();
       
       allow create: if isSignedIn();
