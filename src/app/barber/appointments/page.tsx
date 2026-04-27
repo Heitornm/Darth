@@ -9,60 +9,43 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { useFirestore, useUser, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
+import { useFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { Timestamp, doc } from 'firebase/firestore';
 import { Clock, User, Scissors, CalendarDays, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const BARBER_EMAIL = "darthbarber@darth.com.br";
 
 export default function BarberAppointmentsPage() {
-  const { user, isUserLoading } = useUser();
-  const db = useFirestore();
+  const { user, userProfile, appointments, isUserLoading, isAppointmentsLoading, firestore } = useFirebase();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [mounted, setMounted] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (user && db && mounted) {
-      getDoc(doc(db, 'users', user.uid)).then(d => {
-        if (d.exists()) setUserRole(d.data().role);
-      });
-    }
-  }, [user, db, mounted]);
   
-  const isAuthorized = userRole === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
+  const isAuthorized = userProfile?.role === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 
-  const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !mounted || !isAuthorized) return null;
-    
-    return query(
-      collection(db, "appointments"), 
-      where("barberId", "==", MASTER_BARBER_ID),
-      orderBy("dataHora", "asc")
-    );
-  }, [db, user, mounted, isAuthorized]);
-
-  const { data: allAppointments, isLoading, error } = useCollection(appointmentsQuery);
-
-  const appointmentsForSelectedDate = allAppointments?.filter(apt => {
+  const appointmentsForSelectedDate = appointments?.filter(apt => {
     if (!selectedDate) return false;
     const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
     return isSameDay(date, selectedDate);
+  }).sort((a, b) => {
+    const dateA = a.dataHora instanceof Timestamp ? a.dataHora.toMillis() : new Date(a.dataHora).getTime();
+    const dateB = b.dataHora instanceof Timestamp ? b.dataHora.toMillis() : new Date(b.dataHora).getTime();
+    return dateA - dateB;
   });
 
-  const datesWithAppointments = allAppointments?.map(apt => {
+  const datesWithAppointments = appointments?.map(apt => {
     const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
     return startOfDay(date);
   }) || [];
 
   const handleStatusUpdate = (appointmentId: string, newStatus: 'confirmado' | 'cancelado') => {
-    if (!db) return;
-    const docRef = doc(db, 'appointments', appointmentId);
+    if (!firestore) return;
+    const docRef = doc(firestore, 'appointments', appointmentId);
     updateDocumentNonBlocking(docRef, { status: newStatus });
   };
 
@@ -75,7 +58,7 @@ export default function BarberAppointmentsPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Acesso Negado</AlertTitle>
           <AlertDescription>
-            Você não tem permissão para acessar a agenda de barbeiros. Por favor, entre com uma conta de barbeiro autorizada.
+            Você não tem permissão para acessar a agenda de barbeiros.
           </AlertDescription>
         </Alert>
       </div>
@@ -104,9 +87,6 @@ export default function BarberAppointmentsPage() {
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 locale={ptBR}
-                captionLayout="dropdown-buttons"
-                fromYear={2024}
-                toYear={2026}
                 modifiers={{
                   hasApt: (date) => datesWithAppointments.some(d => isSameDay(d, date))
                 }}
@@ -134,12 +114,8 @@ export default function BarberAppointmentsPage() {
             </div>
           </div>
 
-          {isLoading ? (
+          {isAppointmentsLoading ? (
             <div className="py-20 text-center animate-pulse">Carregando horários...</div>
-          ) : error ? (
-            <div className="p-10 text-center text-destructive">
-               Erro ao carregar agendamentos. Verifique se os índices do Firestore foram criados clicando no link do console.
-            </div>
           ) : !appointmentsForSelectedDate || appointmentsForSelectedDate.length === 0 ? (
             <Card className="border-dashed border-2 py-24 text-center">
               <CardContent className="space-y-4 pt-6">

@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { query, collection, where, Timestamp } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import { Timestamp } from 'firebase/firestore';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -28,25 +29,17 @@ const BARBER_EMAIL = "darthbarber@darth.com.br";
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
 export default function BarberDashboardPage() {
-  const { user, isUserLoading } = useUser();
-  const db = useFirestore();
+  const { user, userProfile, appointments, isUserLoading, isAppointmentsLoading } = useFirebase();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
-  const [isClient, setIsClient] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setMounted(true);
   }, []);
 
-  const isAuthorized = user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
+  const isAuthorized = userProfile?.role === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 
-  const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !isAuthorized) return null;
-    return query(collection(db, "appointments"), where("barberId", "==", MASTER_BARBER_ID));
-  }, [db, user, isAuthorized]);
-
-  const { data: allAppointments, isLoading } = useCollection(appointmentsQuery);
-
-  if (!isClient || isUserLoading || isLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Calculando métricas...</div>;
+  if (!mounted || isUserLoading || isAppointmentsLoading) return <div className="p-20 text-center animate-pulse text-primary font-headline">Calculando métricas...</div>;
   
   if (!user || !isAuthorized) {
     return (
@@ -67,7 +60,7 @@ export default function BarberDashboardPage() {
     ? { start: startOfWeek(now, { locale: ptBR }), end: endOfWeek(now, { locale: ptBR }) }
     : { start: startOfMonth(now), end: endOfMonth(now) };
 
-  const filteredApts = allAppointments?.filter(apt => {
+  const filteredApts = appointments?.filter(apt => {
     const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
     return isWithinInterval(date, range);
   }) || [];

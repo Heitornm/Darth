@@ -1,8 +1,7 @@
 
 "use client";
 
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -11,39 +10,17 @@ import { CalendarDays, Clock, Scissors, AlertCircle, CheckCircle2, XCircle } fro
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-
-const BARBER_EMAIL = "darthbarber@darth.com.br";
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
+import { Timestamp } from 'firebase/firestore';
 
 export default function MyAppointmentsPage() {
-  const { user, isUserLoading } = useUser();
-  const db = useFirestore();
+  const { user, appointments, isUserLoading, isAppointmentsLoading } = useFirebase();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const myAppointmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !mounted) return null;
-    
-    const appointmentsRef = collection(db, "appointments");
-    
-    if (user.email === BARBER_EMAIL || user.uid === MASTER_BARBER_ID) {
-      return query(appointmentsRef, orderBy("dataHora", "desc"));
-    }
-
-    return query(
-      appointmentsRef,
-      where("clientId", "==", user.uid),
-      orderBy("dataHora", "desc") 
-    );
-  }, [db, user, mounted]);
-
-  const { data: appointments, isLoading } = useCollection(myAppointmentsQuery);
-
-  if (!mounted || isUserLoading || isLoading) {
+  if (!mounted || isUserLoading || isAppointmentsLoading) {
     return (
       <div className="container mx-auto px-4 py-20 text-center space-y-4 animate-pulse">
         <div className="h-10 w-64 bg-muted mx-auto rounded"></div>
