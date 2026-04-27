@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, AlertCircle } from 'lucide-react';
-import { format, addMinutes, isAfter, isBefore, isEqual } from 'date-fns';
+import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, AlertCircle, Star } from 'lucide-react';
+import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Calendar } from '@/components/ui/calendar';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
 import { collection, Timestamp, addDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -28,18 +28,21 @@ const SERVICES = [
 ];
 
 const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
   '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', 
-  '16:00', '16:30', '17:00', '17:30', '18:00'
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
 ];
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1'; 
+const WORK_START = 8;
+const WORK_END = 21;
+const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
 
 export default function ClientAppointmentsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const db = useFirestore();
-  const { user } = useUser();
+  const { user, appointments } = useFirebase();
   
   const [date, setDate] = useState<Date>();
   const [serviceId, setServiceId] = useState<string>("");
@@ -48,44 +51,39 @@ export default function ClientAppointmentsPage() {
 
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
-  // Query para buscar agendamentos do dia selecionado e evitar conflitos
-  const appointmentsQuery = useMemoFirebase(() => {
-    if (!db || !date) return null;
-    
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(23, 59, 59, 999);
-    
-    return query(
-      collection(db, "appointments"),
-      where("barberId", "==", MASTER_BARBER_ID),
-      where("dataHora", ">=", Timestamp.fromDate(start)),
-      where("dataHora", "<=", Timestamp.fromDate(end)),
-      where("status", "!=", "cancelado")
-    );
-  }, [db, date]);
+  // Calcula ocupação por dia para o calendário
+  const availabilityData = useMemo(() => {
+    if (!appointments) return {};
+    const stats: Record<string, number> = {};
+    appointments.forEach(apt => {
+      if (apt.status === 'cancelado') return;
+      const aptDate = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const dayKey = format(aptDate, 'yyyy-MM-dd');
+      stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
+    });
+    return stats;
+  }, [appointments]);
 
-  const { data: dayAppointments, isLoading: isLoadingApts } = useCollection(appointmentsQuery);
+  const isDayFull = (d: Date) => {
+    const dayKey = format(d, 'yyyy-MM-dd');
+    const occupied = availabilityData[dayKey] || 0;
+    return occupied >= TOTAL_MINUTES_PER_DAY;
+  };
 
   const isTimeSlotAvailable = (timeSlot: string) => {
-    if (!date || !selectedService || !dayAppointments) return true;
+    if (!date || !selectedService || !appointments) return true;
     
     const [hours, minutes] = timeSlot.split(':').map(Number);
     const slotStart = new Date(date);
     slotStart.setHours(hours, minutes, 0, 0);
     const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
 
-    // Verifica se o slot está no passado (se for hoje)
     if (isBefore(slotStart, new Date())) return false;
 
-    return !dayAppointments.some(apt => {
+    return !appointments.filter(a => a.status !== 'cancelado').some(apt => {
       const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
       const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
-      
-      // Condição de sobreposição: (Início A < Fim B) && (Fim A > Início B)
-      const overlaps = isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
-      return overlaps;
+      return isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
     });
   };
 
@@ -97,20 +95,7 @@ export default function ClientAppointmentsPage() {
     }
 
     if (!date || !serviceId || !time) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!isTimeSlotAvailable(time)) {
-      toast({
-        title: "Horário Indisponível",
-        description: "Este horário acabou de ser reservado ou conflita com outro serviço.",
-        variant: "destructive",
-      });
+      toast({ title: "Campos obrigatórios", description: "Por favor, preencha todos os campos.", variant: "destructive" });
       return;
     }
 
@@ -143,75 +128,60 @@ export default function ClientAppointmentsPage() {
           read: false,
           createdAt: Timestamp.now()
         };
-        
         addDoc(collection(db, "notifications"), notificationData).catch(() => {});
-
-        toast({
-          title: "Sucesso!",
-          description: "Seu agendamento foi realizado e aguarda confirmação.",
-        });
+        toast({ title: "Sucesso!", description: "Seu agendamento foi realizado e aguarda confirmação." });
         router.push('/client/my-appointments');
       })
       .catch(async (err) => {
-        const error = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'appointments',
           operation: 'create',
           requestResourceData: appointmentData,
-        } satisfies SecurityRuleContext);
-        
-        errorEmitter.emit('permission-error', error);
+        } satisfies SecurityRuleContext));
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="text-center mb-8 space-y-2">
-        <h1 className="text-4xl font-headline font-bold text-primary">Reserve seu Serviço</h1>
-        <p className="text-muted-foreground">Escolha o serviço e o melhor momento para o seu visual.</p>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="text-center mb-12 space-y-4">
+        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary">Agende seu Estilo</h1>
+        <p className="text-muted-foreground text-lg">Confira a disponibilidade e reserve seu momento.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <Card className="border-primary/20 bg-card">
-            <CardHeader>
-              <CardTitle className="font-headline flex items-center gap-2">
-                <Scissors className="w-5 h-5 text-primary" />
-                Selecione o Serviço
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-primary/20 bg-card shadow-xl">
+            <CardHeader className="bg-primary/5 border-b border-primary/10">
+              <CardTitle className="font-headline flex items-center gap-3 text-primary">
+                <Scissors className="w-5 h-5" />
+                Configuração do Agendamento
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Serviço</Label>
+            <CardContent className="p-8 space-y-8">
+              <div className="space-y-3">
+                <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">1. Qual o serviço?</Label>
                 <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Escolha um serviço" />
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue placeholder="Escolha um serviço mestre" />
                   </SelectTrigger>
                   <SelectContent>
                     {SERVICES.map(srv => (
                       <SelectItem key={srv.id} value={srv.id}>
-                        {srv.name} - R$ {srv.price} ({srv.durationMinutes}min)
+                        {srv.name} — R$ {srv.price} ({srv.durationMinutes}min)
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Data</Label>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">2. Qual o dia?</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                      <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal border-primary/20 hover:bg-primary/5", !date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
                         {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
                       </Button>
                     </PopoverTrigger>
@@ -220,31 +190,37 @@ export default function ClientAppointmentsPage() {
                         mode="single"
                         selected={date}
                         onSelect={(d) => { setDate(d); setTime(""); }}
-                        initialFocus
                         locale={ptBR}
-                        disabled={{ before: new Date() }}
+                        disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
+                        modifiers={{
+                          full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
+                          available: (d) => !isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date()))
+                        }}
+                        modifiersClassNames={{
+                          full: "bg-destructive/20 text-destructive font-bold cursor-not-allowed",
+                          available: "bg-green-500/10 text-green-500 font-bold"
+                        }}
                       />
                     </PopoverContent>
                   </Popover>
+                  <div className="flex gap-4 mt-2">
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-500 uppercase"><div className="w-2 h-2 rounded-full bg-green-500" /> Disponível</span>
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-destructive uppercase"><div className="w-2 h-2 rounded-full bg-destructive" /> Lotado</span>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Horário</Label>
-                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId || isLoadingApts}>
-                    <SelectTrigger className="w-full">
-                      <Clock className="w-4 h-4 mr-2 text-primary" />
-                      <SelectValue placeholder={isLoadingApts ? "Carregando..." : "Hora"} />
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">3. Qual o horário?</Label>
+                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
+                    <SelectTrigger className="w-full h-12">
+                      <Clock className="w-4 h-4 mr-3 text-primary" />
+                      <SelectValue placeholder="Escolha a hora" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {TIME_SLOTS.map(slot => {
                         const available = isTimeSlotAvailable(slot);
                         return (
-                          <SelectItem 
-                            key={slot} 
-                            value={slot} 
-                            disabled={!available}
-                            className={!available ? "opacity-50 line-through" : ""}
-                          >
+                          <SelectItem key={slot} value={slot} disabled={!available}>
                             {slot} {!available && "(Ocupado)"}
                           </SelectItem>
                         );
@@ -255,49 +231,45 @@ export default function ClientAppointmentsPage() {
               </div>
 
               <Button 
-                className="w-full h-12 text-lg font-headline bg-primary hover:bg-primary/90 mt-4"
+                className="w-full h-14 text-xl font-headline bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
                 onClick={handleBooking}
                 disabled={loading || !date || !serviceId || !time}
               >
-                {loading ? "Processando..." : user ? "Confirmar Agendamento" : "Faça Login para Agendar"}
+                {loading ? "Processando seu lugar..." : user ? "Confirmar Reserva Mestre" : "Faça Login para Agendar"}
               </Button>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card className="border-muted bg-muted/20 h-full">
+          <Card className="border-muted bg-muted/20 border-dashed">
             <CardHeader>
-              <CardTitle className="font-headline text-lg">Resumo do Agendamento</CardTitle>
+              <CardTitle className="font-headline text-lg">Resumo da Reserva</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex justify-between items-center border-b border-border pb-2">
-                <span className="text-muted-foreground">Serviço:</span>
-                <span className="font-medium">{selectedService?.name || '---'}</span>
+            <CardContent className="space-y-5 text-sm">
+              <div className="flex justify-between items-center border-b border-border/50 pb-3">
+                <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">Serviço</span>
+                <span className="font-bold">{selectedService?.name || '---'}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-border pb-2">
-                <span className="text-muted-foreground">Duração:</span>
-                <span className="font-medium">{selectedService ? `${selectedService.durationMinutes} min` : '---'}</span>
+              <div className="flex justify-between items-center border-b border-border/50 pb-3">
+                <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">Investimento</span>
+                <span className="font-bold text-accent">{selectedService ? `R$ ${selectedService.price}` : '---'}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-border pb-2">
-                <span className="text-muted-foreground">Preço:</span>
-                <span className="font-medium text-accent">{selectedService ? `R$ ${selectedService.price}` : '---'}</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-border pb-2">
-                <span className="text-muted-foreground">Data e Hora:</span>
-                <span className="font-medium">{date && time ? `${format(date, "P", { locale: ptBR })} às ${time}` : '---'}</span>
+              <div className="flex justify-between items-center border-b border-border/50 pb-3">
+                <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider">Agenda</span>
+                <span className="font-bold">
+                  {date && time ? `${format(date, "dd/MM/yy")} às ${time}` : '---'}
+                </span>
               </div>
               
-              {!isLoadingApts && date && serviceId && !time && (
-                <div className="bg-primary/10 p-4 rounded-lg flex items-start gap-2 text-primary text-xs italic">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <p>Selecione um horário disponível. Horários ocupados ou que conflitam com outros agendamentos estão desativados.</p>
-                </div>
-              )}
+              <div className="p-4 bg-primary/10 rounded-xl flex items-start gap-3 text-primary text-xs leading-relaxed italic">
+                <Star className="w-4 h-4 shrink-0 fill-primary" />
+                <p>Nossos mestres garantem a precisão. Datas em vermelho indicam que o barbeiro atingiu o limite de atendimentos no expediente das 08h às 21h.</p>
+              </div>
 
-              <div className="pt-4 flex items-start gap-2 text-muted-foreground italic">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <p>Nossos agendamentos garantem a qualidade e o estilo que você merece.</p>
+              <div className="pt-2 flex items-center gap-2 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                Qualidade DarthBarber
               </div>
             </CardContent>
           </Card>

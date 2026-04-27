@@ -78,7 +78,8 @@ export function useCollection<T = any>(
               : queryPath.toString();
           }
         } catch (e) {
-          path = 'appointments';
+          // Fallback genérico para evitar crash
+          path = 'firestore-collection';
         }
 
         const contextualError = new FirestorePermissionError({
