@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, Star } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Scissors } from 'lucide-react';
 import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -28,12 +27,12 @@ const SERVICES = [
 ];
 
 const TIME_SLOTS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', 
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
 ];
 
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1'; 
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 const WORK_START = 8;
 const WORK_END = 21;
 const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
@@ -42,7 +41,7 @@ export default function ClientAppointmentsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, appointments, firestore } = useFirebase();
-  
+
   const [date, setDate] = useState<Date>();
   const [serviceId, setServiceId] = useState<string>("");
   const [time, setTime] = useState<string>("");
@@ -65,12 +64,13 @@ export default function ClientAppointmentsPage() {
   const isDayFull = (d: Date) => {
     const dayKey = format(d, 'yyyy-MM-dd');
     const occupied = availabilityData[dayKey] || 0;
+    // Se occupied for maior ou igual ao total disponível, o dia está cheio
     return occupied >= TOTAL_MINUTES_PER_DAY;
   };
 
   const isTimeSlotAvailable = (timeSlot: string) => {
     if (!date || !selectedService || !appointments) return true;
-    
+
     const [hours, minutes] = timeSlot.split(':').map(Number);
     const slotStart = new Date(date);
     slotStart.setHours(hours, minutes, 0, 0);
@@ -174,16 +174,28 @@ export default function ClientAppointmentsPage() {
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={(d) => { if (d && !isDayFull(d)) { setDate(d); setTime(""); } }}
+                        onSelect={(d) => {
+                          if (d) {
+                            if (isDayFull(d)) {
+                              toast({ title: "Dia lotado", description: "Infelizmente não há horários.", variant: "destructive" });
+                              return;
+                            }
+                            setDate(d);
+                            setTime("");
+                          }
+                        }}
                         locale={ptBR}
                         disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
                         modifiers={{
                           full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
-                          available: (d) => !isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date()))
                         }}
-                        modifiersClassNames={{
-                          full: "!bg-destructive !text-destructive-foreground !opacity-100 font-bold cursor-not-allowed",
-                          available: "bg-green-500/10 text-green-500 font-bold"
+                        modifiersStyles={{
+                          full: {
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            opacity: 1
+                          }
                         }}
                       />
                     </PopoverContent>
@@ -207,7 +219,7 @@ export default function ClientAppointmentsPage() {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 className="w-full h-14 text-xl font-headline"
                 onClick={handleBooking}
                 disabled={loading || !date || !serviceId || !time}

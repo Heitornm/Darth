@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import { useFirebase } from '@/firebase';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Clock, Scissors, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Timestamp } from 'firebase/firestore';
 
 export default function MyAppointmentsPage() {
@@ -19,6 +18,12 @@ export default function MyAppointmentsPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Filtra apenas os agendamentos do usuário autenticado
+  const myAppointments = useMemo(() => {
+    if (!appointments || !user) return [];
+    return appointments.filter(apt => apt.clientId === user.uid);
+  }, [appointments, user]);
 
   if (!mounted || isUserLoading || isAppointmentsLoading) {
     return (
@@ -45,7 +50,7 @@ export default function MyAppointmentsPage() {
         <p className="text-muted-foreground">Confira o histórico e status das suas reservas.</p>
       </header>
 
-      {!appointments || appointments.length === 0 ? (
+      {myAppointments.length === 0 ? (
         <Card className="border-dashed border-2 bg-muted/10 py-20 text-center">
           <CardContent className="space-y-4 pt-6">
             <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mx-auto">
@@ -60,24 +65,23 @@ export default function MyAppointmentsPage() {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {appointments.map(apt => {
+          {myAppointments.map(apt => {
             const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
             const isPast = date < new Date();
-            
+
             return (
-              <Card key={apt.id} className={`overflow-hidden border-l-4 ${
-                apt.status === 'cancelado' ? 'border-l-destructive' : 
-                apt.status === 'confirmado' ? 'border-l-green-500' : 
-                'border-l-primary'
-              }`}>
+              <Card key={apt.id} className={`overflow-hidden border-l-4 ${apt.status === 'cancelado' ? 'border-l-destructive' :
+                  apt.status === 'confirmado' ? 'border-l-green-500' :
+                    'border-l-primary'
+                }`}>
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Badge variant={
-                          apt.status === 'confirmado' ? 'default' : 
-                          apt.status === 'cancelado' ? 'destructive' : 
-                          'outline'
+                          apt.status === 'confirmado' ? 'default' :
+                            apt.status === 'cancelado' ? 'destructive' :
+                              'outline'
                         } className="uppercase text-[10px]">
                           {apt.status}
                         </Badge>
@@ -85,9 +89,9 @@ export default function MyAppointmentsPage() {
                           {format(date, "dd 'de' MMMM", { locale: ptBR })}
                         </span>
                       </div>
-                      
+
                       <h3 className="text-xl font-headline font-bold">{apt.serviceName}</h3>
-                      
+
                       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <Clock className="w-4 h-4" />
@@ -99,7 +103,7 @@ export default function MyAppointmentsPage() {
                         </span>
                       </div>
                     </div>
-                    
+
                     {!isPast && (
                       <div className="flex flex-col items-end gap-2 text-right">
                         {apt.status === 'pendente' && (
@@ -110,11 +114,6 @@ export default function MyAppointmentsPage() {
                         {apt.status === 'confirmado' && (
                           <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase bg-green-500/5 px-3 py-1.5 rounded-full border border-green-500/20">
                             <CheckCircle2 className="w-4 h-4" /> Confirmado
-                          </div>
-                        )}
-                        {apt.status === 'cancelado' && (
-                          <div className="flex items-center gap-2 text-destructive font-bold text-xs uppercase bg-destructive/5 px-3 py-1.5 rounded-full border border-destructive/20">
-                            <XCircle className="w-4 h-4" /> Cancelado
                           </div>
                         )}
                       </div>
