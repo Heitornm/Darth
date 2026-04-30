@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-center"
 import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -22,25 +22,23 @@ function Calendar({
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-3 w-full",
-        // Esta div é onde o título e os botões de navegação se encontram
-        month_caption: "flex justify-center pt-1 relative items-center mb-2 px-10",
+        // month_caption agora é o container flex que alinha botões e texto no centro
+        month_caption: "flex justify-center pt-1 relative items-center mb-2 gap-4",
+        // caption_label é o texto do mês/ano
         caption_label: "text-xs font-bold uppercase tracking-wider",
         
-        // Container dos botões
-        nav: "flex items-center",
+        // nav contém os botões. Removi o absolute para eles seguirem o fluxo do flex
+        nav: "flex items-center gap-1", 
         
-        // Botão Anterior (Igual ao HTML que você enviou)
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
           "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1 z-10"
         ),
-        
-        // Botão Próximo (Igual ao HTML que você enviou)
         button_next: cn(
           buttonVariants({ variant: "outline" }),
           "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-1 z-10"
         ),
-
+        
         month_grid: "w-full border-collapse",
         weekdays: "flex justify-between",
         weekday: "text-muted-foreground rounded-md w-8 font-normal text-[0.65rem] py-1 text-center",
@@ -65,11 +63,11 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Chevron: ({ ...props }) => {
-          if (props.orientation === "left") {
-            return <ChevronLeft className="h-3 w-3" /> // Tamanho h-3 conforme seu HTML
+        Chevron: ({ orientation }) => {
+          if (orientation === "left") {
+            return <ChevronLeft className="h-4 w-4" />
           }
-          return <ChevronRight className="h-3 w-3" /> // Tamanho h-3 conforme seu HTML
+          return <ChevronRight className="h-4 w-4" />
         },
       }}
       {...props}
