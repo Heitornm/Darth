@@ -55,10 +55,10 @@ export default function Home() {
       <div className="max-w-6xl w-full text-center space-y-16">
         <div className="space-y-4">
           <h1 className="text-5xl md:text-7xl font-headline font-bold text-primary tracking-tight">
-            Bem-vindo à DarthBarber
+            DarthBarber
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Explore nossos serviços e agende sua experiência com o lado mestre do visual.
+            Explore nossos serviços e agende sua experiência com nossos especialistas do visual.
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export default function Home() {
                 </Avatar>
                 <div>
                   <h2 className="font-headline font-bold text-2xl text-primary">Darth Barber</h2>
-                  <p className="text-muted-foreground text-sm italic">"Precision e estilo em cada corte."</p>
+                  <p className="text-muted-foreground text-sm italic">"Precisão e estilo em cada corte."</p>
                 </div>
               </CardContent>
             </Card>
