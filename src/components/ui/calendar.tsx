@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -19,20 +18,24 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-2", className)}
+      // Aumentei o padding de p-2 para p-4 para dar respiro nas bordas
+      className={cn("p-4 bg-background", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-3 w-full",
-        month_caption: "flex justify-center pt-1 relative items-center mb-2 px-8",
+        // Adicionei px-4 para afastar o título dos botões laterais
+        month_caption: "flex justify-center pt-1 relative items-center mb-2 px-10",
         caption_label: "text-xs font-bold uppercase tracking-wider",
         nav: "space-x-1 flex items-center",
+        // Ajustei left-1 para left-0 e mantive o z-index
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1 z-10"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-0 z-10"
         ),
+        // Ajustei right-1 para right-0
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-1 z-10"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-0 z-10"
         ),
         month_grid: "w-full border-collapse",
         weekdays: "flex justify-between",
@@ -60,9 +63,9 @@ function Calendar({
       components={{
         Chevron: ({ ...props }) => {
           if (props.orientation === "left") {
-            return <ChevronLeft className="h-3 w-3" />
+            return <ChevronLeft className="h-4 w-4" />
           }
-          return <ChevronRight className="h-3 w-3" />
+          return <ChevronRight className="h-4 w-4" />
         },
       }}
       {...props}
