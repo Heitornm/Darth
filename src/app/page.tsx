@@ -58,7 +58,7 @@ export default function Home() {
             DarthBarber
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Explore nossos serviços e agende sua experiência com nossos especialistas do visual.
+            Explore nossos serviços e garanta sua experiência com nossos especialistas do visual.
           </p>
         </div>
 
