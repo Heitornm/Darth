@@ -1,0 +1,69 @@
+﻿src/app/barber/appointments/page.tsx(13,32): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/app/barber/dashboard/page.tsx(6,27): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/app/client/appointments/page.tsx(17,47): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/app/client/appointments/page.tsx(19,41): error TS2459: Module '"@/firebase/errors"' declares 'SecurityRuleContext' locally, but it is not exported.
+src/app/client/my-appointments/page.tsx(12,27): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/app/login/page.tsx(7,40): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/app/login/page.tsx(8,91): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/app/login/page.tsx(81,25): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/app/profile/page.tsx(6,40): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/app/profile/page.tsx(7,60): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/components/Navbar.tsx(9,29): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/components/Navbar.tsx(36,47): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/components/NotificationListener.tsx(5,85): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/components/ui/calendar.tsx(4,43): error TS2307: Cannot find module 'lucide-center' or its corresponding type declarations.
+src/firebase/errors.ts(2,36): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/firebase/errors.ts(54,52): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+src/firebase/errors.ts(54,57): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/firebase/firestore/use-collection.tsx(12,8): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/firebase/firestore/use-collection.tsx(60,44): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/firebase/firestore/use-doc.tsx(10,8): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/firebase/index.ts(5,61): error TS7016: Could not find a declaration file for module 'firebase/app'. 'D:/GitHub/Darth/node_modules/firebase/app/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/app';`
+src/firebase/index.ts(6,25): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/firebase/index.ts(7,73): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/firebase/non-blocking-login.tsx(8,8): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/firebase/non-blocking-updates.tsx(11,8): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/firebase/non-blocking-updates.tsx(20,39): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/firebase/non-blocking-updates.tsx(41,12): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/firebase/non-blocking-updates.tsx(61,12): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/firebase/non-blocking-updates.tsx(80,12): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/firebase/provider.tsx(5,29): error TS7016: Could not find a declaration file for module 'firebase/app'. 'D:/GitHub/Darth/node_modules/firebase/app/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/app';`
+src/firebase/provider.tsx(6,93): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/firebase/provider.tsx(7,48): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/firebase/provider.tsx(77,8): error TS7006: Parameter 'firebaseUser' implicitly has an 'any' type.
+src/firebase/provider.tsx(80,8): error TS7006: Parameter 'error' implicitly has an 'any' type.
+src/firebase/provider.tsx(93,86): error TS7006: Parameter 'snap' implicitly has an 'any' type.
+src/firebase/provider.tsx(120,40): error TS7006: Parameter 'snap' implicitly has an 'any' type.
+src/firebase/provider.tsx(121,34): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/firebase/provider.tsx(124,9): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/lib/firebase.ts(1,48): error TS7016: Could not find a declaration file for module 'firebase/app'. 'D:/GitHub/Darth/node_modules/firebase/app/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/app';`
+src/lib/firebase.ts(2,30): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/lib/firebase.ts(3,25): error TS7016: Could not find a declaration file for module 'firebase/auth'. 'D:/GitHub/Darth/node_modules/firebase/auth/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/auth';`
+src/services/appointmentService.ts(9,8): error TS7016: Could not find a declaration file for module 'firebase/firestore'. 'D:/GitHub/Darth/node_modules/firebase/firestore/dist/esm/index.esm.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/firebase` if it exists or add a new declaration (.d.ts) file containing `declare module 'firebase/firestore';`
+src/services/appointmentService.ts(50,27): error TS7006: Parameter 'snapshot' implicitly has an 'any' type.
+src/services/appointmentService.ts(51,46): error TS7006: Parameter 'doc' implicitly has an 'any' type.

@@ -1,3 +1,11 @@
 {
-  "workbench.startupEditor": "readme"
+  "workbench.startupEditor": "readme",
+  "chat.tools.terminal.autoApprove": {
+    "npx tsc": true,
+    "/^powershell -NoProfile -Command \"Get-Content \\.\\\\tsc-output\\.txt \\| Out-File \\.\\\\tsc-output-utf8\\.txt -Encoding utf8\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "npm install": true
+  }
 }

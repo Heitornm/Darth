@@ -10,7 +10,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Timestamp } from 'firebase/firestore';
 import { Calendar } from '@/components/ui/calendar';
 import { ptBR } from 'date-fns/locale';
 import { isSameDay, isBefore, startOfDay, format } from 'date-fns';
@@ -35,7 +34,13 @@ export default function Home() {
     const stats: Record<string, number> = {};
     appointments.forEach(apt => {
       if (apt.status === 'cancelado') return;
-      const date = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const date =
+        apt.dataHora &&
+        typeof apt.dataHora === 'object' &&
+        'toDate' in apt.dataHora &&
+        typeof (apt.dataHora as any).toDate === 'function'
+          ? (apt.dataHora as any).toDate()
+          : new Date(apt.dataHora);
       const dayKey = format(date, 'yyyy-MM-dd');
       stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
     });
@@ -147,7 +152,7 @@ export default function Home() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(d) => {
+                  onSelect={(d: Date | undefined) => {
                     if (d && !isBefore(startOfDay(d), startOfDay(new Date())) && !isDayFull(d)) {
                       setSelectedDate(d);
                     }
