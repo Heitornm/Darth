@@ -58,7 +58,7 @@ export default function Home() {
             DarthBarber
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Explore nossos serviços e garanta sua experiência com nossos especialistas do visual.
+            Garanta sua experiência com nossos especialistas.
           </p>
         </div>
 
@@ -94,14 +94,14 @@ export default function Home() {
                       <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
                         <Link href="/barber/appointments">
                           <ClipboardList className="w-6 h-6" />
-                          Gerenciar Minha Agenda
+                          Minha Agenda
                         </Link>
                       </Button>
                     ) : (
                       <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
                         <Link href="/client/appointments">
                           <Scissors className="w-6 h-6" />
-                          Agendar Agora
+                          Agendar 
                         </Link>
                       </Button>
                     )
