@@ -5,27 +5,42 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Clock, Scissors, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { CalendarDays, Clock, Scissors, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
+import { appointmentService, Appointment } from '@/services/appointmentService';
 
 export default function MyAppointmentsPage() {
-  const { user, appointments, isUserLoading, isAppointmentsLoading } = useFirebase();
+  const { user, isUserLoading } = useFirebase();
   const [mounted, setMounted] = useState(false);
+  const [myAppointments, setMyAppointments] = useState<Appointment[]>([]);
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Filtra apenas os agendamentos do usuário autenticado
-  const myAppointments = useMemo(() => {
-    if (!appointments || !user) return [];
-    return appointments.filter(apt => apt.clientId === user.uid);
-  }, [appointments, user]);
+  // Busca agendamentos filtrados apenas quando o usuário estiver logado
+  useEffect(() => {
+    if (!user?.uid) return;
 
-  if (!mounted || isUserLoading || isAppointmentsLoading) {
+    setIsLocalLoading(true);
+    
+    // Inicia a escuta em tempo real apenas para os documentos deste clientId
+    const unsubscribe = appointmentService.subscribeToClientAppointments(
+      user.uid,
+      (data) => {
+        setMyAppointments(data);
+        setIsLocalLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  if (!mounted || isUserLoading || (user && isLocalLoading)) {
     return (
       <div className="container mx-auto px-4 py-20 text-center space-y-4 animate-pulse">
         <div className="h-10 w-64 bg-muted mx-auto rounded"></div>
@@ -70,9 +85,10 @@ export default function MyAppointmentsPage() {
             const isPast = date < new Date();
 
             return (
-              <Card key={apt.id} className={`overflow-hidden border-l-4 ${apt.status === 'cancelado' ? 'border-l-destructive' :
+              <Card key={apt.id} className={`overflow-hidden border-l-4 ${
+                  apt.status === 'cancelado' ? 'border-l-destructive' :
                   apt.status === 'confirmado' ? 'border-l-green-500' :
-                    'border-l-primary'
+                  'border-l-primary'
                 }`}>
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -80,8 +96,8 @@ export default function MyAppointmentsPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant={
                           apt.status === 'confirmado' ? 'default' :
-                            apt.status === 'cancelado' ? 'destructive' :
-                              'outline'
+                          apt.status === 'cancelado' ? 'destructive' :
+                          'outline'
                         } className="uppercase text-[10px]">
                           {apt.status}
                         </Badge>
@@ -90,12 +106,12 @@ export default function MyAppointmentsPage() {
                         </span>
                       </div>
 
-                      <h3 className="text-xl font-headline font-bold">{apt.serviceName}</h3>
+                      <h3 className="text-xl font-headline font-bold">{apt.serviceName || 'Serviço não especificado'}</h3>
 
                       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <Clock className="w-4 h-4" />
-                          {format(date, 'HH:mm')} ({apt.durationMinutes} min)
+                          {format(date, 'HH:mm')} ({apt.durationMinutes || 0} min)
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Scissors className="w-4 h-4" />
