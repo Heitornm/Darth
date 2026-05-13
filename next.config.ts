@@ -7,6 +7,24 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  swcMinify: false,
+  webpack: (config, { isServer }) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      stream: false,
+    };
+    config.externals = [
+      ...config.externals,
+      {
+        'firebase/firestore': 'firebase/firestore',
+        'firebase/auth': 'firebase/auth',
+        'firebase/app': 'firebase/app',
+      },
+    ];
+    return config;
+  },
   images: {
     remotePatterns: [
       {
