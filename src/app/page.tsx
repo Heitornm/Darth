@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ServiceCarousel } from '@/components/ServiceCarousel';
+import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
 import Link from 'next/link';
 import { LogIn, Scissors, ChevronRight, Star, ClipboardList, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { useFirebase } from '@/firebase';
