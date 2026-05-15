@@ -8,21 +8,13 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   swcMinify: false,
-  webpack: (config, { isServer }) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-      stream: false,
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'firebase/app': require.resolve('firebase/app'),
+      'firebase/auth': require.resolve('firebase/auth'),
+      'firebase/firestore': require.resolve('firebase/firestore'),
     };
-    config.externals = [
-      ...config.externals,
-      {
-        'firebase/firestore': 'firebase/firestore',
-        'firebase/auth': 'firebase/auth',
-        'firebase/app': 'firebase/app',
-      },
-    ];
     return config;
   },
   images: {
