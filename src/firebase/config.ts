@@ -2,8 +2,8 @@
 export * from '@/lib/firebase';
 
 // 2. Exporta os hooks personalizados do Firestore
-export { default as useCollection } from './firestore/use-collection';
-export { default as useDoc } from './firestore/use-doc';
+export { useCollection } from './firestore/use-collection';
+export { useDoc } from './firestore/use-doc';
 
 // 3. Exporta os Providers e listeners de login/erros
 export * from './provider';

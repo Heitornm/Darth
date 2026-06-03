@@ -3,9 +3,15 @@ import { adminDb, adminAuth } from '@/lib/firebaseAdmin';
 
 export async function POST(request: NextRequest) {
   try {
+    // PROTEÇÃO PARA O BUILD: Se o Admin não inicializou devido à falta de variáveis, bloqueia aqui com segurança
+    if (!adminAuth || !adminDb) {
+      console.warn("⚠️ Firebase Admin não está inicializado. Ignorando durante o build.");
+      return NextResponse.json({ error: 'Serviço temporariamente indisponível' }, { status: 503 });
+    }
+
     // 1. Validar se o usuário está autenticado no servidor via token de sessão
     const sessionCookie = request.cookies.get('__session')?.value;
-    if (!sessionCookie || !adminAuth) {
+    if (!sessionCookie) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
@@ -18,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Operação atômica no banco usando Firebase Admin para checar conflito de horários
-    const appointmentRef = adminDb!.collection('appointments');
+    const appointmentRef = adminDb.collection('appointments');
     const conflictCheck = await appointmentRef
       .where('barberId', '==', barberId)
       .where('date', '==', date)

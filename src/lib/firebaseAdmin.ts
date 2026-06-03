@@ -1,28 +1,25 @@
 import * as admin from 'firebase-admin';
 
-if (!admin.apps.length) {
-  // 1. Remove aspas sobressalentes que o Render pode adicionar e conserta os escapes de quebra de linha (\n)
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  
-  if (privateKey) {
-    // Se a string veio envolta em aspas por conta da configuração do painel, remove as aspas das pontas
-    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-      privateKey = privateKey.substring(1, privateKey.length - 1);
-    }
-    // Transforma a string \n digitada em quebra de linha real (formato PEM válido)
-    privateKey = privateKey.replace(/\\n/g, '\n');
-  }
+let adminAuth: admin.auth.Auth | null = null;
+let adminDb: admin.firestore.Firestore | null = null;
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: privateKey,
-    }),
-  });
+// Só inicializa se a variável de ambiente estiver presente
+const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+if (rawKey && !admin.apps.length) {
+  try {
+    const serviceAccount = JSON.parse(rawKey);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    adminAuth = admin.auth();
+    adminDb = admin.firestore();
+  } catch (error) {
+    console.error('Erro ao ler a Service Account do Firebase:', error);
+  }
+} else if (admin.apps.length) {
+  adminAuth = admin.auth();
+  adminDb = admin.firestore();
 }
 
-const adminDb = admin.firestore();
-const adminAuth = admin.auth();
-
-export { adminDb, adminAuth };
+export { adminAuth, adminDb };
