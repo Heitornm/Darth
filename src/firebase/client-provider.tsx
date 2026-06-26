@@ -1,8 +1,7 @@
 'use client';
 
 import React, { type ReactNode } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
-// Importa diretamente as instâncias geradas do cliente Firebase
+import { FirebaseProvider } from './provider'; // ✅ Correção: Importação relativa limpa para quebrar o loop circular
 import { app, auth, db } from '@/lib/firebase';
 
 interface FirebaseClientProviderProps {

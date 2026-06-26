@@ -1,11 +1,10 @@
-
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, collection, query, where, orderBy, onSnapshot, doc, DocumentData } from 'firebase/firestore';
+import { Firestore, collection, query, where, orderBy, onSnapshot, doc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/common/FirebaseErrorListener'
+import { FirebaseErrorListener } from '@/components/common/FirebaseErrorListener';
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
@@ -110,7 +109,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     setIsAppointmentsLoading(true);
     
-    // Todos os usuários autenticados precisam ver a agenda mestre para calcular disponibilidade (Verde/Vermelho)
     const q = query(
       collection(firestore, 'appointments'), 
       where('barberId', '==', MASTER_BARBER_ID), 
@@ -153,20 +151,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   );
 };
 
-export const useFirebase = (): FirebaseServicesAndUser => {
+export const useFirebase = (): FirebaseContextState => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
-    throw new Error('Firebase core services not available.');
-  }
-  return {
-    ...context,
-    firebaseApp: context.firebaseApp!,
-    firestore: context.firestore!,
-    auth: context.auth!,
-  };
+  return context;
 };
 
 export const useAuth = () => useFirebase().auth;

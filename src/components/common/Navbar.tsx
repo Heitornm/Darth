@@ -41,10 +41,17 @@ export function Navbar() {
     }
   }, [user, db, isMounted]);
 
-  const handleLogout = async () => {
+  // Adicione a trava logo no início da função de logout:
+const handleLogout = async () => {
+  if (!auth) return; // Se o auth for nulo por estar no build, ele para aqui de forma segura
+  
+  try {
     await auth.signOut();
-    router.push('/');
-  };
+    // seu código de redirecionamento ou toast...
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 

@@ -1,5 +1,6 @@
-
 "use client";
+
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -38,7 +39,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email || !password || !auth) return;
     
     setIsLoading(true);
     try {
@@ -57,7 +58,7 @@ export default function LoginPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name) return;
+    if (!email || !password || !name || !auth) return;
     
     setIsLoading(true);
     try {
@@ -76,7 +77,6 @@ export default function LoginPage() {
           updatedAt: Timestamp.now(),
         };
 
-        // Padrão não-bloqueante para mutações Firestore
         setDoc(doc(db, 'users', newUser.uid), userData)
           .catch(async (err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({

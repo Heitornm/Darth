@@ -1,9 +1,11 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
 import Link from 'next/link';
-import { LogIn, Scissors, ChevronRight, Star, ClipboardList, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { LogIn, Scissors, ClipboardList, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Calendar } from '@/components/ui/calendar';
 import { ptBR } from 'date-fns/locale';
-import { isSameDay, isBefore, startOfDay, format } from 'date-fns';
+import { isBefore, startOfDay, format } from 'date-fns';
 
 const WORK_START = 8;
 const WORK_END = 21;
@@ -154,7 +156,6 @@ export default function Home() {
               </CardHeader>
               <CardContent className="p-6 flex justify-center items-center">
 
-                {/* DIV DE ISOLAMENTO: Garante que o calendário nunca passe de 350px e centraliza as setas */}
                 <div className="w-full max-w-[350px] mx-auto block-calendar-wrapper">
                   <Calendar
                     mode="single"
