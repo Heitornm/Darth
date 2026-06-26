@@ -18,44 +18,44 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-4 bg-background", className)}
+      className={cn("p-4 bg-background rounded-md", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
         month: "space-y-3 w-full",
-        // month_caption agora é o container flex que alinha botões e texto no centro
-        month_caption: "flex justify-center pt-1 relative items-center mb-2 gap-4",
-        // caption_label é o texto do mês/ano
-        caption_label: "text-xs font-bold uppercase tracking-wider",
+        // month_caption centraliza o título e cria o contexto
+        month_caption: "flex justify-center pt-1 relative items-center mb-2 w-full",
+        caption_label: "text-sm font-bold uppercase tracking-wider",
         
-        // nav contém os botões. Removi o absolute para eles seguirem o fluxo do flex
-        nav: "flex items-center gap-1", 
+        // nav agora se posiciona de forma absoluta controlada preenchendo a linha do cabeçalho
+        nav: "flex items-center justify-between absolute inset-x-0 top-1 h-7 pointer-events-none", 
         
+        // Os botões reativam o pointer-events para clique e ficam contidos nas bordas do calendário interno
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1 z-10"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 pointer-events-auto"
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-1 z-10"
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 pointer-events-auto"
         ),
         
         month_grid: "w-full border-collapse",
-        weekdays: "flex justify-between",
-        weekday: "text-muted-foreground rounded-md w-8 font-normal text-[0.65rem] py-1 text-center",
-        week: "flex w-full mt-0.5 justify-between",
+        weekdays: "flex justify-between w-full",
+        weekday: "text-muted-foreground rounded-md w-9 font-normal text-[0.75rem] py-1 text-center",
+        week: "flex w-full mt-1 justify-between",
         day: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected].day-range-end)]:rounded-r-md w-8"
+          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 w-9"
         ),
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-8 w-8 p-0 font-normal aria-selected:opacity-100 text-xs"
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 text-xs transition-all"
         ),
         range_start: "day-range-start",
         range_end: "day-range-end",
         selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
         today: "bg-accent text-accent-foreground font-bold border border-accent-foreground/20",
-        outside: "day-outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
-        disabled: "text-muted-foreground opacity-50",
+        outside: "day-outside text-muted-foreground/40 pointer-events-none",
+        disabled: "text-muted-foreground opacity-30 cursor-not-allowed",
         range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
         hidden: "invisible",
         dropdowns: "flex gap-1 items-center justify-center",
