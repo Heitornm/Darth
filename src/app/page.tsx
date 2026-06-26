@@ -29,15 +29,15 @@ export default function Home() {
   // Calcula a ocupação de cada dia para colorir o calendário
   const availabilityData = useMemo(() => {
     if (!appointments) return {};
-    
+
     const stats: Record<string, number> = {};
     appointments.forEach(apt => {
       if (apt.status === 'cancelado') return;
       const date =
         apt.dataHora &&
-        typeof apt.dataHora === 'object' &&
-        'toDate' in apt.dataHora &&
-        typeof (apt.dataHora as any).toDate === 'function'
+          typeof apt.dataHora === 'object' &&
+          'toDate' in apt.dataHora &&
+          typeof (apt.dataHora as any).toDate === 'function'
           ? (apt.dataHora as any).toDate()
           : new Date(apt.dataHora);
       const dayKey = format(date, 'yyyy-MM-dd');
@@ -76,9 +76,9 @@ export default function Home() {
             <Card className="border-primary/20 bg-card/40 backdrop-blur-md shadow-2xl overflow-hidden group">
               <CardContent className="p-8 flex items-center gap-6">
                 <Avatar className="h-24 w-24 border-2 border-primary/30">
-                  <AvatarImage 
-                    src={barberImage?.imageUrl} 
-                    alt="Darth Barber" 
+                  <AvatarImage
+                    src={barberImage?.imageUrl}
+                    alt="Darth Barber"
                     data-ai-hint={barberImage?.imageHint}
                     className="object-cover"
                   />
@@ -106,7 +106,7 @@ export default function Home() {
                       <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
                         <Link href="/client/appointments">
                           <Scissors className="w-6 h-6" />
-                          Agendar 
+                          Agendar
                         </Link>
                       </Button>
                     )
@@ -122,7 +122,7 @@ export default function Home() {
               ) : (
                 <div className="h-16 w-full bg-muted animate-pulse rounded-2xl"></div>
               )}
-              
+
               <div className="p-6 bg-accent/5 rounded-2xl border border-accent/20">
                 <div className="flex items-center gap-3 mb-4">
                   <Clock className="w-5 h-5 text-accent" />
@@ -143,32 +143,41 @@ export default function Home() {
                     Disponibilidade
                   </div>
                   <div className="flex gap-3 text-[10px] font-bold uppercase tracking-tighter">
-                    <span className="flex items-center gap-1 text-green-500"><div className="w-2 h-2 rounded-full bg-green-500" /> Vagas</span>
-                    <span className="flex items-center gap-1 text-destructive"><div className="w-2 h-2 rounded-full bg-destructive" /> Lotado</span>
+                    <span className="flex items-center gap-1 text-green-500">
+                      <div className="w-2 h-2 rounded-full bg-green-500" /> Vagas
+                    </span>
+                    <span className="flex items-center gap-1 text-destructive">
+                      <div className="w-2 h-2 rounded-full bg-destructive" /> Lotado
+                    </span>
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(d: Date | undefined) => {
-                    if (d && !isBefore(startOfDay(d), startOfDay(new Date())) && !isDayFull(d)) {
-                      setSelectedDate(d);
-                    }
-                  }}
-                  locale={ptBR}
-                  className="w-full"
-                  disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date())) || isDayFull(date)}
-                  modifiers={{
-                    full: (date) => isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date())),
-                    available: (date) => !isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date()))
-                  }}
-                  modifiersClassNames={{
-                    full: "!bg-destructive !text-destructive-foreground !opacity-100 font-bold cursor-not-allowed rounded-md",
-                    available: "bg-green-500/10 text-green-500 font-bold rounded-md"
-                  }}
-                />
+              <CardContent className="p-6 flex justify-center items-center">
+
+                {/* DIV DE ISOLAMENTO: Garante que o calendário nunca passe de 350px e centraliza as setas */}
+                <div className="w-full max-w-[350px] mx-auto block-calendar-wrapper">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d: Date | undefined) => {
+                      if (d && !isBefore(startOfDay(d), startOfDay(new Date())) && !isDayFull(d)) {
+                        setSelectedDate(d);
+                      }
+                    }}
+                    locale={ptBR}
+                    className="rounded-md border border-primary/5 shadow-inner"
+                    disabled={(date) => isBefore(startOfDay(date), startOfDay(new Date())) || isDayFull(date)}
+                    modifiers={{
+                      full: (date) => isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date())),
+                      available: (date) => !isDayFull(date) && !isBefore(startOfDay(date), startOfDay(new Date()))
+                    }}
+                    modifiersClassNames={{
+                      full: "!bg-destructive !text-destructive-foreground !opacity-100 font-bold cursor-not-allowed rounded-md",
+                      available: "bg-green-500/10 text-green-500 font-bold rounded-md"
+                    }}
+                  />
+                </div>
+
               </CardContent>
             </Card>
           </div>
