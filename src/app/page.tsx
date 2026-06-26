@@ -66,7 +66,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* CORRIGIDO: Fechamento correto da div e remoção do código intruso daqui */}
+        {/* Carrosel */}
         <div className="relative w-full py-4 overflow-hidden">
           <ServiceCarousel />
         </div>
