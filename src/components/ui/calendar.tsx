@@ -1,42 +1,21 @@
-"use client"
-
-import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker"
-
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
-
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
-
-function Calendar({
-  className,
-  classNames,
-  showOutsideDays = true,
-  ...props
-}: CalendarProps) {
-  return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn("p-4 bg-background rounded-md", className)}
-      classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full",
-        month: "space-y-3 w-full",
-        // month_caption centraliza o título e cria o contexto
-        month_caption: "flex justify-center pt-1 relative items-center mb-2 w-full",
-        caption_label: "text-sm font-bold uppercase tracking-wider",
+classNames={{
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 w-full justify-center",
+        month: "space-y-3 w-full max-w-sm mx-auto",
         
-        // nav agora se posiciona de forma absoluta controlada preenchendo a linha do cabeçalho
-        nav: "flex items-center justify-between absolute inset-x-0 top-1 h-7 pointer-events-none", 
+        // month_caption agora agrupa os elementos em linha
+        month_caption: "flex justify-between items-center mb-4 px-2 relative w-full",
+        caption_label: "text-sm font-bold uppercase tracking-wider order-2 mx-auto",
         
-        // Os botões reativam o pointer-events para clique e ficam contidos nas bordas do calendário interno
+        // nav contém os botões e agora dita o alinhamento deles
+        nav: "flex items-center gap-1 absolute inset-x-0 top-0 justify-between w-full pointer-events-none", 
+        
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 pointer-events-auto"
+          "h-7 w-7 bg-background p-0 opacity-50 hover:opacity-100 pointer-events-auto"
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 pointer-events-auto"
+          "h-7 w-7 bg-background p-0 opacity-50 hover:opacity-100 pointer-events-auto"
         ),
         
         month_grid: "w-full border-collapse",
@@ -62,18 +41,3 @@ function Calendar({
         dropdown: "text-[10px] p-1 bg-background border rounded-md cursor-pointer hover:bg-muted transition-colors font-bold",
         ...classNames,
       }}
-      components={{
-        Chevron: ({ orientation }) => {
-          if (orientation === "left") {
-            return <ChevronLeft className="h-4 w-4" />
-          }
-          return <ChevronRight className="h-4 w-4" />
-        },
-      }}
-      {...props}
-    />
-  )
-}
-Calendar.displayName = "Calendar"
-
-export { Calendar }
