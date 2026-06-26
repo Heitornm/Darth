@@ -59,7 +59,7 @@ export default function Home() {
       <div className="max-w-6xl w-full text-center space-y-16">
         <div className="space-y-4">
           <h1 className="text-5xl md:text-7xl font-headline font-bold text-primary tracking-tight">
-            DarthBarber
+            DARTH
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
             Garanta sua experiência com nossos especialistas.
