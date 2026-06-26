@@ -1,3 +1,14 @@
+"use client"
+
+import * as React from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { DayPicker } from "react-day-picker"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+export type CalendarProps = React.ComponentProps<typeof DayPicker>
+
 function Calendar({
   className,
   classNames,
@@ -7,21 +18,18 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      // FORÇADO: max-w-md e mx-auto direto na raiz do componente para travar no desktop
       className={cn("p-4 bg-background rounded-md max-w-sm mx-auto w-full", className)}
       classNames={{
         months: "flex flex-col space-y-4 w-full",
         month: "space-y-3 w-full",
         
-        // REESTRUTURADO: month_caption agora é um flex comum que distribui os elementos em linha
-        // Seta Esquerda (button_previous) | Mês/Ano (caption_label) | Seta Direita (button_next)
+        // REESTRUTURADO: Alinha os botões e o mês em linha flex comum, segurando as setas nas bordas do calendário
         month_caption: "flex items-center justify-between h-7 relative w-full px-1 mb-2",
         caption_label: "text-sm font-bold uppercase tracking-wider text-center flex-1",
         
-        // nav agora serve apenas como uma div auxiliar vazia, não jogamos mais absolutos nele
+        // Elemento auxiliar do react-day-picker
         nav: "flex items-center", 
         
-        // Removemos o "absolute left-1/right-1" que fazia vazar na tela desktop
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
@@ -64,3 +72,8 @@ function Calendar({
     />
   )
 }
+Calendar.displayName = "Calendar"
+
+// Garante compatibilidade tanto com import { Calendar } quanto com import Calendar
+export { Calendar }
+export default Calendar
