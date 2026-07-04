@@ -1,25 +1,30 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
-let adminAuth: admin.auth.Auth | null = null;
-let adminDb: admin.firestore.Firestore | null = null;
+let adminAuth: Auth | null = null;
+let adminDb: Firestore | null = null;
 
-// Só inicializa se a variável de ambiente estiver presente
-const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT;
+const apps = getApps();
 
-if (rawKey && !admin.apps.length) {
+if (rawKey && !apps.length) {
   try {
     const serviceAccount = JSON.parse(rawKey);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+
+    const app = initializeApp({
+      credential: cert(serviceAccount),
     });
-    adminAuth = admin.auth();
-    adminDb = admin.firestore();
+
+    adminAuth = getAuth(app);
+    adminDb = getFirestore(app);
   } catch (error) {
-    console.error('Erro ao ler a Service Account do Firebase:', error);
+    console.error('Failed to initialize Firebase Admin SDK:', error);
   }
-} else if (admin.apps.length) {
-  adminAuth = admin.auth();
-  adminDb = admin.firestore();
+} else if (apps.length) {
+  // Se o app já foi inicializado, pegamos a instância existente através dos métodos getAuth/getFirestore
+  adminAuth = getAuth();
+  adminDb = getFirestore();
 }
 
 export { adminAuth, adminDb };

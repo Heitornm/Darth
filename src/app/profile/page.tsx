@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useUser, useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase'; // 👈 Removido o useAuth daqui
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { updateProfile, updateEmail, updatePassword } from 'firebase/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -14,8 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
-  const auth = useAuth();
-  const db = useFirestore();
+  const db = useFirestore(); // 👈 Removida a linha 'const auth = useAuth();' que estava aqui
   const { toast } = useToast();
 
   const [name, setName] = useState('');
@@ -95,7 +93,7 @@ export default function ProfilePage() {
 
       toast({
         title: "Sucesso!",
-        description: "Perfil atualizado com sucesso.",
+        description: "Perfil updated com sucesso.",
       });
     } catch (error: any) {
       toast({

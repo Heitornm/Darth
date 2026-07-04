@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+// 👈 Removido o 'useRouter' do 'next/navigation'
 import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings, Sparkles } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -23,7 +22,7 @@ export function Navbar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
-  const router = useRouter();
+  // 👈 Removida a linha 'const router = useRouter();' que estava aqui
   const [isMounted, setIsMounted] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -41,17 +40,15 @@ export function Navbar() {
     }
   }, [user, db, isMounted]);
 
-  // Adicione a trava logo no início da função de logout:
-const handleLogout = async () => {
-  if (!auth) return; // Se o auth for nulo por estar no build, ele para aqui de forma segura
-  
-  try {
-    await auth.signOut();
-    // seu código de redirecionamento ou toast...
-  } catch (error) {
-    console.error(error);
-  }
-};
+  const handleLogout = async () => {
+    if (!auth) return; 
+    
+    try {
+      await auth.signOut();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 

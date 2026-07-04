@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -38,6 +38,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-};
+} as NextConfig; // Modificado aqui: Removemos a tipagem direta da constante e aplicamos o "as NextConfig" no final
 
 export default nextConfig;

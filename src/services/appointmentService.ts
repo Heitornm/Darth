@@ -4,8 +4,8 @@ import {
   where, 
   onSnapshot, 
   Timestamp, 
-  orderBy,
-  addDoc
+  orderBy
+  // 👈 Removido o 'addDoc' daqui para sanar o erro TS6133
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 

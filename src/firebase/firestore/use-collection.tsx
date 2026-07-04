@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -66,7 +65,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
         setError(null);
       },
-      async (err: FirestoreError) => {
+      async (_err: FirestoreError) => { // 👈 Mudado de 'err' para '_err'
         let path = 'collection';
         try {
           if ((target as any).path) {
@@ -77,7 +76,7 @@ export function useCollection<T = any>(
               ? queryPath.canonicalString() 
               : queryPath.toString();
           }
-        } catch (e) {
+        } catch (_e) { // 👈 Mudado de 'e' para '_e' para evitar futuros erros de variável não usada
           // Fallback genérico para evitar crash
           path = 'firestore-collection';
         }

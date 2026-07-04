@@ -2,14 +2,10 @@
 /**
  * @fileOverview An AI-powered conversational assistant that helps clients articulate their desired haircut or style preferences.
  * It generates a concise summary for the barber.
- *
- * - clientStyleAssistant - A function that processes the client's style description.
- * - ClientStyleAssistantInput - The input type for the clientStyleAssistant function.
- * - ClientStyleAssistantOutput - The return type for the clientStyleAssistant function.
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod'; 
 
 const ClientStyleAssistantInputSchema = z.object({
   clientDescription: z

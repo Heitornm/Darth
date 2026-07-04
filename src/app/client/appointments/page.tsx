@@ -14,10 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useFirebase } from '@/firebase';
-import { collection, Timestamp, addDoc } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore'; // 👈 Mantido apenas o Timestamp, removidos collection e addDoc
 import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+// 👈 Removidos os imports do errors e do error-emitter que causavam o TS6192 e TS6133
 
 const SERVICES = [
   { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
@@ -64,7 +63,6 @@ export default function ClientAppointmentsPage() {
   const isDayFull = (d: Date) => {
     const dayKey = format(d, 'yyyy-MM-dd');
     const occupied = availabilityData[dayKey] || 0;
-    // Se occupied for maior ou igual ao total disponível, o dia está cheio
     return occupied >= TOTAL_MINUTES_PER_DAY;
   };
 
@@ -111,22 +109,37 @@ export default function ClientAppointmentsPage() {
       serviceName: selectedService?.name,
       durationMinutes: selectedService?.durationMinutes,
       price: selectedService?.price,
-      dataHora: Timestamp.fromDate(appointmentDate),
-      status: 'pendente',
-      createdAt: Timestamp.now(),
+      dataHora: appointmentDate.toISOString(),
     };
 
-    addDoc(collection(firestore, "appointments"), appointmentData)
-      .then(() => {
-        toast({ title: "Sucesso!", description: "Seu agendamento foi realizado." });
-        router.push('/client/my-appointments');
+    fetch('/api/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(appointmentData),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+
+        if (!res.ok || !data.paymentUrl) {
+          throw new Error(data.error || 'Falha ao gerar pagamento');
+        }
+
+        toast({
+          title: "Reserva Iniciada!",
+          description: "Redirecionando para o pagamento seguro Pix...",
+        });
+
+        window.location.href = data.paymentUrl;
       })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: 'appointments',
-          operation: 'create',
-          requestResourceData: appointmentData,
-        } satisfies SecurityRuleContext));
+      .catch((err) => {
+        console.error(err);
+        toast({
+          title: "Erro no agendamento",
+          description: "Não foi possível iniciar o pagamento. Tente novamente.",
+          variant: "destructive"
+        });
       })
       .finally(() => setLoading(false));
   };

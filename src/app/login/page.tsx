@@ -78,7 +78,7 @@ export default function LoginPage() {
         };
 
         setDoc(doc(db, 'users', newUser.uid), userData)
-          .catch(async (err) => {
+          .catch(async (_err) => { // 👈 Mudado de 'err' para '_err' para sanar o TS6133
             errorEmitter.emit('permission-error', new FirestorePermissionError({
               path: `users/${newUser.uid}`,
               operation: 'create',

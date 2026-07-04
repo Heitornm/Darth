@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { query, collection, where, orderBy, limit, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Bell, Scissors } from 'lucide-react';
+import { Scissors } from 'lucide-react'; // 👈 Removido o 'Bell' daqui
 
 export function NotificationListener() {
   const { user } = useUser();
