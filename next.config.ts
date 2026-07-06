@@ -1,12 +1,25 @@
 import type { NextConfig } from 'next';
 
-const nextConfig = {
+const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+  
+  // No Next.js 16+, se quiser ignorar o ESLint no build, a chave correta mudou para dentro de experimental ou removida.
+  // Como você já usa TypeScript ignorando erros, podemos simplesmente omitir o bloco eslint antigo que gerava o Warning.
+
+  // Configuração para o Turbopack (Novo padrão do Next 16)
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        'firebase/app': 'firebase/app',
+        'firebase/auth': 'firebase/auth',
+        'firebase/firestore': 'firebase/firestore',
+      },
+    },
   },
+
+  // Mantemos o fallback do Webpack caso você precise rodar sem o Turbopack em algum ambiente
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -16,6 +29,7 @@ const nextConfig = {
     };
     return config;
   },
+
   images: {
     remotePatterns: [
       {
@@ -38,6 +52,6 @@ const nextConfig = {
       },
     ],
   },
-} as NextConfig; // Modificado aqui: Removemos a tipagem direta da constante e aplicamos o "as NextConfig" no final
+};
 
 export default nextConfig;
