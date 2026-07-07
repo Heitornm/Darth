@@ -11,8 +11,7 @@ import {
   createUserWithEmailAndPassword, 
   updateProfile,
   GoogleAuthProvider,
-  signInWithRedirect,     // 🚀 Alterado para Redirect
-  getRedirectResult       // 🚀 Adicionado para capturar o resultado pós-redirecionamento
+  signInWithPopup
 } from 'firebase/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
+// Ícone simples do Google em SVG para o botão
 function GoogleIcon() {
   return (
     <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -45,59 +45,11 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // 1. Redireciona se o usuário já estiver logado
   useEffect(() => {
     if (user) {
       router.push('/');
     }
   }, [user, router]);
-
-  // 2. 🚀 NOVO: Captura o retorno do login do Google por Redirect
-  useEffect(() => {
-    if (!auth || !db) return;
-
-    const handleRedirectResult = async () => {
-      try {
-        setIsGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        
-        if (result?.user) {
-          const googleUser = result.user;
-          const userDocRef = doc(db, 'users', googleUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-
-          if (!userDocSnap.exists()) {
-            const userData = {
-              id: googleUser.uid,
-              name: googleUser.displayName || 'Cliente Google',
-              email: googleUser.email || '',
-              role: 'client',
-              avatarUrl: googleUser.photoURL || null,
-              createdAt: Timestamp.now(),
-              updatedAt: Timestamp.now(),
-            };
-
-            await setDoc(userDocRef, userData);
-            toast({ title: "Conta criada!", description: `Bem-vindo, ${userData.name}.` });
-          } else {
-            toast({ title: "Bem-vindo de volta!", description: "Acesso realizado com a conta Google." });
-          }
-          router.push('/');
-        }
-      } catch (error: any) {
-        console.error("Erro no retorno do Google Redirect:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro com o Google",
-          description: error.message || "Não foi possível concluir o acesso com o Google.",
-        });
-      } finally {
-        setIsGoogleLoading(false);
-      }
-    };
-
-    handleRedirectResult();
-  }, [auth, db, router, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,20 +113,45 @@ export default function LoginPage() {
     }
   };
 
-  // 3. 🚀 ALTERADO: Dispara o fluxo de Redirect para evitar bloqueio de cookies/popups
   const handleGoogleLogin = async () => {
-    if (!auth) return;
+    if (!auth || !db) return;
+
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
+
     try {
-      await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const googleUser = result.user;
+
+      const userDocRef = doc(db, 'users', googleUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        const userData = {
+          id: googleUser.uid,
+          name: googleUser.displayName || 'Cliente Google',
+          email: googleUser.email || '',
+          role: 'client',
+          avatarUrl: googleUser.photoURL || null,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+
+        await setDoc(userDocRef, userData);
+        toast({ title: "Conta criada!", description: `Bem-vindo, ${userData.name}.` });
+      } else {
+        toast({ title: "Bem-vindo de volta!", description: "Acesso realizado com a conta Google." });
+      }
+
+      router.push('/');
     } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
         title: "Erro com o Google",
-        description: error.message || "Não foi possível iniciar o login com o Google.",
+        description: error.message || "Não foi possível acessar com o Google.",
       });
+    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -202,14 +179,32 @@ export default function LoginPage() {
                   <Label htmlFor="email">E-mail</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="seu@email.com" className="pl-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      autoComplete="email" 
+                      placeholder="seu@email.com" 
+                      className="pl-10" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)} 
+                      required 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input id="password" type="password" placeholder="••••••••" className="pl-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <Input 
+                      id="password" 
+                      type="password" 
+                      autoComplete="current-password" 
+                      placeholder="••••••••" 
+                      className="pl-10" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      required 
+                    />
                   </div>
                 </div>
                 <Button type="submit" className="w-full h-12 text-lg font-headline" disabled={isLoading || isGoogleLoading}>
@@ -224,21 +219,47 @@ export default function LoginPage() {
                   <Label htmlFor="signup-name">Nome Completo</Label>
                   <div className="relative">
                     <UserIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input id="signup-name" placeholder="Seu nome" className="pl-10" value={name} onChange={(e) => setName(e.target.value)} required />
+                    <Input 
+                      id="signup-name" 
+                      autoComplete="name" 
+                      placeholder="Seu nome" 
+                      className="pl-10" 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      required 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">E-mail</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input id="signup-email" type="email" placeholder="seu@email.com" className="pl-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Input 
+                      id="signup-email" 
+                      type="email" 
+                      autoComplete="email" 
+                      placeholder="seu@email.com" 
+                      className="pl-10" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)} 
+                      required 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Senha</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input id="signup-password" type="password" placeholder="Mínimo 6 caracteres" className="pl-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <Input 
+                      id="signup-password" 
+                      type="password" 
+                      autoComplete="new-password" 
+                      placeholder="Mínimo 6 caracteres" 
+                      className="pl-10" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      required 
+                    />
                   </div>
                 </div>
 
@@ -267,7 +288,7 @@ export default function LoginPage() {
           >
             {isGoogleLoading ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" /> Processando...
+                <Loader2 className="w-5 h-5 animate-spin" /> Conectando...
               </span>
             ) : (
               <>
