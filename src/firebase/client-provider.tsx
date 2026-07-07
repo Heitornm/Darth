@@ -1,6 +1,6 @@
 'use client';
 
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { FirebaseProvider } from './provider'; // ✅ Correção: Importação relativa limpa para quebrar o loop circular
 import { app, auth, db } from '@/lib/firebase';
 

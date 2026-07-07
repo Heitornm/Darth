@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';

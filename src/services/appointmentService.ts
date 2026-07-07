@@ -4,8 +4,8 @@ import {
   where, 
   onSnapshot, 
   Timestamp, 
-  orderBy
-  // 👈 Removido o 'addDoc' daqui para sanar o erro TS6133
+  orderBy,
+  addDoc // 👈 Adicionado de volta para salvar agendamentos
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -13,17 +13,26 @@ export interface Appointment {
   id?: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string | null;
   barberId: string;
-  serviceName?: string; // Adicionado para bater com seu componente
-  durationMinutes?: number; // Adicionado para bater com seu componente
+  serviceId: string;
+  serviceName?: string;
+  durationMinutes?: number;
+  price: number;
   dataHora: Timestamp | Date;
   status: 'pendente' | 'confirmado' | 'cancelado';
 }
 
 export const appointmentService = {
-  // ... outras funções (saveAppointment, etc)
+  // 🚀 Nova função para salvar o agendamento inicial
+  async createAppointment(appointment: Omit<Appointment, 'id' | 'status'>): Promise<string> {
+    const docRef = await addDoc(collection(db, "appointments"), {
+      ...appointment,
+      status: 'pendente', // Todo agendamento nasce aguardando pagamento
+    });
+    return docRef.id;
+  },
 
-  // Esta função garante que a query seja filtrada no servidor do Firebase
   subscribeToClientAppointments(clientId: string, callback: (appointments: Appointment[]) => void) {
     const q = query(
       collection(db, "appointments"),

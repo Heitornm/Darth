@@ -83,7 +83,7 @@ export default function ClientAppointmentsPage() {
     });
   };
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!user || !firestore) {
       toast({ title: "Login necessário", description: "Faça login para agendar." });
       router.push('/login');
@@ -100,48 +100,67 @@ export default function ClientAppointmentsPage() {
     const appointmentDate = new Date(date);
     appointmentDate.setHours(hours, minutes, 0, 0);
 
-    const appointmentData = {
-      clientId: user.uid,
-      clientEmail: user.email,
-      clientName: user.displayName || user.email,
-      barberId: MASTER_BARBER_ID,
-      serviceId,
-      serviceName: selectedService?.name,
-      durationMinutes: selectedService?.durationMinutes,
-      price: selectedService?.price,
-      dataHora: appointmentDate.toISOString(),
-    };
+    try {
+      // 1. Cria o agendamento no Firestore como 'pendente'
+      const orderId = await appointmentService.createAppointment({
+        clientId: user.uid,
+        clientEmail: user.email,
+        clientName: user.displayName || user.email || 'Cliente',
+        barberId: MASTER_BARBER_ID,
+        serviceId,
+        serviceName: selectedService?.name,
+        durationMinutes: selectedService?.durationMinutes,
+        price: selectedService?.price || 0,
+        dataHora: Timestamp.fromDate(appointmentDate), // Transforma em Timestamp para o Firebase
+      });
 
-    fetch('/api/checkout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(appointmentData),
-    })
-      .then(async (res) => {
-        const data = await res.json();
+      // 2. Formata os dados para o formato que a nossa API /api/checkout espera
+      const checkoutPayload = {
+        orderId: orderId, // Enviamos o ID exato gerado pelo Firestore
+        items: [
+          {
+            description: selectedService?.name || "Serviço Darth Barber",
+            quantity: 1,
+            price: selectedService?.price || 0
+          }
+        ]
+      };
 
-        if (!res.ok || !data.paymentUrl) {
-          throw new Error(data.error || 'Falha ao gerar pagamento');
-        }
+      // 3. Dispara a requisição para gerar o link da InfinitePay
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(checkoutPayload),
+      });
 
-        toast({
-          title: "Reserva Iniciada!",
-          description: "Redirecionando para o pagamento seguro Pix...",
-        });
+      const data = await res.json();
 
-        window.location.href = data.paymentUrl;
-      })
-      .catch((err) => {
-        console.error(err);
-        toast({
-          title: "Erro no agendamento",
-          description: "Não foi possível iniciar o pagamento. Tente novamente.",
-          variant: "destructive"
-        });
-      })
-      .finally(() => setLoading(false));
+      // 👀 Nota de correção: seu código antigo buscava por 'data.paymentUrl', 
+      // mas a nossa API retorna 'data.url'
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Falha ao gerar link da InfinitePay');
+      }
+
+      toast({
+        title: "Reserva Iniciada!",
+        description: "Redirecionando para o pagamento seguro Pix / Cartão...",
+      });
+
+      // 4. Redireciona o cliente de fato
+      window.location.href = data.url;
+
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Erro no agendamento",
+        description: err.message || "Não foi possível iniciar o pagamento. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
