@@ -5,18 +5,32 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile,
+  GoogleAuthProvider, // 👈 Adicionado
+  signInWithPopup     // 👈 Adicionado
+} from 'firebase/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Scissors, Mail, Lock, User as UserIcon, UserCircle, Briefcase, Loader2 } from 'lucide-react';
+import { Scissors, Mail, Lock, User as UserIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+
+// Ícone simples do Google em SVG para o botão
+function GoogleIcon() {
+  return (
+    <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+      <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 137.8 248 137.8 248 137.8c-70.6 0-128 57.4-128 128s57.4 128 128 128c70.6 0 128-57.4 128-128 0-8.2-.7-16.3-2-24H248v-85.3h235.7c2.3 12.7 4.3 25.6 4.3 41.5z"></path>
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,8 +42,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'client' | 'barber'>('client');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false); // Estado separado para o Google
 
   useEffect(() => {
     if (user) {
@@ -72,13 +86,13 @@ export default function LoginPage() {
           id: newUser.uid,
           name: name,
           email: email,
-          role: role,
+          role: 'client',
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         };
 
         setDoc(doc(db, 'users', newUser.uid), userData)
-          .catch(async (_err) => { // 👈 Mudado de 'err' para '_err' para sanar o TS6133
+          .catch(async (_err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
               path: `users/${newUser.uid}`,
               operation: 'create',
@@ -96,6 +110,52 @@ export default function LoginPage() {
         description: error.message || "Não foi possível criar sua conta.",
       });
       setIsLoading(false);
+    }
+  };
+
+  // 🚀 NOVO: Fluxo de Autenticação com o Google
+  const handleGoogleLogin = async () => {
+    if (!auth || !db) return;
+
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const googleUser = result.user;
+
+      // Verifica se o usuário já existe no seu Firestore para não sobrescrever dados antigos
+      const userDocRef = doc(db, 'users', googleUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        // Se for um usuário novo (primeiro acesso via Google), criamos o perfil dele como 'client'
+        const userData = {
+          id: googleUser.uid,
+          name: googleUser.displayName || 'Cliente Google',
+          email: googleUser.email || '',
+          role: 'client', // Sempre nasce cliente por segurança
+          avatarUrl: googleUser.photoURL || null,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        };
+
+        await setDoc(userDocRef, userData);
+        toast({ title: "Conta criada!", description: `Bem-vindo, ${userData.name}.` });
+      } else {
+        toast({ title: "Bem-vindo de volta!", description: "Acesso realizado com a conta Google." });
+      }
+
+      router.push('/');
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Erro com o Google",
+        description: error.message || "Não foi possível acessar com o Google.",
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -132,7 +192,7 @@ export default function LoginPage() {
                     <Input id="password" type="password" placeholder="••••••••" className="pl-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
                   </div>
                 </div>
-                <Button type="submit" className="w-full h-12 text-lg font-headline" disabled={isLoading}>
+                <Button type="submit" className="w-full h-12 text-lg font-headline" disabled={isLoading || isGoogleLoading}>
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Acessar"}
                 </Button>
               </form>
@@ -162,32 +222,40 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-2">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground tracking-widest">Eu sou...</Label>
-                  <RadioGroup value={role} onValueChange={(v) => setRole(v as any)} className="flex gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="role-client" className={`flex items-center justify-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${role === 'client' ? 'border-primary bg-primary/10' : 'border-muted'}`}>
-                        <RadioGroupItem value="client" id="role-client" className="sr-only" />
-                        <UserCircle className="w-5 h-5" />
-                        <span className="font-bold text-sm">Cliente</span>
-                      </Label>
-                    </div>
-                    <div className="flex-1">
-                      <Label htmlFor="role-barber" className={`flex items-center justify-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${role === 'barber' ? 'border-accent bg-accent/10' : 'border-muted'}`}>
-                        <RadioGroupItem value="barber" id="role-barber" className="sr-only" />
-                        <Briefcase className="w-5 h-5" />
-                        <span className="font-bold text-sm">Barbeiro</span>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <Button type="submit" className="w-full h-12 text-lg font-headline mt-4" disabled={isLoading}>
+                <Button type="submit" className="w-full h-12 text-lg font-headline mt-6" disabled={isLoading || isGoogleLoading}>
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Cadastrar"}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* 🚀 divisor visual e botão do Google centralizado */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-muted" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Ou continue com</span>
+            </div>
+          </div>
+
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="w-full h-12 text-base font-medium border-primary/20 hover:bg-muted"
+            onClick={handleGoogleLogin}
+            disabled={isLoading || isGoogleLoading}
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <GoogleIcon />
+                Entrar com o Google
+              </>
+            )}
+          </Button>
+
         </CardContent>
       </Card>
     </div>
