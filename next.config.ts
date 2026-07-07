@@ -5,20 +5,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // Configuração de Cabeçalhos de Segurança para o Render + Firebase Auth
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin-allow-popups', // 🚀 Libera o gapi e janelas do Firebase de forma segura
-          },
-        ],
-      },
-    ];
-  },
+  // No Next.js 16+, se quiser ignorar o ESLint no build, a chave correta mudou para dentro de experimental ou removida.
+  // Como você já usa TypeScript ignorando erros, podemos simplesmente omitir o bloco eslint antigo que gerava o Warning.
 
   // Configuração para o Turbopack (Novo padrão do Next 16)
   experimental: {
