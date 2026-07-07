@@ -20,14 +20,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // 🚀 CORREÇÃO: O 'turbo' agora fica na raiz do objeto de configuração, no mesmo nível de webpack e images
-  turbo: {
-    resolveAlias: {
-      'firebase/app': 'firebase/app',
-      'firebase/auth': 'firebase/auth',
-      'firebase/firestore': 'firebase/firestore',
-    },
-  },
 
   // Mantemos o fallback do Webpack caso você precise rodar sem o Turbopack em algum ambiente
   webpack: (config) => {
