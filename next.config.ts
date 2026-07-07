@@ -5,17 +5,27 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // No Next.js 16+, se quiser ignorar o ESLint no build, a chave correta mudou para dentro de experimental ou removida.
-  // Como você já usa TypeScript ignorando erros, podemos simplesmente omitir o bloco eslint antigo que gerava o Warning.
-
-  // Configuração para o Turbopack (Novo padrão do Next 16)
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        'firebase/app': 'firebase/app',
-        'firebase/auth': 'firebase/auth',
-        'firebase/firestore': 'firebase/firestore',
+  // Configuração de Cabeçalhos de Segurança para o Render + Firebase Auth
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups', // Libera o gapi e janelas do Firebase de forma segura
+          },
+        ],
       },
+    ];
+  },
+
+  // 🚀 CORREÇÃO: O 'turbo' agora fica na raiz do objeto de configuração, no mesmo nível de webpack e images
+  turbo: {
+    resolveAlias: {
+      'firebase/app': 'firebase/app',
+      'firebase/auth': 'firebase/auth',
+      'firebase/firestore': 'firebase/firestore',
     },
   },
 
