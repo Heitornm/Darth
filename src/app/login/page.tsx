@@ -10,8 +10,9 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile,
-  GoogleAuthProvider, // 👈 Adicionado
-  signInWithPopup     // 👈 Adicionado
+  GoogleAuthProvider,
+  signInWithRedirect,     // 🚀 Alterado para Redirect
+  getRedirectResult       // 🚀 Adicionado para capturar o resultado pós-redirecionamento
 } from 'firebase/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,6 @@ import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
-// Ícone simples do Google em SVG para o botão
 function GoogleIcon() {
   return (
     <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -43,13 +43,61 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false); // Estado separado para o Google
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // 1. Redireciona se o usuário já estiver logado
   useEffect(() => {
     if (user) {
       router.push('/');
     }
   }, [user, router]);
+
+  // 2. 🚀 NOVO: Captura o retorno do login do Google por Redirect
+  useEffect(() => {
+    if (!auth || !db) return;
+
+    const handleRedirectResult = async () => {
+      try {
+        setIsGoogleLoading(true);
+        const result = await getRedirectResult(auth);
+        
+        if (result?.user) {
+          const googleUser = result.user;
+          const userDocRef = doc(db, 'users', googleUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (!userDocSnap.exists()) {
+            const userData = {
+              id: googleUser.uid,
+              name: googleUser.displayName || 'Cliente Google',
+              email: googleUser.email || '',
+              role: 'client',
+              avatarUrl: googleUser.photoURL || null,
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now(),
+            };
+
+            await setDoc(userDocRef, userData);
+            toast({ title: "Conta criada!", description: `Bem-vindo, ${userData.name}.` });
+          } else {
+            toast({ title: "Bem-vindo de volta!", description: "Acesso realizado com a conta Google." });
+          }
+          router.push('/');
+        }
+      } catch (error: any) {
+        console.error("Erro no retorno do Google Redirect:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro com o Google",
+          description: error.message || "Não foi possível concluir o acesso com o Google.",
+        });
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, [auth, db, router, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,48 +161,20 @@ export default function LoginPage() {
     }
   };
 
-  // 🚀 NOVO: Fluxo de Autenticação com o Google
+  // 3. 🚀 ALTERADO: Dispara o fluxo de Redirect para evitar bloqueio de cookies/popups
   const handleGoogleLogin = async () => {
-    if (!auth || !db) return;
-
+    if (!auth) return;
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-
     try {
-      const result = await signInWithPopup(auth, provider);
-      const googleUser = result.user;
-
-      // Verifica se o usuário já existe no seu Firestore para não sobrescrever dados antigos
-      const userDocRef = doc(db, 'users', googleUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
-      if (!userDocSnap.exists()) {
-        // Se for um usuário novo (primeiro acesso via Google), criamos o perfil dele como 'client'
-        const userData = {
-          id: googleUser.uid,
-          name: googleUser.displayName || 'Cliente Google',
-          email: googleUser.email || '',
-          role: 'client', // Sempre nasce cliente por segurança
-          avatarUrl: googleUser.photoURL || null,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        };
-
-        await setDoc(userDocRef, userData);
-        toast({ title: "Conta criada!", description: `Bem-vindo, ${userData.name}.` });
-      } else {
-        toast({ title: "Bem-vindo de volta!", description: "Acesso realizado com a conta Google." });
-      }
-
-      router.push('/');
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
       console.error(error);
       toast({
         variant: "destructive",
         title: "Erro com o Google",
-        description: error.message || "Não foi possível acessar com o Google.",
+        description: error.message || "Não foi possível iniciar o login com o Google.",
       });
-    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -229,7 +249,6 @@ export default function LoginPage() {
             </TabsContent>
           </Tabs>
 
-          {/* 🚀 divisor visual e botão do Google centralizado */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-muted" />
@@ -247,7 +266,9 @@ export default function LoginPage() {
             disabled={isLoading || isGoogleLoading}
           >
             {isGoogleLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" /> Processando...
+              </span>
             ) : (
               <>
                 <GoogleIcon />
