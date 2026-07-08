@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-// 👈 Removido o 'useRouter' do 'next/navigation'
 import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings, Sparkles } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -22,7 +21,6 @@ export function Navbar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
-  // 👈 Removida a linha 'const router = useRouter();' que estava aqui
   const [isMounted, setIsMounted] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -74,8 +72,10 @@ export function Navbar() {
                   </>
                 ) : (
                   <>
-                    <NavLink href="/client/appointments" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                    <NavLink href="/client/my-appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
+                    {/* 💡 Rota atualizada para a nova tela de agendamento que você criou */}
+                    <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
+                    {/* 💡 Rota corrigida para a listagem das reservas do cliente */}
+                    <NavLink href="/client/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
                   </>
                 )}
               </>
@@ -133,7 +133,8 @@ function NavLink({ href, icon, label }: { href: string, icon: any, label: string
     <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary transition-all gap-2 h-9 rounded-xl px-2 sm:px-3">
       <Link href={href}>
         {icon}
-        <span className="hidden lg:inline">{label}</span>
+        {/* 💡 Alterado de 'hidden lg:inline' para 'hidden md:inline' para aparecer em tablets e notebooks pequenos */}
+        <span className="hidden md:inline">{label}</span>
       </Link>
     </Button>
   );
