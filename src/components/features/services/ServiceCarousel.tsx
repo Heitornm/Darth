@@ -4,51 +4,51 @@ import { useState } from 'react';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription, 
-  DialogFooter 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Clock, Scissors, ChevronRight } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export const SERVICES = [
-  { 
-    id: 'srv-1', 
-    name: 'Corte Clássico', 
-    price: 1, 
-    durationMinutes: 30, 
+  {
+    id: 'srv-1',
+    name: 'Corte Clássico',
+    price: 1,
+    durationMinutes: 30,
     desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
     image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || 'https://picsum.photos/seed/srv1/600/400',
     hint: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageHint || 'classic haircut'
   },
-  { 
-    id: 'srv-2', 
-    name: 'Barba Completa', 
-    price: 1, 
-    durationMinutes: 30, 
+  {
+    id: 'srv-2',
+    name: 'Barba Completa',
+    price: 1,
+    durationMinutes: 30,
     desc: 'Tratamento completo para sua barba. Inclui design personalizado, toalha quente e óleos premium.',
     image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || 'https://picsum.photos/seed/srv2/600/400',
     hint: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageHint || 'beard grooming'
   },
-  { 
-    id: 'srv-3', 
-    name: 'Combo Imperial', 
-    price: 1, 
-    durationMinutes: 60, 
+  {
+    id: 'srv-3',
+    name: 'Combo Imperial',
+    price: 1,
+    durationMinutes: 60,
     desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba.',
     image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || 'https://picsum.photos/seed/srv3/600/400',
     hint: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageHint || 'barber combo'
   },
-  { 
-    id: 'srv-4', 
-    name: 'Corte Premium', 
-    price: 1, 
-    durationMinutes: 45, 
+  {
+    id: 'srv-4',
+    name: 'Corte Premium',
+    price: 1,
+    durationMinutes: 45,
     desc: 'Para quem busca exclusividade. Lavagem premium e técnicas avançadas de visagismo.',
     image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || 'https://picsum.photos/seed/srv4/600/400',
     hint: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageHint || 'luxury haircut'
@@ -62,7 +62,7 @@ interface ServiceCarouselProps {
 
 export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceCarouselProps) {
   const [emblaRef] = useEmblaCarousel(
-    { loop: true, align: 'start' }, 
+    { loop: true, align: 'start' },
     [Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })]
   );
 
@@ -82,16 +82,16 @@ export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceC
           {[...SERVICES, ...SERVICES].map((service, index) => {
             const isSelected = selectedServiceId === service.id;
             return (
-              <div 
-                key={`${service.id}-${index}`} 
+              <div
+                key={`${service.id}-${index}`}
                 className="flex-[0_0_85%] sm:flex-[0_0_45%] md:flex-[0_0_30%] min-w-0 pl-4"
                 onClick={() => handleServiceClick(service)}
               >
                 <div className={`bg-card border rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 h-full group flex flex-col cursor-pointer ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50 hover:border-primary/50'}`}>
                   <div className="aspect-[4/3] overflow-hidden relative">
-                    <Image 
-                      src={service.image} 
-                      alt={service.name} 
+                    <Image
+                      src={service.image}
+                      alt={service.name}
                       width={600}
                       height={400}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
@@ -128,11 +128,11 @@ export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceC
           {activeModalService && (
             <>
               <div className="w-full aspect-video overflow-hidden relative">
-                <Image 
-                  src={activeModalService.image} 
-                  alt={activeModalService.name} 
+                <Image
+                  src={activeModalService.image}
+                  alt={activeModalService.name}
                   fill
-                  className="object-cover" 
+                  className="object-cover"
                 />
               </div>
               <div className="p-8 space-y-6">
@@ -145,7 +145,7 @@ export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceC
                     {activeModalService.desc}
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="grid grid-cols-2 gap-6 py-6 border-y border-border/50">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-primary/10 rounded-xl">
@@ -159,12 +159,11 @@ export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceC
                 </div>
 
                 <DialogFooter className="pt-2">
-                  <Button 
-                    onClick={() => setActiveModalService(null)}
-                    className="w-full h-14 text-lg font-headline rounded-xl shadow-lg shadow-primary/20"
-                  >
-                    <Scissors className="w-5 h-5 mr-2" />
-                    Selecionar este serviço
+                  <Button asChild className="w-full h-14 text-lg font-headline rounded-xl shadow-lg shadow-primary/20">
+                    <Link href={`/client/appointments/new?serviceId=${activeModalService.id}`} className="flex items-center gap-2">
+                      <Scissors className="w-5 h-5" />
+                      Reservar este serviço
+                    </Link>
                   </Button>
                 </DialogFooter>
               </div>
