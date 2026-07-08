@@ -42,7 +42,7 @@ export default function Home() {
   const timeSlotsForSelectedDay = useMemo(() => {
     if (!selectedDate) return [];
     const dayOfWeek = getDay(selectedDate); // 0 = Domingo, 1 = Segunda, 2 = Terça...
-    
+
     if (dayOfWeek === 1) return []; // Segunda-feira fechado
 
     const slots: string[] = [];
@@ -61,8 +61,20 @@ export default function Home() {
     const occupiedSlots = new Set<string>();
     if (!appointments) return occupiedSlots;
 
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+
     appointments.forEach(apt => {
       if (apt.status === 'cancelado') return;
+
+      // Se o agendamento estiver pendente e foi criado há mais de 10 minutos, ignoramos (libera o horário)
+      if (apt.status === 'pendente' && apt.createdAt) {
+        const creationTime = (apt.createdAt as any).toDate
+          ? (apt.createdAt as any).toDate().getTime()
+          : new Date(apt.createdAt).getTime();
+
+        if (creationTime < tenMinutesAgo) return; // Não ocupa espaço na agenda
+      }
+
       const date =
         apt.dataHora &&
           typeof apt.dataHora === 'object' &&
@@ -70,12 +82,11 @@ export default function Home() {
           typeof (apt.dataHora as any).toDate === 'function'
           ? (apt.dataHora as any).toDate()
           : new Date(apt.dataHora);
-      
+
       const dayKey = format(date, 'yyyy-MM-dd');
       const timeKey = format(date, 'HH:mm');
       occupiedSlots.add(`${dayKey}_${timeKey}`);
 
-      // Se o agendamento salvo no banco durar mais de 30 minutos, ocupa o bloco seguinte também
       const duration = apt.durationMinutes || 30;
       if (duration > 30) {
         const nextSlotDate = addMinutes(date, 30);
@@ -83,7 +94,7 @@ export default function Home() {
         occupiedSlots.add(`${dayKey}_${nextTimeKey}`);
       }
     });
-    
+
     return occupiedSlots;
   }, [appointments]);
 
@@ -103,7 +114,7 @@ export default function Home() {
       const index = timeSlotsForSelectedDay.indexOf(time);
       // Se for o último horário do dia, não cabe um procedimento de 1 hora
       if (index === timeSlotsForSelectedDay.length - 1) return true;
-      
+
       // Verifica se o próximo bloco de 30 minutos também está ocupado
       const nextTimeSlot = timeSlotsForSelectedDay[index + 1];
       if (!nextTimeSlot || isSlotOccupied(nextTimeSlot)) return true;
@@ -126,7 +137,7 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center min-h-[85vh] px-4 py-12 md:py-20">
       <div className="max-w-6xl w-full text-center space-y-16">
-        
+
         {/* Topo / Título */}
         <div className="space-y-4">
           <h1 className="text-5xl md:text-7xl font-headline font-bold text-primary tracking-tight">
@@ -139,15 +150,15 @@ export default function Home() {
 
         {/* Carrossel de Serviços */}
         <div className="relative w-full py-4 overflow-hidden">
-          <ServiceCarousel 
-            onSelectService={(srv) => setSelectedService(srv)} 
+          <ServiceCarousel
+            onSelectService={(srv) => setSelectedService(srv)}
             selectedServiceId={selectedService?.id}
           />
         </div>
 
         {/* Seção Central Principal: Calendário à Esquerda, Horários à Direita */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start text-left">
-          
+
           {/* Calendário (Esquerda - Ocupa 5 colunas em telas grandes) */}
           <div className="lg:col-span-5 w-full flex justify-center">
             <Card className="border-primary/20 bg-card/60 shadow-2xl w-full max-w-[400px]">
@@ -229,7 +240,7 @@ export default function Home() {
                         </Link>
                       </Button>
                     ) : (
-                      <CheckoutButton 
+                      <CheckoutButton
                         clientId={user.uid}
                         clientName={user.displayName || userProfile?.name || 'Cliente'}
                         clientEmail={user.email}
@@ -259,7 +270,7 @@ export default function Home() {
 
         {/* Rodapé de Informações: Div do Barbeiro e Quadro de Horários */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left pt-8 border-t border-primary/10">
-          
+
           {/* Cartão de Identidade do Barbeiro */}
           <Card className="md:col-span-2 border-primary/20 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden group">
             <CardContent className="p-6 flex items-center gap-6">
