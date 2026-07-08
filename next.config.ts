@@ -20,8 +20,18 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // 🚀 CORREÇÃO PARA O NEXT.JS 16:
+  // Definimos a configuração nativa do Turbopack para mapear o Firebase corretamente
+  turbopack: {
+    resolveAlias: {
+      'firebase/app': 'firebase/app',
+      'firebase/auth': 'firebase/auth',
+      'firebase/firestore': 'firebase/firestore',
+    },
+  },
 
-  // Mantemos o fallback do Webpack caso você precise rodar sem o Turbopack em algum ambiente
+  // Mantemos o fallback do Webpack apenas se o compilador precisar dele em algum ambiente,
+  // mas o Next.js 16 priorizará o bloco turbopack acima sem estourar erros.
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
