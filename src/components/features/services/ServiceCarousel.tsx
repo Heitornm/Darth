@@ -20,7 +20,7 @@ export const SERVICES = [
   { 
     id: 'srv-1', 
     name: 'Corte Clássico', 
-    price: 50, 
+    price: 1, 
     durationMinutes: 30, 
     desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
     image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || 'https://picsum.photos/seed/srv1/600/400',
@@ -29,7 +29,7 @@ export const SERVICES = [
   { 
     id: 'srv-2', 
     name: 'Barba Completa', 
-    price: 40, 
+    price: 1, 
     durationMinutes: 30, 
     desc: 'Tratamento completo para sua barba. Inclui design personalizado, toalha quente e óleos premium.',
     image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || 'https://picsum.photos/seed/srv2/600/400',
@@ -38,7 +38,7 @@ export const SERVICES = [
   { 
     id: 'srv-3', 
     name: 'Combo Imperial', 
-    price: 80, 
+    price: 1, 
     durationMinutes: 60, 
     desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba.',
     image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || 'https://picsum.photos/seed/srv3/600/400',
@@ -47,7 +47,7 @@ export const SERVICES = [
   { 
     id: 'srv-4', 
     name: 'Corte Premium', 
-    price: 70, 
+    price: 1, 
     durationMinutes: 45, 
     desc: 'Para quem busca exclusividade. Lavagem premium e técnicas avançadas de visagismo.',
     image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || 'https://picsum.photos/seed/srv4/600/400',
