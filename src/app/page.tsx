@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
 import Link from 'next/link';
-import { Scissors, Clock, Calendar } from 'lucide-react';
+import { Clock, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
