@@ -17,8 +17,7 @@ import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-// 🚀 IMPORTS ADICIONADOS: O serviço de agendamento e o novo botão integrado da InfinitePay
-import { appointmentService } from '@/services/appointmentService';
+// 🚀 Reter apenas o CheckoutButton necessário
 import CheckoutButton from '@/components/features/checkout/CheckoutButton';
 
 const SERVICES = [
@@ -42,7 +41,7 @@ const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
 export default function ClientAppointmentsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, appointments, firestore } = useFirebase();
+  const { user, appointments } = useFirebase(); // ✨ Removido 'firestore' daqui
 
   const [date, setDate] = useState<Date>();
   const [serviceId, setServiceId] = useState<string>("");
@@ -85,7 +84,6 @@ export default function ClientAppointmentsPage() {
     });
   };
 
-  // Monta o objeto Date completo combinando o dia selecionado + o horário (HH:MM)
   const fullSelectedDate = useMemo(() => {
     if (!date || !time) return null;
     const [hours, minutes] = time.split(':').map(Number);
@@ -182,7 +180,6 @@ export default function ClientAppointmentsPage() {
                 </div>
               </div>
 
-              {/* 🚀 LOGICA INTEGRADA: Se os dados não estiverem preenchidos ou o user deslogado, mostra o feedback, senão renderiza o fluxo do Checkout automático */}
               {!user ? (
                 <Button className="w-full h-14 text-xl font-headline" onClick={() => router.push('/login')}>
                   Faça Login para Agendar
