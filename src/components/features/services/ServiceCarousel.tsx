@@ -143,15 +143,6 @@ export function ServiceCarousel() {
                       <p className="font-bold text-lg">{selectedService.durationMinutes} minutos</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-accent/10 rounded-xl">
-                      <CreditCard className="w-6 h-6 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Investimento</p>
-                      <p className="font-bold text-lg">Pagamento no Local</p>
-                    </div>
-                  </div>
                 </div>
 
                 <DialogFooter className="pt-2">
