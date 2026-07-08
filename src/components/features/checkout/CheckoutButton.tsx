@@ -15,7 +15,7 @@ interface CheckoutButtonProps {
   serviceId: string;
   serviceName: string;
   price: number;
-  dataHoraSelection: Date; // A data e hora que o cliente escolheu no calendário
+  dataHoraSelection: Date;
 }
 
 export default function CheckoutButton({
@@ -47,16 +47,21 @@ export default function CheckoutButton({
         dataHora: Timestamp.fromDate(dataHoraSelection),
       });
 
-      // 2. Chama a API do Next.js para gerar o link da InfinitePay passando o ID do agendamento
+      // 2. Chama a API do Next.js passando o contrato correto esperado pela rota
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          serviceName,
-          price,
-          appointmentId,
+          orderId: appointmentId,
+          items: [
+            {
+              description: `Agendamento: ${serviceName}`,
+              quantity: 1,
+              price: price,
+            }
+          ]
         }),
       });
 
@@ -66,7 +71,7 @@ export default function CheckoutButton({
         throw new Error(data.error || 'Falha ao gerar o link de pagamento.');
       }
 
-      // 3. Tudo certo! Redireciona o cliente para a página da InfinitePay
+      // 3. Redireciona o cliente para a página da InfinitePay
       toast({
         title: "Agendamento reservado!",
         description: "Redirecionando para o pagamento seguro...",

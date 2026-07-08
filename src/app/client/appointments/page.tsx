@@ -14,9 +14,12 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useFirebase } from '@/firebase';
-import { Timestamp } from 'firebase/firestore'; // 👈 Mantido apenas o Timestamp, removidos collection e addDoc
+import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-// 👈 Removidos os imports do errors e do error-emitter que causavam o TS6192 e TS6133
+
+// 🚀 IMPORTS ADICIONADOS: O serviço de agendamento e o novo botão integrado da InfinitePay
+import { appointmentService } from '@/services/appointmentService';
+import CheckoutButton from '@/components/features/checkout/CheckoutButton';
 
 const SERVICES = [
   { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
@@ -44,7 +47,6 @@ export default function ClientAppointmentsPage() {
   const [date, setDate] = useState<Date>();
   const [serviceId, setServiceId] = useState<string>("");
   const [time, setTime] = useState<string>("");
-  const [loading, setLoading] = useState(false);
 
   const selectedService = SERVICES.find(s => s.id === serviceId);
 
@@ -83,85 +85,14 @@ export default function ClientAppointmentsPage() {
     });
   };
 
-  const handleBooking = async () => {
-    if (!user || !firestore) {
-      toast({ title: "Login necessário", description: "Faça login para agendar." });
-      router.push('/login');
-      return;
-    }
-
-    if (!date || !serviceId || !time) {
-      toast({ title: "Campos obrigatórios", description: "Preencha tudo.", variant: "destructive" });
-      return;
-    }
-
-    setLoading(true);
+  // Monta o objeto Date completo combinando o dia selecionado + o horário (HH:MM)
+  const fullSelectedDate = useMemo(() => {
+    if (!date || !time) return null;
     const [hours, minutes] = time.split(':').map(Number);
-    const appointmentDate = new Date(date);
-    appointmentDate.setHours(hours, minutes, 0, 0);
-
-    try {
-      // 1. Cria o agendamento no Firestore como 'pendente'
-      const orderId = await appointmentService.createAppointment({
-        clientId: user.uid,
-        clientEmail: user.email,
-        clientName: user.displayName || user.email || 'Cliente',
-        barberId: MASTER_BARBER_ID,
-        serviceId,
-        serviceName: selectedService?.name,
-        durationMinutes: selectedService?.durationMinutes,
-        price: selectedService?.price || 0,
-        dataHora: Timestamp.fromDate(appointmentDate), // Transforma em Timestamp para o Firebase
-      });
-
-      // 2. Formata os dados para o formato que a nossa API /api/checkout espera
-      const checkoutPayload = {
-        orderId: orderId, // Enviamos o ID exato gerado pelo Firestore
-        items: [
-          {
-            description: selectedService?.name || "Serviço Darth Barber",
-            quantity: 1,
-            price: selectedService?.price || 0
-          }
-        ]
-      };
-
-      // 3. Dispara a requisição para gerar o link da InfinitePay
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(checkoutPayload),
-      });
-
-      const data = await res.json();
-
-      // 👀 Nota de correção: seu código antigo buscava por 'data.paymentUrl', 
-      // mas a nossa API retorna 'data.url'
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || 'Falha ao gerar link da InfinitePay');
-      }
-
-      toast({
-        title: "Reserva Iniciada!",
-        description: "Redirecionando para o pagamento seguro Pix / Cartão...",
-      });
-
-      // 4. Redireciona o cliente de fato
-      window.location.href = data.url;
-
-    } catch (err: any) {
-      console.error(err);
-      toast({
-        title: "Erro no agendamento",
-        description: err.message || "Não foi possível iniciar o pagamento. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const targetDate = new Date(date);
+    targetDate.setHours(hours, minutes, 0, 0);
+    return targetDate;
+  }, [date, time]);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -251,13 +182,27 @@ export default function ClientAppointmentsPage() {
                 </div>
               </div>
 
-              <Button
-                className="w-full h-14 text-xl font-headline"
-                onClick={handleBooking}
-                disabled={loading || !date || !serviceId || !time}
-              >
-                Confirmar Reserva
-              </Button>
+              {/* 🚀 LOGICA INTEGRADA: Se os dados não estiverem preenchidos ou o user deslogado, mostra o feedback, senão renderiza o fluxo do Checkout automático */}
+              {!user ? (
+                <Button className="w-full h-14 text-xl font-headline" onClick={() => router.push('/login')}>
+                  Faça Login para Agendar
+                </Button>
+              ) : (!date || !serviceId || !time || !selectedService || !fullSelectedDate) ? (
+                <Button className="w-full h-14 text-xl font-headline" disabled>
+                  Selecione os Campos Acima
+                </Button>
+              ) : (
+                <CheckoutButton
+                  clientId={user.uid}
+                  clientName={user.displayName || user.email || 'Cliente'}
+                  clientEmail={user.email}
+                  barberId={MASTER_BARBER_ID}
+                  serviceId={serviceId}
+                  serviceName={selectedService.name}
+                  price={selectedService.price}
+                  dataHoraSelection={fullSelectedDate}
+                />
+              )}
             </CardContent>
           </Card>
         </div>
