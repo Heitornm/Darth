@@ -12,7 +12,7 @@ const SERVICES = [
   { 
     id: 'srv-1', 
     name: 'Corte Clássico', 
-    price: 50, 
+    price: 1, 
     durationMinutes: 30, 
     desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
     image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || '',
