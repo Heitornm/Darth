@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
+import CheckoutButton from '@/components/features/checkout/CheckoutButton';
 import Link from 'next/link';
 import { LogIn, Scissors, ClipboardList, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { useFirebase } from '@/firebase';
@@ -64,7 +65,7 @@ export default function Home() {
             DARTH
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Garanta sua experiência com nossos especialistas.
+            Garanta sua experiência com nossos specialists.
           </p>
         </div>
 
@@ -105,16 +106,20 @@ export default function Home() {
                         </Link>
                       </Button>
                     ) : (
-                      <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
-                        <Link href="/client/appointments">
-                          <Scissors className="w-6 h-6" />
-                          Agendar
-                        </Link>
-                      </Button>
+                      <CheckoutButton 
+                        clientId={user.uid}
+                        clientName={user.displayName || userProfile?.name || 'Cliente'}
+                        clientEmail={user.email}
+                        barberId="eUCAkXknM1N0mcC04hCIfF3HcMk1"
+                        serviceId="corte-classico"
+                        serviceName="Corte Clássico"
+                        price={50.00}
+                        dataHoraSelection={selectedDate || new Date()}
+                      />
                     )
                   ) : (
                     <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
-                      <Link href="/login">
+                      <Link href={`/login?redirect=/&date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}`}>
                         <LogIn className="w-6 h-6" />
                         Entrar para Agendar
                       </Link>

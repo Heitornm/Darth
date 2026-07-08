@@ -101,7 +101,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [userAuthState.user, firestore]);
 
   useEffect(() => {
-    if (!firestore || !userAuthState.user) {
+    if (!firestore) {
       setAppointments(null);
       setIsAppointmentsLoading(false);
       return;
@@ -115,17 +115,17 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       orderBy('dataHora', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      setAppointments(apts);
-      setIsAppointmentsLoading(false);
-    }, (err) => {
-      console.error("Global Appointments Fetch Error:", err);
-      setIsAppointmentsLoading(false);
-    });
+  const unsubscribe = onSnapshot(q, (snap) => {
+    const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    setAppointments(apts);
+    setIsAppointmentsLoading(false);
+  }, (err) => {
+    console.error("Global Appointments Fetch Error:", err);
+    setIsAppointmentsLoading(false);
+  });
 
     return () => unsubscribe();
-  }, [userAuthState.user, firestore]);
+  }, [firestore]);
 
   const contextValue = useMemo((): FirebaseContextState => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
