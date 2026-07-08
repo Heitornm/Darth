@@ -5,7 +5,7 @@ import {
   onSnapshot, 
   Timestamp, 
   orderBy,
-  addDoc // 👈 Adicionado de volta para salvar agendamentos
+  addDoc 
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -24,11 +24,10 @@ export interface Appointment {
 }
 
 export const appointmentService = {
-  // 🚀 Nova função para salvar o agendamento inicial
   async createAppointment(appointment: Omit<Appointment, 'id' | 'status'>): Promise<string> {
     const docRef = await addDoc(collection(db, "appointments"), {
       ...appointment,
-      status: 'pendente', // Todo agendamento nasce aguardando pagamento
+      status: 'pendente',
     });
     return docRef.id;
   },

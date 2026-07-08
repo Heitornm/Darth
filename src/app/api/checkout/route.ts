@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 interface OrderItem {
   description: string;
   quantity: number;
-  price: number; // Preço original enviado do front (ex: 45.00)
+  price: number; 
 }
 
 export async function POST(request: Request) {
@@ -14,23 +14,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dados insuficientes.' }, { status: 400 });
     }
 
-    // A InfinitePay exige que o valor do item seja um inteiro em centavos (ex: R$ 45,00 vira 4500)
     const formattedItems = items.map((item: OrderItem) => ({
       description: item.description,
       quantity: item.quantity,
       price: Math.round(item.price * 100), 
     }));
 
-    // Montagem do payload conforme especificações da InfinitePay
     const payload = {
       handle: process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE,
-      order_nsu: orderId, // Identificador único gerado no seu sistema
+      order_nsu: orderId, 
       redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/sucesso`,
       webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/infinitepay`,
       items: formattedItems,
     };
 
-    // Chamada oficial para a API de geração de links
     const response = await fetch('https://api.checkout.infinitepay.io/links', {
       method: 'POST',
       headers: {
@@ -46,7 +43,6 @@ export async function POST(request: Request) {
 
     const data = await response.json();
 
-    // Retorna a URL segura gerada para o frontend redirecionar
     return NextResponse.json({ url: data.url });
   } catch (error) {
     console.error('Erro na API de Checkout:', error);

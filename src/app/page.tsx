@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { Button } from '@/components/ui/button';
-import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
+import { ServiceCarousel, SERVICES } from '@/components/features/services/ServiceCarousel';
 import CheckoutButton from '@/components/features/checkout/CheckoutButton';
 import Link from 'next/link';
 import { LogIn, Scissors, ClipboardList, Calendar as CalendarIcon, Clock } from 'lucide-react';
@@ -14,26 +14,42 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Calendar } from '@/components/ui/calendar';
 import { ptBR } from 'date-fns/locale';
-import { isBefore, startOfDay, format } from 'date-fns';
+import { isBefore, startOfDay, format, setHours, setMinutes } from 'date-fns';
 
 const WORK_START = 8;
 const WORK_END = 21;
 const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60; // 780 min
 
+// Geração dos blocos de horários de 30 em 30 minutos
+const TIME_SLOTS: string[] = [];
+for (let hour = WORK_START; hour < WORK_END; hour++) {
+  TIME_SLOTS.push(`${hour.toString().padStart(2, '0')}:00`);
+  TIME_SLOTS.push(`${hour.toString().padStart(2, '0')}:30`);
+}
+
 export default function Home() {
   const { user, isUserLoading, userProfile, appointments } = useFirebase();
   const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<typeof SERVICES[0] | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Calcula a ocupação de cada dia para colorir o calendário
+  // Reseta o horário se mudar de dia
+  useEffect(() => {
+    setSelectedTime(null);
+  }, [selectedDate]);
+
+  // Calcula a ocupação de cada dia para colorir o calendário e obter slots ocupados
   const availabilityData = useMemo(() => {
-    if (!appointments) return {};
+    if (!appointments) return { stats: {}, occupiedSlots: new Set<string>() };
 
     const stats: Record<string, number> = {};
+    const occupiedSlots = new Set<string>();
+
     appointments.forEach(apt => {
       if (apt.status === 'cancelado') return;
       const date =
@@ -43,17 +59,31 @@ export default function Home() {
           typeof (apt.dataHora as any).toDate === 'function'
           ? (apt.dataHora as any).toDate()
           : new Date(apt.dataHora);
+      
       const dayKey = format(date, 'yyyy-MM-dd');
+      const timeKey = format(date, 'HH:mm');
+      
       stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
+      occupiedSlots.add(`${dayKey}_${timeKey}`);
     });
-    return stats;
+    
+    return { stats, occupiedSlots };
   }, [appointments]);
 
   const isDayFull = (date: Date) => {
     const dayKey = format(date, 'yyyy-MM-dd');
-    const occupied = availabilityData[dayKey] || 0;
+    const occupied = availabilityData.stats[dayKey] || 0;
     return occupied >= TOTAL_MINUTES_PER_DAY;
   };
+
+  // Junta a data do calendário com a hora selecionada em um único objeto Date
+  const finalDateTimeSelection = useMemo(() => {
+    if (!selectedDate || !selectedTime) return null;
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+    let combined = setHours(selectedDate, hours);
+    combined = setMinutes(combined, minutes);
+    return combined;
+  }, [selectedDate, selectedTime]);
 
   const barberImage = PlaceHolderImages.find(img => img.id === 'barber-profile');
 
@@ -65,13 +95,16 @@ export default function Home() {
             DARTH
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Garanta sua experiência com nossos specialists.
+            Garanta sua experiência com nossos especialistas.
           </p>
         </div>
 
-        {/* Carrosel */}
+        {/* Carrosel Conectado com o State do Pai */}
         <div className="relative w-full py-4 overflow-hidden">
-          <ServiceCarousel />
+          <ServiceCarousel 
+            onSelectService={(srv) => setSelectedService(srv)} 
+            selectedServiceId={selectedService?.id}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start text-left">
@@ -94,10 +127,41 @@ export default function Home() {
               </CardContent>
             </Card>
 
+            {/* Listagem de Horários Dinâmicos baseados no dia selecionado */}
+            {selectedDate && (
+              <div className="space-y-3">
+                <h3 className="font-headline font-bold text-sm uppercase tracking-wider text-muted-foreground">
+                  Horários disponíveis para {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}:
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {TIME_SLOTS.map((time) => {
+                    const dayStr = format(selectedDate, 'yyyy-MM-dd');
+                    const isOccupied = availabilityData.occupiedSlots.has(`${dayStr}_${time}`);
+                    return (
+                      <Button
+                        key={time}
+                        variant={selectedTime === time ? "default" : "outline"}
+                        disabled={isOccupied}
+                        onClick={() => setSelectedTime(time)}
+                        className={`h-11 font-medium ${isOccupied ? 'opacity-30 cursor-not-allowed bg-muted' : ''}`}
+                      >
+                        {time}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-4">
               {mounted && !isUserLoading ? (
                 <>
-                  {user ? (
+                  {!selectedService || !selectedTime ? (
+                    <Button disabled size="lg" className="h-16 text-xl font-headline rounded-2xl gap-3 bg-muted text-muted-foreground">
+                      <Scissors className="w-6 h-6" />
+                      {!selectedService ? "Selecione um Serviço acima" : "Escolha um Horário"}
+                    </Button>
+                  ) : user ? (
                     userProfile?.role === 'barber' ? (
                       <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
                         <Link href="/barber/appointments">
@@ -111,15 +175,15 @@ export default function Home() {
                         clientName={user.displayName || userProfile?.name || 'Cliente'}
                         clientEmail={user.email}
                         barberId="eUCAkXknM1N0mcC04hCIfF3HcMk1"
-                        serviceId="corte-classico"
-                        serviceName="Corte Clássico"
-                        price={50.00}
-                        dataHoraSelection={selectedDate || new Date()}
+                        serviceId={selectedService.id}
+                        serviceName={selectedService.name}
+                        price={selectedService.price}
+                        dataHoraSelection={finalDateTimeSelection || new Date()}
                       />
                     )
                   ) : (
                     <Button asChild size="lg" className="h-16 text-xl font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3">
-                      <Link href={`/login?redirect=/&date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}`}>
+                      <Link href={`/login?redirect=/&date=${selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}&time=${selectedTime}&serviceId=${selectedService.id}`}>
                         <LogIn className="w-6 h-6" />
                         Entrar para Agendar
                       </Link>
@@ -160,7 +224,6 @@ export default function Home() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 flex justify-center items-center">
-
                 <div className="w-full max-w-[350px] mx-auto block-calendar-wrapper">
                   <Calendar
                     mode="single"
@@ -183,7 +246,6 @@ export default function Home() {
                     }}
                   />
                 </div>
-
               </CardContent>
             </Card>
           </div>
