@@ -142,7 +142,10 @@ function AppointmentFormContent() {
       </div>
 
       {/* PASSO 2 e 3: Calendário e Horários lado a lado */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-4">
+      {/* 💡 Modificado: Agora adiciona transição opaca e bloqueia o ponteiro caso o serviço não exista */}
+      <div className={`grid grid-cols-1 md:grid-cols-12 gap-8 pt-4 transition-all duration-300 ${
+        !selectedService ? 'opacity-40 pointer-events-none select-none' : ''
+      }`}>
         
         {/* Calendário (Esquerda) */}
         <div className="md:col-span-5">
