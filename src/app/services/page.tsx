@@ -3,11 +3,9 @@
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, Scissors, ChevronRight, CheckCircle2, Star } from 'lucide-react';
-import Link from 'next/link';
+import { Clock, CheckCircle2, Star } from 'lucide-react';
 import { SERVICES } from '@/data/services';
-
-
+import { BookingButton } from '@/components/features/services/BookingButton';
 
 export default function ServicesPage() {
   return (
@@ -71,14 +69,8 @@ export default function ServicesPage() {
                   </ul>
                 </div>
 
-                {/* 🛠️ AJUSTADO: Agora redireciona corretamente para a criação do agendamento com o ID do serviço */}
-                <Button asChild className="w-full h-11 rounded-xl gap-2 font-headline group/btn">
-                  <Link href={`/client/appointments/new?serviceId=${service.id}`}>
-                    <Scissors className="w-4 h-4" />
-                    Agendar Agora
-                    <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                  </Link>
-                </Button>
+                {/* 🛠️ Utilizando o componente centralizado */}
+                <BookingButton serviceId={service.id} />
               </div>
             </div>
           </Card>
