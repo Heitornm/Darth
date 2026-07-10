@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from 'next/image';
@@ -113,8 +112,9 @@ export default function ServicesPage() {
                   </ul>
                 </div>
 
+                {/* 🛠️ AJUSTADO: Agora redireciona corretamente para a criação do agendamento com o ID do serviço */}
                 <Button asChild className="w-full h-11 rounded-xl gap-2 font-headline group/btn">
-                  <Link href="/client/appointments">
+                  <Link href={`/client/appointments/new?serviceId=${service.id}`}>
                     <Scissors className="w-4 h-4" />
                     Agendar Agora
                     <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover/btn:opacity-100 transition-opacity" />
