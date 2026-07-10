@@ -24,11 +24,12 @@ export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceC
         <div className="flex -ml-4">
           {[...SERVICES, ...SERVICES].map((service, index) => {
             const isSelected = selectedServiceId === service.id;
+            
             return (
               <div
                 key={`${service.id}-${index}`}
                 className="flex-[0_0_85%] sm:flex-[0_0_45%] md:flex-[0_0_30%] min-w-0 pl-4"
-                // 🛠️ Executa o callback de seleção apenas se ele for repassado (fluxo interno de agendamento)
+                // 🛠️ CORREÇÃO: O clique na div SÓ EXISTE se onSelectService for passado (dentro do fluxo de agendamento)
                 onClick={() => onSelectService && onSelectService(service)}
               >
                 <div className={`bg-card border rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 h-full group flex flex-col ${onSelectService ? 'cursor-pointer' : ''} ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50 hover:border-primary/50'}`}>
@@ -57,7 +58,7 @@ export function ServiceCarousel({ onSelectService, selectedServiceId }: ServiceC
                         <span className="font-bold text-accent text-lg">R$ {service.price},00</span>
                       </div>
 
-                      {/* 🛠️ Exibe o botão de agendamento se for renderizado diretamente na Home */}
+                      {/* 🛠️ CORREÇÃO: Na Home (!onSelectService), renderiza o botão isolado com o Link limpo */}
                       {!onSelectService && (
                         <BookingButton serviceId={service.id} className="h-9 text-xs" />
                       )}
