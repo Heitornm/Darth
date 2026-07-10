@@ -5,46 +5,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { useRouter } from 'next/navigation';
 import { Clock } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-
-export const SERVICES = [
-  {
-    id: 'srv-1',
-    name: 'Corte Clássico',
-    price: 1,
-    durationMinutes: 30,
-    desc: 'O corte que nunca sai de moda. Executado com precisão cirúrgica usando tesoura e máquina, focado na estrutura do seu rosto.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageUrl || 'https://picsum.photos/seed/srv1/600/400',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-classico')?.imageHint || 'classic haircut'
-  },
-  {
-    id: 'srv-2',
-    name: 'Barba Completa',
-    price: 1,
-    durationMinutes: 30,
-    desc: 'Tratamento completo para sua barra. Inclui design personalizado, toalha quente e óleos premium.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageUrl || 'https://picsum.photos/seed/srv2/600/400',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-barba-completa')?.imageHint || 'beard grooming'
-  },
-  {
-    id: 'srv-3',
-    name: 'Combo Imperial',
-    price: 1,
-    durationMinutes: 60,
-    desc: 'Nossa experiência completa. O alinhamento perfeito entre cabelo e barba.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageUrl || 'https://picsum.photos/seed/srv3/600/400',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-combo-imperial')?.imageHint || 'barber combo'
-  },
-  {
-    id: 'srv-4',
-    name: 'Corte Premium',
-    price: 1,
-    durationMinutes: 45,
-    desc: 'Para quem busca exclusividade. Lavagem premium e técnicas avançadas de visagismo.',
-    image: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageUrl || 'https://picsum.photos/seed/srv4/600/400',
-    hint: PlaceHolderImages.find(img => img.id === 'srv-corte-premium')?.imageHint || 'luxury haircut'
-  },
-];
+import { SERVICES } from '@/data/services';
 
 interface ServiceCarouselProps {
   onSelectService?: (service: typeof SERVICES[0]) => void;
