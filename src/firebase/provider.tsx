@@ -101,7 +101,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [userAuthState.user, firestore]);
 
   useEffect(() => {
-    if (!firestore) {
+    // CORREÇÃO CIRÚRGICA: Evita que a query global execute sem que o usuário esteja autenticado.
+    // Isso impede o disparo do erro de permissões insuficientes no console.
+    if (!firestore || !userAuthState.user) {
       setAppointments(null);
       setIsAppointmentsLoading(false);
       return;
@@ -115,17 +117,18 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       orderBy('dataHora', 'desc')
     );
 
-  const unsubscribe = onSnapshot(q, (snap) => {
-    const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-    setAppointments(apts);
-    setIsAppointmentsLoading(false);
-  }, (err) => {
-    console.error("Global Appointments Fetch Error:", err);
-    setIsAppointmentsLoading(false);
-  });
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      setAppointments(apts);
+      setIsAppointmentsLoading(false);
+    }, (err) => {
+      console.error("Global Appointments Fetch Error:", err);
+      setIsAppointmentsLoading(false);
+    });
 
     return () => unsubscribe();
-  }, [firestore]);
+    // Adicionado userAuthState.user como dependência para carregar as consultas assim que o login ocorrer
+  }, [firestore, userAuthState.user]);
 
   const contextValue = useMemo((): FirebaseContextState => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
