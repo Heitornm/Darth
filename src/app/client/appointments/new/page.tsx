@@ -1,5 +1,6 @@
 'use client';
 
+// 🚀 DIRETIVA CRUCIAL: Força o Next.js a tratar a página como dinâmica, lendo as Query Strings em produção
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -16,17 +17,14 @@ import { isBefore, startOfDay, format, setHours, setMinutes, getDay, addMinutes 
 import { Clock, Scissors, LogIn, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-// 🚀 COMPONENTE SKELETON: Imita perfeitamente a estrutura visual da página real
+// Componente Skeleton visual para carregamento suave
 function AppointmentSkeleton() {
   return (
     <div className="max-w-5xl w-full space-y-8 animate-pulse">
-      {/* Botão de Voltar e Título */}
       <div className="flex items-center justify-between">
         <div className="h-9 w-36 bg-muted rounded-xl"></div>
         <div className="h-8 w-52 bg-muted rounded-xl"></div>
       </div>
-
-      {/* Passo 1 Skeleton: Carrossel */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <div className="bg-muted w-6 h-6 rounded-full"></div>
@@ -39,10 +37,7 @@ function AppointmentSkeleton() {
           <div className="h-28 bg-muted rounded-2xl hidden sm:block"></div>
         </div>
       </div>
-
-      {/* Passo 2 e 3 Skeletons: Lado a Lado */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-4">
-        {/* Calendário (Esquerda) */}
         <div className="md:col-span-5 space-y-4">
           <div className="flex items-center gap-2">
             <div className="bg-muted w-6 h-6 rounded-full"></div>
@@ -50,8 +45,6 @@ function AppointmentSkeleton() {
           </div>
           <div className="h-[310px] w-full bg-muted rounded-2xl"></div>
         </div>
-
-        {/* Horários (Direita) */}
         <div className="md:col-span-7 space-y-4">
           <div className="flex items-center gap-2">
             <div className="bg-muted w-6 h-6 rounded-full"></div>
@@ -65,7 +58,6 @@ function AppointmentSkeleton() {
               ))}
             </div>
           </div>
-          {/* Botão de Checkout */}
           <div className="h-16 w-full bg-muted rounded-2xl pt-2"></div>
         </div>
       </div>
@@ -73,7 +65,6 @@ function AppointmentSkeleton() {
   );
 }
 
-// Componente que consome os parâmetros da URL e gerencia o fluxo
 function AppointmentFormContent() {
   const { user, isUserLoading, userProfile, appointments } = useFirebase();
   const searchParams = useSearchParams();
@@ -107,7 +98,6 @@ function AppointmentFormContent() {
   const timeSlotsForSelectedDay = useMemo(() => {
     if (!selectedDate) return [];
     const dayOfWeek = getDay(selectedDate);
-    
     if (dayOfWeek === 1) return [];
 
     const slots: string[] = [];
@@ -177,14 +167,12 @@ function AppointmentFormContent() {
 
   if (!mounted) return null;
 
-  // 🚀 CARREGAMENTO INTELIGENTE: Entrega o Skeleton enquanto o Firebase valida o login/dados
   if (isUserLoading) {
     return <AppointmentSkeleton />;
   }
 
   return (
     <div className="max-w-5xl w-full space-y-8">
-      {/* Cabeçalho Voltar */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={() => router.push('/')} className="gap-2">
           <ArrowLeft className="w-4 h-4" /> Voltar para o Início
@@ -192,7 +180,6 @@ function AppointmentFormContent() {
         <h1 className="text-2xl font-headline font-bold text-primary">Agendar um Horário</h1>
       </div>
 
-      {/* PASSO 1: Escolha do Serviço */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-muted-foreground font-semibold">
           <div className="bg-primary/20 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">1</div>
@@ -204,12 +191,9 @@ function AppointmentFormContent() {
         />
       </div>
 
-      {/* PASSO 2 e 3: Calendário e Horários lado a lado */}
       <div className={`grid grid-cols-1 md:grid-cols-12 gap-8 pt-4 transition-all duration-300 ${
         !selectedService ? 'opacity-40 pointer-events-none select-none' : ''
       }`}>
-        
-        {/* Calendário (Esquerda) */}
         <div className="md:col-span-5">
           <div className="flex items-center gap-2 text-muted-foreground font-semibold mb-4">
             <div className="bg-primary/20 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">2</div>
@@ -229,7 +213,6 @@ function AppointmentFormContent() {
           </Card>
         </div>
 
-        {/* Horários (Direita) */}
         <div className="md:col-span-7 space-y-6">
           <div className="flex items-center gap-2 text-muted-foreground font-semibold mb-4">
             <div className="bg-primary/20 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">3</div>
@@ -266,7 +249,6 @@ function AppointmentFormContent() {
             </CardContent>
           </Card>
 
-          {/* Ação de Finalização do Checkout */}
           <div className="pt-4">
             {!isUserLoading ? (
               <>
@@ -299,18 +281,15 @@ function AppointmentFormContent() {
               <div className="h-16 w-full bg-muted animate-pulse rounded-2xl"></div>
             )}
           </div>
-
         </div>
       </div>
     </div>
   );
 }
 
-// Componente principal envelopado com o Suspense Boundary para o Next.js
 export default function NewAppointmentPage() {
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:py-12 flex flex-col items-center">
-      {/* 🚀 Passamos o mesmo Skeleton como fallback do Suspense, matando o loading estático no build */}
       <Suspense fallback={<AppointmentSkeleton />}>
         <AppointmentFormContent />
       </Suspense>
