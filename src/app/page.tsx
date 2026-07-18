@@ -23,7 +23,7 @@ export default function Home() {
             DARTH BARBER
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto font-medium">
-            Estilo, precisão e experiência premium. Selecione um de nossos serviços abaixo para iniciar seu agendamento.
+            Estilo, precisão e experience premium. Selecione um de nossos serviços abaixo para iniciar seu agendamento.
           </p>
         </div>
 
