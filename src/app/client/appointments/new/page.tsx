@@ -16,6 +16,63 @@ import { isBefore, startOfDay, format, setHours, setMinutes, getDay, addMinutes 
 import { Clock, Scissors, LogIn, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+// 🚀 COMPONENTE SKELETON: Imita perfeitamente a estrutura visual da página real
+function AppointmentSkeleton() {
+  return (
+    <div className="max-w-5xl w-full space-y-8 animate-pulse">
+      {/* Botão de Voltar e Título */}
+      <div className="flex items-center justify-between">
+        <div className="h-9 w-36 bg-muted rounded-xl"></div>
+        <div className="h-8 w-52 bg-muted rounded-xl"></div>
+      </div>
+
+      {/* Passo 1 Skeleton: Carrossel */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="bg-muted w-6 h-6 rounded-full"></div>
+          <div className="h-5 w-48 bg-muted rounded-md"></div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="h-28 bg-muted rounded-2xl"></div>
+          <div className="h-28 bg-muted rounded-2xl hidden sm:block"></div>
+          <div className="h-28 bg-muted rounded-2xl hidden sm:block"></div>
+          <div className="h-28 bg-muted rounded-2xl hidden sm:block"></div>
+        </div>
+      </div>
+
+      {/* Passo 2 e 3 Skeletons: Lado a Lado */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-4">
+        {/* Calendário (Esquerda) */}
+        <div className="md:col-span-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="bg-muted w-6 h-6 rounded-full"></div>
+            <div className="h-5 w-32 bg-muted rounded-md"></div>
+          </div>
+          <div className="h-[310px] w-full bg-muted rounded-2xl"></div>
+        </div>
+
+        {/* Horários (Direita) */}
+        <div className="md:col-span-7 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="bg-muted w-6 h-6 rounded-full"></div>
+            <div className="h-5 w-52 bg-muted rounded-md"></div>
+          </div>
+          <div className="border border-muted/40 rounded-2xl p-6 space-y-6">
+            <div className="h-6 w-36 bg-muted rounded-md mb-2"></div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="h-11 bg-muted rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+          {/* Botão de Checkout */}
+          <div className="h-16 w-full bg-muted rounded-2xl pt-2"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Componente que consome os parâmetros da URL e gerencia o fluxo
 function AppointmentFormContent() {
   const { user, isUserLoading, userProfile, appointments } = useFirebase();
@@ -120,6 +177,11 @@ function AppointmentFormContent() {
 
   if (!mounted) return null;
 
+  // 🚀 CARREGAMENTO INTELIGENTE: Entrega o Skeleton enquanto o Firebase valida o login/dados
+  if (isUserLoading) {
+    return <AppointmentSkeleton />;
+  }
+
   return (
     <div className="max-w-5xl w-full space-y-8">
       {/* Cabeçalho Voltar */}
@@ -143,7 +205,6 @@ function AppointmentFormContent() {
       </div>
 
       {/* PASSO 2 e 3: Calendário e Horários lado a lado */}
-      {/* 💡 Modificado: Agora adiciona transição opaca e bloqueia o ponteiro caso o serviço não exista */}
       <div className={`grid grid-cols-1 md:grid-cols-12 gap-8 pt-4 transition-all duration-300 ${
         !selectedService ? 'opacity-40 pointer-events-none select-none' : ''
       }`}>
@@ -245,11 +306,12 @@ function AppointmentFormContent() {
   );
 }
 
-// Componente principal envelopado com o Suspense Boundary para o Build passar com sucesso
+// Componente principal envelopado com o Suspense Boundary para o Next.js
 export default function NewAppointmentPage() {
   return (
     <div className="min-h-screen bg-background px-4 py-8 md:py-12 flex flex-col items-center">
-      <Suspense fallback={<div className="text-center text-muted-foreground py-12">Carregando formulário...</div>}>
+      {/* 🚀 Passamos o mesmo Skeleton como fallback do Suspense, matando o loading estático no build */}
+      <Suspense fallback={<AppointmentSkeleton />}>
         <AppointmentFormContent />
       </Suspense>
     </div>
