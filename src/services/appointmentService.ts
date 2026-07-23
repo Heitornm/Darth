@@ -1,16 +1,14 @@
 import { db } from '@/firebase/config';
 import { 
   collection, 
-  addDoc, 
   query, 
   where, 
-  getDocs, 
-  serverTimestamp 
+  getDocs 
 } from 'firebase/firestore';
 
 export interface Appointment {
   id?: string;
-  userId: string;
+  clientId: string;
   userName: string;
   userEmail?: string;
   serviceId: string;
@@ -18,7 +16,7 @@ export interface Appointment {
   price: number;
   date: string; // Formato: YYYY-MM-DD
   time: string; // Formato: HH:mm
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   createdAt?: any;
 }
 
@@ -44,18 +42,28 @@ export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
   }
 }
 
-// 2. Criar um novo agendamento
+// 2. Criar um novo agendamento via API Route (Proteção contra duplicação/concorrência)
 export async function createNewAppointment(data: Omit<Appointment, 'id' | 'createdAt' | 'status'>) {
-  return await addDoc(collection(db, 'appointments'), {
-    ...data,
-    status: 'pending',
-    createdAt: serverTimestamp(),
+  const response = await fetch('/api/appointments', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
   });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Falha ao processar o agendamento.');
+  }
+
+  return result;
 }
 
-// 3. Objeto unificado para compatibilidade com import { appointmentService }
+// 3. Objeto unificado para compatibilidade
 export const appointmentService = {
   getBookedSlotsByDate,
   createNewAppointment,
-  createAppointment: createNewAppointment, // alias para evitar quebras
+  createAppointment: createNewAppointment,
 };

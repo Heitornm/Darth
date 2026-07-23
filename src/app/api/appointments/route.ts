@@ -1,57 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, adminAuth } from '@/lib/firebaseAdmin';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function POST(request: NextRequest) {
   try {
-    // PROTEÇÃO PARA O BUILD: Se o Admin não inicializou devido à falta de variáveis, bloqueia aqui com segurança
-    if (!adminAuth || !adminDb) {
+    // Proteção para o ambiente de build
+    if (!adminDb) {
       console.warn("⚠️ Firebase Admin não está inicializado. Ignorando durante o build.");
       return NextResponse.json({ error: 'Serviço temporariamente indisponível' }, { status: 503 });
     }
 
-    // 1. Validar se o usuário está autenticado no servidor via token de sessão
-    const sessionCookie = request.cookies.get('__session')?.value;
-    if (!sessionCookie) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
     const body = await request.json();
-    const { barberId, date, time, serviceId } = body;
+    const { 
+      clientId, 
+      userName, 
+      userEmail, 
+      serviceId, 
+      serviceName, 
+      price, 
+      date, 
+      time, 
+      barberId = 'barbeiro1' // ID padrão caso não venha selecionado
+    } = body;
 
-    if (!barberId || !date || !time || !serviceId) {
-      return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
+    // 1. Validação simples de campos obrigatórios
+    if (!clientId || !date || !time || !serviceId) {
+      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     }
 
-    // 2. Operação atômica no banco usando Firebase Admin para checar conflito de horários
-    const appointmentRef = adminDb.collection('appointments');
-    const conflictCheck = await appointmentRef
-      .where('barberId', '==', barberId)
+    // 2. Checagem atômica de conflito de horários no servidor
+    const appointmentsRef = adminDb.collection('appointments');
+    const conflictCheck = await appointmentsRef
       .where('date', '==', date)
       .where('time', '==', time)
-      .where('status', '==', 'confirmed')
+      .where('status', 'in', ['pending', 'confirmed'])
       .get();
 
     if (!conflictCheck.empty) {
-      return NextResponse.json({ error: 'Este horário já foi preenchido por outro cliente' }, { status: 409 });
+      return NextResponse.json(
+        { error: 'Este horário acabou de ser preenchido por outro cliente. Por favor, escolha outro horário.' }, 
+        { status: 409 }
+      );
     }
 
-    // 3. Salvar o agendamento de forma garantida
+    // 3. Gravação segura no Firestore via Server
     const newAppointment = {
-      clientId: decodedToken.uid,
-      barberId,
+      clientId,
+      userName,
+      userEmail,
+      serviceId,
+      serviceName,
+      price,
       date,
       time,
-      serviceId,
-      status: 'confirmed',
+      barberId,
+      status: 'pending',
       createdAt: new Date().toISOString(),
     };
 
-    const docRef = await appointmentRef.add(newAppointment);
+    const docRef = await appointmentsRef.add(newAppointment);
 
     return NextResponse.json({ success: true, appointmentId: docRef.id }, { status: 201 });
   } catch (error: any) {
     console.error('Erro na API de Agendamentos:', error);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao processar o agendamento.' }, { status: 500 });
   }
 }

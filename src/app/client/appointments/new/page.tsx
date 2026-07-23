@@ -22,7 +22,6 @@ function BookingFlowContent() {
   const initialDate = searchParams.get('date');
   const initialTime = searchParams.get('time');
 
-  // Estado dos serviços selecionados (Suporta Seleção Múltipla)
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
     if (initialServiceId) return [initialServiceId];
     return [SERVICES[0]?.id || 'srv-1'];
@@ -35,7 +34,6 @@ function BookingFlowContent() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
-  // Restaura seleções salvas na sessão caso o usuário tenha ido fazer login
   useEffect(() => {
     const savedBooking = sessionStorage.getItem('darth_pending_booking');
     if (savedBooking) {
@@ -51,18 +49,16 @@ function BookingFlowContent() {
     }
   }, []);
 
-  // Alterna a seleção do card de serviço
   const toggleService = (serviceId: string) => {
     setSelectedServiceIds((prev) => {
       if (prev.includes(serviceId)) {
-        if (prev.length === 1) return prev; // Mantém ao menos 1 selecionado
+        if (prev.length === 1) return prev;
         return prev.filter((id) => id !== serviceId);
       }
       return [...prev, serviceId];
     });
   };
 
-  // Cálculo dos totais acumulados
   const selectedServices = SERVICES.filter((s) => selectedServiceIds.includes(s.id));
   const totalPrice = selectedServices.reduce((acc, curr) => acc + curr.price, 0);
   const totalDuration = selectedServices.reduce((acc, curr) => acc + curr.durationMinutes, 0);
@@ -79,7 +75,6 @@ function BookingFlowContent() {
       return;
     }
 
-    // Se o usuário não estiver logado, salva as escolhas e envia para login
     if (!user) {
       sessionStorage.setItem(
         'darth_pending_booking',
@@ -89,11 +84,10 @@ function BookingFlowContent() {
       return;
     }
 
-    // Processa o agendamento no Firestore
     setIsSubmitting(true);
     try {
       await createNewAppointment({
-        userId: user.uid,
+        clientId: user.uid,
         userName: user.displayName || user.email?.split('@')[0] || 'Cliente',
         userEmail: user.email || '',
         serviceId: selectedServiceIds.join(','),
@@ -107,9 +101,10 @@ function BookingFlowContent() {
       setTimeout(() => {
         router.push('/client/appointments');
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao realizar agendamento:", err);
-      alert("Erro ao confirmar agendamento. Tente novamente.");
+      // Exibe a mensagem exata retornada pela API caso o horário já tenha sido pego
+      alert(err.message || "Erro ao confirmar agendamento. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
