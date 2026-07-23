@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase'; // 👈 Removido o useAuth daqui
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase'; 
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { updateProfile, updateEmail, updatePassword } from 'firebase/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -13,9 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
-  const db = useFirestore(); // 👈 Removida a linha 'const auth = useAuth();' que estava aqui
+  const db = useFirestore(); 
   const { toast } = useToast();
-
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');

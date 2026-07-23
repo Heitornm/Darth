@@ -2,9 +2,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  signInWithEmailAndPassword, 
-  GoogleAuthProvider, 
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
   signInWithPopup,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -62,9 +62,9 @@ function LoginFormContent() {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      
+
       const result = await signInWithPopup(auth, provider);
-      
+
       if (result.user) {
         // Garantia adicional de navegação caso o useEffect demore
         router.replace(redirectTo);
