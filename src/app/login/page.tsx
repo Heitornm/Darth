@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   signInWithEmailAndPassword, 
   GoogleAuthProvider, 
-  signInWithPopup 
+  signInWithPopup,
+  onAuthStateChanged
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
+import { useUser } from '@/firebase'; // Traz o estado reativo de autenticação do seu app
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,13 +22,23 @@ function LoginFormContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/client/appointments/new';
 
+  const { user, isUserLoading } = useUser();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState('');
 
-  // 1. Login com E-mail e Senha
+  // 🚀 1. REDIRECIONAMENTO AUTOMÁTICO
+  // Sempre que o estado do usuário mudar para LOGADO, envia para a tela de destino imediatamente
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.replace(redirectTo);
+    }
+  }, [user, isUserLoading, router, redirectTo]);
+
+  // 2. Login com E-mail e Senha
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingEmail(true);
@@ -34,33 +46,49 @@ function LoginFormContent() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push(redirectTo);
+      // O useEffect acima cuidará de redirecionar assim que a sessão for sincronizada
     } catch (err: any) {
+      console.error("Erro no login por e-mail:", err);
       setError('Credenciais inválidas. Verifique seu e-mail e senha.');
-    } finally {
       setLoadingEmail(false);
     }
   };
 
-  // 2. Login com Conta Google
+  // 3. Login com Conta Google
   const handleGoogleLogin = async () => {
     setLoadingGoogle(true);
     setError('');
 
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      // Redireciona com sucesso preservando a intenção de agendamento
-      router.push(redirectTo);
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      const result = await signInWithPopup(auth, provider);
+      
+      if (result.user) {
+        // Garantia adicional de navegação caso o useEffect demore
+        router.replace(redirectTo);
+      }
     } catch (err: any) {
       console.error("Erro no login Google:", err);
-      setError('Falha ao autenticar com o Google. Tente novamente.');
-    } finally {
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError('Falha ao autenticar com o Google. Tente novamente.');
+      }
       setLoadingGoogle(false);
     }
   };
 
-  const isAnyLoading = loadingEmail || loadingGoogle;
+  const isAnyLoading = loadingEmail || loadingGoogle || isUserLoading;
+
+  // Se o usuário já estiver logado (ou checando sessão), exibe um estado visual de transição
+  if (user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-muted-foreground text-sm font-medium">Sessão iniciada! Redirecionando para agendamento...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-[75vh] px-4 py-8">
