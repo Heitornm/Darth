@@ -7,7 +7,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/firebase/config';
 import { useUser } from '@/firebase';
 
 import { Button } from '@/components/ui/button';
@@ -29,28 +30,52 @@ function LoginFormContent() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState('');
 
-  // 🚀 REDIRECIONAMENTO CENTRALIZADO
-  // Aguarda o estado global de autenticação (useUser) confirmar o login antes de navegar
+  // 1. Função auxiliar para garantir que o usuário exista na coleção 'users' do Firestore
+  const syncUserToFirestore = async (loggedUser: any) => {
+    if (!loggedUser || !db) return;
+    try {
+      const userRef = doc(db, 'users', loggedUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: loggedUser.uid,
+          name: loggedUser.displayName || loggedUser.email?.split('@')[0] || 'Cliente',
+          email: loggedUser.email,
+          role: 'client', // Padrão
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.warn("Aviso: Falha ao sincronizar documento do usuário no Firestore:", err);
+    }
+  };
+
+  // 🚀 2. REDIRECIONAMENTO CENTRALIZADO (FALLBACK)
   useEffect(() => {
     if (!isUserLoading && user) {
-      // Pequeno timeout para garantir a hidratação dos estados globais do Firebase no Next.js
       const timer = setTimeout(() => {
         router.replace(redirectTo);
-      }, 100);
+        router.refresh(); // Força o Next.js a revalidar os Server Components/Navbar
+      }, 150);
 
       return () => clearTimeout(timer);
     }
   }, [user, isUserLoading, router, redirectTo]);
 
-  // Login com E-mail e Senha
+  // 3. Login com E-mail e Senha
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingEmail(true);
     setError('');
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Deixa o useEffect acima cuidar do redirecionamento sincronizado
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await syncUserToFirestore(userCredential.user);
+      
+      // Força o redirecionamento imediato sem esperar unicamente pelo useEffect
+      router.replace(redirectTo);
+      router.refresh();
     } catch (err: any) {
       console.error("Erro no login por e-mail:", err);
       setError('Credenciais inválidas. Verifique seu e-mail e senha.');
@@ -58,7 +83,7 @@ function LoginFormContent() {
     }
   };
 
-  // Login com Conta Google
+  // 4. Login com Conta Google
   const handleGoogleLogin = async () => {
     setLoadingGoogle(true);
     setError('');
@@ -67,9 +92,12 @@ function LoginFormContent() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      await signInWithPopup(auth, provider);
-      // Não chamamos router.replace aqui diretamente para evitar condição de corrida.
-      // O useEffect detectará o user atualizado do useUser e fará o redirecionamento limpo.
+      const userCredential = await signInWithPopup(auth, provider);
+      await syncUserToFirestore(userCredential.user);
+
+      // Redirecionamento direto e revalidação da árvore do Next.js
+      router.replace(redirectTo);
+      router.refresh();
     } catch (err: any) {
       console.error("Erro no login Google:", err);
       if (err.code !== 'auth/popup-closed-by-user') {
@@ -81,13 +109,13 @@ function LoginFormContent() {
 
   const isAnyLoading = loadingEmail || loadingGoogle || isUserLoading;
 
-  // Tela visual de transição ao autenticar
-  if (user) {
+  // Tela visual de transição caso o estado 'user' já esteja ativo
+  if (user && !isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
         <p className="text-muted-foreground text-sm font-medium">
-          Sessão iniciada! Redirecionando para seu agendamento...
+          Sessão iniciada! Redirecionando...
         </p>
       </div>
     );

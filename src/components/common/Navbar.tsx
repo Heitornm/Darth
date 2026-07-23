@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings, Sparkles } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -21,6 +22,7 @@ export function Navbar() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -28,14 +30,44 @@ export function Navbar() {
     setIsMounted(true);
   }, []);
 
+  // Busca a permissão (role) no Firestore sem travar a navegação caso o documento não exista
   useEffect(() => {
-    if (user && db && isMounted) {
-      getDoc(doc(db, 'users', user.uid)).then(d => {
-        if (d.exists()) setUserRole(d.data().role);
-      });
-    } else if (!user) {
-      setUserRole(null);
+    let isSubscribed = true;
+
+    async function fetchRole() {
+      if (!user || !db || !isMounted) {
+        if (isSubscribed) setUserRole(null);
+        return;
+      }
+
+      // Verificação rápida por e-mail ou UID de barbeiro mestre
+      if (user.email === BARBER_EMAIL || user.uid === MASTER_BARBER_ID) {
+        if (isSubscribed) setUserRole('barber');
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (isSubscribed) {
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data()?.role || 'client');
+          } else {
+            setUserRole('client'); // Padrão seguro para novos usuários
+          }
+        }
+      } catch (error) {
+        console.warn("Não foi possível carregar o 'role' do usuário. Assumindo cliente:", error);
+        if (isSubscribed) setUserRole('client');
+      }
     }
+
+    fetchRole();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [user, db, isMounted]);
 
   const handleLogout = async () => {
@@ -43,8 +75,10 @@ export function Navbar() {
     
     try {
       await auth.signOut();
+      setUserRole(null);
+      router.push('/login');
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao realizar logout:", error);
     }
   };
 
@@ -57,12 +91,15 @@ export function Navbar() {
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
             <Scissors className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-headline font-bold text-xl tracking-tighter text-foreground hidden sm:block">DarthBarber</span>
+          <span className="font-headline font-bold text-xl tracking-tighter text-foreground hidden sm:block">
+            DarthBarber
+          </span>
         </Link>
         
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-2">
             <NavLink href="/services" icon={<Sparkles className="w-4 h-4" />} label="Serviços" />
+            
             {isMounted && !isUserLoading && user && (
               <>
                 {isBarber ? (
@@ -72,9 +109,7 @@ export function Navbar() {
                   </>
                 ) : (
                   <>
-                    {/* 💡 Rota atualizada para a nova tela de agendamento que você criou */}
                     <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                    {/* 💡 Rota corrigida para a listagem das reservas do cliente */}
                     <NavLink href="/client/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
                   </>
                 )}
@@ -84,7 +119,7 @@ export function Navbar() {
 
           <div className="flex items-center min-w-[40px] justify-end">
             {!isMounted || isUserLoading ? (
-              <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse border border-primary/10"></div>
+              <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse border border-primary/10" />
             ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -100,14 +135,12 @@ export function Navbar() {
                     </p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link href="/profile" className="flex items-center w-full">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Editar Perfil
-                    </Link>
+                  <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Editar Perfil
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer focus:text-red-500">
                     <LogOut className="w-4 h-4 mr-2" />
                     Sair da Conta
                   </DropdownMenuItem>
@@ -128,12 +161,11 @@ export function Navbar() {
   );
 }
 
-function NavLink({ href, icon, label }: { href: string, icon: any, label: string }) {
+function NavLink({ href, icon, label }: { href: string; icon: any; label: string }) {
   return (
     <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary transition-all gap-2 h-9 rounded-xl px-2 sm:px-3">
       <Link href={href}>
         {icon}
-        {/* 💡 Alterado de 'hidden lg:inline' para 'hidden md:inline' para aparecer em tablets e notebooks pequenos */}
         <span className="hidden md:inline">{label}</span>
       </Link>
     </Button>
