@@ -8,7 +8,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
-import { useUser } from '@/firebase'; // Traz o estado reativo de autenticação do seu app
+import { useUser } from '@/firebase';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,15 +29,20 @@ function LoginFormContent() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState('');
 
-  // 🚀 1. REDIRECIONAMENTO AUTOMÁTICO
-  // Sempre que o estado do usuário mudar para LOGADO, envia para a tela de destino imediatamente
+  // 🚀 REDIRECIONAMENTO CENTRALIZADO
+  // Aguarda o estado global de autenticação (useUser) confirmar o login antes de navegar
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.replace(redirectTo);
+      // Pequeno timeout para garantir a hidratação dos estados globais do Firebase no Next.js
+      const timer = setTimeout(() => {
+        router.replace(redirectTo);
+      }, 100);
+
+      return () => clearTimeout(timer);
     }
   }, [user, isUserLoading, router, redirectTo]);
 
-  // 2. Login com E-mail e Senha
+  // Login com E-mail e Senha
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingEmail(true);
@@ -45,7 +50,7 @@ function LoginFormContent() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // O useEffect acima cuidará de redirecionar assim que a sessão for sincronizada
+      // Deixa o useEffect acima cuidar do redirecionamento sincronizado
     } catch (err: any) {
       console.error("Erro no login por e-mail:", err);
       setError('Credenciais inválidas. Verifique seu e-mail e senha.');
@@ -53,7 +58,7 @@ function LoginFormContent() {
     }
   };
 
-  // 3. Login com Conta Google
+  // Login com Conta Google
   const handleGoogleLogin = async () => {
     setLoadingGoogle(true);
     setError('');
@@ -62,12 +67,9 @@ function LoginFormContent() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      const result = await signInWithPopup(auth, provider);
-
-      if (result.user) {
-        // Garantia adicional de navegação caso o useEffect demore
-        router.replace(redirectTo);
-      }
+      await signInWithPopup(auth, provider);
+      // Não chamamos router.replace aqui diretamente para evitar condição de corrida.
+      // O useEffect detectará o user atualizado do useUser e fará o redirecionamento limpo.
     } catch (err: any) {
       console.error("Erro no login Google:", err);
       if (err.code !== 'auth/popup-closed-by-user') {
@@ -79,12 +81,14 @@ function LoginFormContent() {
 
   const isAnyLoading = loadingEmail || loadingGoogle || isUserLoading;
 
-  // Se o usuário já estiver logado (ou checando sessão), exibe um estado visual de transição
+  // Tela visual de transição ao autenticar
   if (user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-muted-foreground text-sm font-medium">Sessão iniciada! Redirecionando para agendamento...</p>
+        <p className="text-muted-foreground text-sm font-medium">
+          Sessão iniciada! Redirecionando para seu agendamento...
+        </p>
       </div>
     );
   }
