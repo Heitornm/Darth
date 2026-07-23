@@ -2,69 +2,103 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useUser } from '@/firebase'; // Usa o hook nativo da sua estrutura do Firebase
+import Image from 'next/image';
+import { useUser } from '@/firebase';
 import { SERVICES } from '@/data/services';
-import { getBookedSlotsByDate, createNewAppointment } from '@/services/appointmentService';
+import { createNewAppointment } from '@/services/appointmentService';
+import { BookingCalendarView } from '@/components/features/appointments/BookingCalendarView';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, Scissors, CheckCircle2, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Scissors, Clock, CheckCircle2, Loader2, ArrowRight, ShoppingBag } from 'lucide-react';
 
-// Horários do expediente oficial (Terça a Sábado: 09:00 - 21:00)
-const AVAILABLE_HOURS = [
-  "09:00", "10:00", "11:00", "13:00", "14:00", 
-  "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"
-];
-
-function BookingFormContent() {
+function BookingFlowContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
 
-  const serviceIdParam = searchParams.get('serviceId');
-  
-  const [selectedServiceId, setSelectedServiceId] = useState<string>(serviceIdParam || SERVICES[0].id);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [selectedTime, setSelectedTime] = useState<string>('');
-  const [bookedTimes, setBookedTimes] = useState<string[]>([]);
-  const [loadingAgenda, setLoadingAgenda] = useState<boolean>(false);
+  const initialServiceId = searchParams.get('serviceId');
+  const initialDate = searchParams.get('date');
+  const initialTime = searchParams.get('time');
+
+  // Estado dos serviços selecionados (Suporta Seleção Múltipla)
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
+    if (initialServiceId) return [initialServiceId];
+    return [SERVICES[0]?.id || 'srv-1'];
+  });
+
+  const [selectedDate, setSelectedDate] = useState<string>(
+    initialDate || new Date().toISOString().split('T')[0]
+  );
+  const [selectedTime, setSelectedTime] = useState<string>(initialTime || '');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
-  const selectedService = SERVICES.find(s => s.id === selectedServiceId) || SERVICES[0];
-
-  // 1. Redireciona para login se o usuário não estiver autenticado
+  // Restaura seleções salvas na sessão caso o usuário tenha ido fazer login
   useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push(`/login?redirectTo=/client/appointments/new?serviceId=${selectedServiceId}`);
+    const savedBooking = sessionStorage.getItem('darth_pending_booking');
+    if (savedBooking) {
+      try {
+        const parsed = JSON.parse(savedBooking);
+        if (parsed.selectedServiceIds) setSelectedServiceIds(parsed.selectedServiceIds);
+        if (parsed.selectedDate) setSelectedDate(parsed.selectedDate);
+        if (parsed.selectedTime) setSelectedTime(parsed.selectedTime);
+        sessionStorage.removeItem('darth_pending_booking');
+      } catch (e) {
+        console.error("Erro ao restaurar agendamento:", e);
+      }
     }
-  }, [user, isUserLoading, router, selectedServiceId]);
+  }, []);
 
-  // 2. Consulta a agenda do barbeiro na data selecionada
-  useEffect(() => {
-    async function loadAgenda() {
-      if (!selectedDate) return;
-      setLoadingAgenda(true);
-      const booked = await getBookedSlotsByDate(selectedDate);
-      setBookedTimes(booked);
-      setLoadingAgenda(false);
+  // Alterna a seleção do card de serviço
+  const toggleService = (serviceId: string) => {
+    setSelectedServiceIds((prev) => {
+      if (prev.includes(serviceId)) {
+        if (prev.length === 1) return prev; // Mantém ao menos 1 selecionado
+        return prev.filter((id) => id !== serviceId);
+      }
+      return [...prev, serviceId];
+    });
+  };
+
+  // Cálculo dos totais acumulados
+  const selectedServices = SERVICES.filter((s) => selectedServiceIds.includes(s.id));
+  const totalPrice = selectedServices.reduce((acc, curr) => acc + curr.price, 0);
+  const totalDuration = selectedServices.reduce((acc, curr) => acc + curr.durationMinutes, 0);
+  const serviceNamesCombined = selectedServices.map((s) => s.name).join(' + ');
+
+  const handleTimeSlotSelect = (date: string, time: string) => {
+    setSelectedDate(date);
+    setSelectedTime(time);
+  };
+
+  const handleFinalizeBooking = async () => {
+    if (!selectedTime) {
+      alert("Por favor, selecione um horário no calendário para prosseguir.");
+      return;
     }
-    loadAgenda();
-  }, [selectedDate]);
 
-  // 3. Executa o agendamento no Firestore
-  const handleConfirm = async () => {
-    if (!user || !selectedTime) return;
+    // Se o usuário não estiver logado, salva as escolhas e envia para login
+    if (!user) {
+      sessionStorage.setItem(
+        'darth_pending_booking',
+        JSON.stringify({ selectedServiceIds, selectedDate, selectedTime })
+      );
+      router.push('/login?redirectTo=/client/appointments/new');
+      return;
+    }
 
+    // Processa o agendamento no Firestore
     setIsSubmitting(true);
     try {
       await createNewAppointment({
         userId: user.uid,
         userName: user.displayName || user.email?.split('@')[0] || 'Cliente',
         userEmail: user.email || '',
-        serviceId: selectedService.id,
-        serviceName: selectedService.name,
-        price: selectedService.price,
+        serviceId: selectedServiceIds.join(','),
+        serviceName: serviceNamesCombined,
+        price: totalPrice,
         date: selectedDate,
         time: selectedTime,
       });
@@ -72,172 +106,201 @@ function BookingFormContent() {
       setIsSuccess(true);
       setTimeout(() => {
         router.push('/client/appointments');
-      }, 2500);
+      }, 2000);
     } catch (err) {
       console.error("Erro ao realizar agendamento:", err);
-      alert("Não foi possível confirmar seu agendamento. Tente novamente.");
+      alert("Erro ao confirmar agendamento. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-muted-foreground text-sm font-medium">Verificando autenticação...</p>
-      </div>
-    );
-  }
-
   if (isSuccess) {
     return (
       <div className="max-w-md mx-auto my-16 text-center space-y-4 p-8 bg-card border border-primary/20 rounded-3xl shadow-2xl">
         <CheckCircle2 className="w-16 h-16 text-primary mx-auto animate-bounce" />
-        <h2 className="text-2xl font-headline font-bold text-foreground">Agendamento Realizado!</h2>
+        <h2 className="text-2xl font-headline font-bold text-foreground">Agendamento Confirmado!</h2>
         <p className="text-muted-foreground text-sm">
-          Seu serviço de <strong>{selectedService.name}</strong> foi reservado para o dia <strong>{selectedDate}</strong> às <strong>{selectedTime}</strong>.
+          Seu atendimento (<strong>{serviceNamesCombined}</strong>) foi agendado para o dia <strong>{selectedDate}</strong> às <strong>{selectedTime}</strong>.
         </p>
-        <p className="text-xs text-primary/80 animate-pulse">Redirecionando para seus agendamentos...</p>
+        <p className="text-xs text-primary animate-pulse">Redirecionando para seu painel...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-12">
       <header className="text-center space-y-2">
-        <h1 className="text-4xl font-headline font-bold text-primary tracking-tight">Novo Agendamento</h1>
-        <p className="text-muted-foreground">Selecione o serviço e escolha um horário livre na agenda oficial.</p>
+        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary tracking-tight">
+          Monte seu Atendimento
+        </h1>
+        <p className="text-muted-foreground max-w-xl mx-auto text-sm md:text-base">
+          Selecione um ou mais serviços em nossos cards e escolha o melhor horário na agenda do barbeiro.
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
-        {/* Escolha do Serviço */}
-        <Card className="border-primary/20 bg-card/50">
-          <CardHeader>
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
-              <Scissors className="w-5 h-5 text-primary" /> 1. Serviço
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {SERVICES.map((service) => (
-              <div
+      {/* Etapa 1: Seleção de Serviços em Cards */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between border-b border-border/60 pb-3">
+          <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+            <Scissors className="w-6 h-6 text-primary" /> 1. Escolha os Serviços
+          </h2>
+          <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-bold">
+            {selectedServiceIds.length} selecionado(s)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {SERVICES.map((service) => {
+            const isSelected = selectedServiceIds.includes(service.id);
+
+            return (
+              <Card
                 key={service.id}
-                onClick={() => setSelectedServiceId(service.id)}
-                className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                  selectedServiceId === service.id
-                    ? 'border-primary bg-primary/10 font-bold shadow-md'
-                    : 'border-border/50 hover:border-primary/40'
+                onClick={() => toggleService(service.id)}
+                className={`cursor-pointer overflow-hidden transition-all duration-300 border ${
+                  isSelected
+                    ? 'border-primary ring-2 ring-primary/30 bg-primary/5 shadow-xl'
+                    : 'border-border/60 bg-card/60 hover:border-primary/40'
                 }`}
               >
-                <div className="flex justify-between items-center text-sm">
-                  <span>{service.name}</span>
-                  <span className="text-accent font-semibold">R$ {service.price}</span>
+                <div className="grid sm:grid-cols-5 h-full">
+                  <div className="sm:col-span-2 relative h-48 sm:h-auto">
+                    <Image
+                      src={service.image}
+                      alt={service.name}
+                      width={400}
+                      height={300}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-3 left-3 bg-background/90 p-1.5 rounded-lg border border-border shadow-md">
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggleService(service.id)} />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-3 p-5 flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-headline font-bold text-lg text-foreground">{service.name}</h3>
+                        <span className="text-accent font-bold text-base">R$ {service.price}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                        {service.desc}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs">
+                      <span className="flex items-center gap-1 text-muted-foreground font-medium">
+                        <Clock className="w-3.5 h-3.5 text-primary" /> {service.durationMinutes} min
+                      </span>
+                      <span className={`font-bold ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {isSelected ? '✓ Selecionado' : '+ Adicionar'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Etapa 2: Seleção de Data e Horário */}
+      <section className="space-y-4 pt-6 border-t border-border/60">
+        <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+          <Clock className="w-6 h-6 text-primary" /> 2. Escolha o Horário na Agenda
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          <div className="lg:col-span-2">
+            <BookingCalendarView
+              onSelectTimeSlot={handleTimeSlotSelect}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+            />
+          </div>
+
+          {/* Resumo do Pedido / Finalização */}
+          <Card className="border-primary/30 bg-card/80 backdrop-blur-md shadow-2xl sticky top-24">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="text-lg font-headline font-bold flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-primary" /> Resumo do Agendamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Serviços Incluídos:
+                </p>
+                <div className="space-y-2">
+                  {selectedServices.map((s) => (
+                    <div key={s.id} className="flex justify-between items-center text-sm font-medium">
+                      <span>{s.name}</span>
+                      <span className="text-muted-foreground">R$ {s.price}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
 
-        {/* Escolha da Data e Agenda */}
-        <Card className="border-primary/20 bg-card/50 md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-primary" /> 2. Agenda do Barbeiro
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            
-            {/* Seletor de Data */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                Data do Atendimento
-              </label>
-              <input
-                type="date"
-                min={new Date().toISOString().split('T')[0]}
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setSelectedTime('');
-                }}
-                className="w-full bg-background border border-border/80 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Grid de Horários da Agenda */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-primary" /> Horários Disponíveis
-                </label>
-                {loadingAgenda && <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />}
+              <div className="space-y-2 pt-4 border-t border-border/50 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Duração Estimada:</span>
+                  <strong className="text-foreground">{totalDuration} minutos</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Data do Atendimento:</span>
+                  <strong className="text-foreground">{selectedDate}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Horário Selecionado:</span>
+                  <strong className="text-primary font-bold">{selectedTime || 'Pendente'}</strong>
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {AVAILABLE_HOURS.map((time) => {
-                  const isBooked = bookedTimes.includes(time);
-                  const isSelected = selectedTime === time;
+              <div className="pt-4 border-t border-border/50">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-sm font-semibold text-muted-foreground">Total:</span>
+                  <span className="text-3xl font-headline font-bold text-accent">R$ {totalPrice},00</span>
+                </div>
 
-                  return (
-                    <button
-                      key={time}
-                      disabled={isBooked}
-                      onClick={() => setSelectedTime(time)}
-                      className={`py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                        isBooked
-                          ? 'bg-muted/40 text-muted-foreground border-transparent cursor-not-allowed line-through opacity-50'
-                          : isSelected
-                          ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20'
-                          : 'bg-card hover:border-primary/50 border-border/60'
-                      }`}
-                    >
-                      {time} {isBooked && '(Ocupado)'}
-                    </button>
-                  );
-                })}
+                <Button
+                  onClick={handleFinalizeBooking}
+                  disabled={isSubmitting || !selectedTime}
+                  className="w-full h-13 rounded-xl font-headline font-bold text-base gap-2 shadow-lg shadow-primary/20"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" /> Processando...
+                    </>
+                  ) : !user ? (
+                    <>
+                      Entrar e Finalizar <ArrowRight className="w-4 h-4" />
+                    </>
+                  ) : (
+                    <>
+                      Confirmar Agendamento <CheckCircle2 className="w-5 h-5" />
+                    </>
+                  )}
+                </Button>
               </div>
-            </div>
-
-            {/* Total e Confirmação */}
-            <div className="pt-6 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Valor total:</p>
-                <p className="text-2xl font-bold text-accent">R$ {selectedService.price},00</p>
-              </div>
-
-              <Button
-                onClick={handleConfirm}
-                disabled={!selectedTime || isSubmitting}
-                className="w-full sm:w-auto px-8 h-12 rounded-xl font-headline font-bold text-base"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Agendando...
-                  </>
-                ) : (
-                  'Confirmar Agendamento'
-                )}
-              </Button>
-            </div>
-
-          </CardContent>
-        </Card>
-
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
     </div>
   );
 }
 
 export default function NewAppointmentPage() {
   return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
-      </div>
-    }>
-      <BookingFormContent />
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      }
+    >
+      <BookingFlowContent />
     </Suspense>
   );
 }

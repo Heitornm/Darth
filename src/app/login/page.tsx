@@ -6,7 +6,6 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  onAuthStateChanged
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 import { useUser } from '@/firebase'; // Traz o estado reativo de autenticação do seu app
