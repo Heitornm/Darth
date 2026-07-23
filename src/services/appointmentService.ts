@@ -1,67 +1,55 @@
+import { db } from '@/firebase/config';
 import { 
   collection, 
+  addDoc, 
   query, 
   where, 
-  onSnapshot, 
-  Timestamp, 
-  orderBy,
-  addDoc 
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+  getDocs, 
+  serverTimestamp,
+  orderBy 
+} from 'firebase/firestore';
 
 export interface Appointment {
   id?: string;
-  clientId: string;
-  clientName: string;
-  clientEmail?: string | null;
-  barberId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
   serviceId: string;
-  serviceName?: string;
-  durationMinutes?: number;
+  serviceName: string;
   price: number;
-  dataHora: Timestamp | Date;
-  status: 'pendente' | 'confirmado' | 'cancelado';
-  createdAt?: Timestamp; // Guardará o momento exato da intenção de compra
+  date: string; // Formato: YYYY-MM-DD
+  time: string; // Formato: HH:mm
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  createdAt?: any;
 }
 
-export const appointmentService = {
-  async createAppointment(appointment: Omit<Appointment, 'id' | 'status' | 'createdAt'>): Promise<string> {
-    const docRef = await addDoc(collection(db, "appointments"), {
-      ...appointment,
-      status: 'pendente',
-      createdAt: Timestamp.now(), // Marca o início dos 10 minutos regulamentares
-    });
-    return docRef.id;
-  },
-
-  // Escuta os agendamentos do cliente (Usado no Painel do Cliente)
-  subscribeToClientAppointments(clientId: string, callback: (appointments: Appointment[]) => void) {
-    // IMPORTANTE: Se o console disparar erro de índice, clique no link gerado no terminal para criá-lo
+// 1. Buscar os horários ocupados para uma determinada data (Agenda do Barbeiro)
+export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
+  try {
     const q = query(
-      collection(db, "appointments"),
-      where("clientId", "==", clientId),
-      orderBy("dataHora", "desc")
+      collection(db, 'appointments'),
+      where('date', '==', dateStr),
+      where('status', 'in', ['pending', 'confirmed'])
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-      
-      const appointments = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data
-        } as Appointment;
-      }).filter(apt => {
-        // Regra do Filtro: Se estiver pendente e passou de 10 minutos, considera expirado/invisível
-        if (apt.status === 'pendente' && apt.createdAt) {
-          const creationTime = (apt.createdAt as Timestamp).toDate().getTime();
-          if (creationTime < tenMinutesAgo) return false; 
-        }
-        return true;
-      });
-
-      callback(appointments);
+    const querySnapshot = await getDocs(q);
+    const bookedTimes: string[] = [];
+    querySnapshot.forEach((doc) => {
+      bookedTimes.push(doc.data().time);
     });
+
+    return bookedTimes;
+  } catch (error) {
+    console.error("Erro ao buscar horários ocupados:", error);
+    return [];
   }
-};
+}
+
+// 2. Criar um novo agendamento
+export async function createNewAppointment(data: Omit<Appointment, 'id' | 'createdAt' | 'status'>) {
+  return await addDoc(collection(db, 'appointments'), {
+    ...data,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+  });
+}
