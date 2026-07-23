@@ -5,8 +5,7 @@ import {
   query, 
   where, 
   getDocs, 
-  serverTimestamp,
-  orderBy 
+  serverTimestamp 
 } from 'firebase/firestore';
 
 export interface Appointment {
@@ -23,7 +22,7 @@ export interface Appointment {
   createdAt?: any;
 }
 
-// 1. Buscar os horários ocupados para uma determinada data (Agenda do Barbeiro)
+// 1. Buscar os horários ocupados para uma determinada data
 export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
   try {
     const q = query(
@@ -53,3 +52,10 @@ export async function createNewAppointment(data: Omit<Appointment, 'id' | 'creat
     createdAt: serverTimestamp(),
   });
 }
+
+// 3. Objeto unificado para compatibilidade com import { appointmentService }
+export const appointmentService = {
+  getBookedSlotsByDate,
+  createNewAppointment,
+  createAppointment: createNewAppointment, // alias para evitar quebras
+};
