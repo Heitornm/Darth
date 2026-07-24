@@ -72,10 +72,10 @@ function ServiceSelector({
 }
 
 const SERVICES: Service[] = [
-  { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
-  { id: 'srv-2', name: 'Barba Completa', price: 40, durationMinutes: 30 },
-  { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 80, durationMinutes: 60 },
-  { id: 'srv-4', name: 'Corte Premium', price: 70, durationMinutes: 45 },
+  { id: 'srv-1', name: 'Corte Clássico', price: 1, durationMinutes: 30 },
+  { id: 'srv-2', name: 'Barba Completa', price: 1, durationMinutes: 30 },
+  { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 1, durationMinutes: 60 },
+  { id: 'srv-4', name: 'Corte Premium', price: 1, durationMinutes: 45 },
 ];
 
 const TIME_SLOTS = [
