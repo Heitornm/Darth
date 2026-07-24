@@ -16,9 +16,60 @@ import { cn } from '@/lib/utils';
 import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-
-import { ServiceSelector, Service } from '@/components/ServiceSelector';
 import CheckoutButton from '@/components/features/checkout/CheckoutButton';
+
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+  durationMinutes?: number;
+}
+
+function ServiceSelector({
+  services,
+  selectedServiceIds,
+  onToggleService,
+}: {
+  services: Service[];
+  selectedServiceIds: string[];
+  onToggleService: (service: Service) => void;
+}) {
+  return (
+    <div className="grid gap-3">
+      {services.map((service) => {
+        const selected = selectedServiceIds.includes(service.id);
+
+        return (
+          <button
+            key={service.id}
+            type="button"
+            onClick={() => onToggleService(service)}
+            className={`w-full rounded-lg border px-4 py-4 text-left transition ${
+              selected
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border bg-background text-foreground hover:border-primary'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">{service.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {service.durationMinutes ?? 30} minutos
+                </p>
+              </div>
+              <span className="font-semibold">
+                {service.price.toLocaleString('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                })}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const SERVICES: Service[] = [
   { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
