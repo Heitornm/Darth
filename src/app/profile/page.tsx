@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase'; 
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { updateProfile, updateEmail, updatePassword } from 'firebase/auth';
@@ -12,15 +13,24 @@ import { User, Mail, Phone, Lock, Save, Loader2, UserCircle } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { user, isUserLoading } = useUser();
   const db = useFirestore(); 
   const { toast } = useToast();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+
+  // Redireciona usuários não autenticados para o login de forma limpa
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.replace('/login?redirectTo=/profile');
+    }
+  }, [user, isUserLoading, router]);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -33,8 +43,6 @@ export default function ProfilePage() {
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setPhone(userData.phone || '');
-            // Se o nome no Firestore for diferente do Auth, podemos optar por um ou outro. 
-            // Aqui garantimos que o Firestore reflita o que o usuário quer.
             if (userData.name && !user.displayName) setName(userData.name);
           }
         } catch (e) {
@@ -42,10 +50,12 @@ export default function ProfilePage() {
         } finally {
           setFetching(false);
         }
+      } else if (!isUserLoading && !user) {
+        setFetching(false);
       }
     }
     fetchUserProfile();
-  }, [user, db]);
+  }, [user, db, isUserLoading]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,12 +63,10 @@ export default function ProfilePage() {
 
     setLoading(true);
     try {
-      // 1. Atualiza Perfil de Autenticação (Nome)
       if (name !== user.displayName) {
         await updateProfile(user, { displayName: name });
       }
 
-      // 2. Atualiza Email (se alterado)
       if (email !== user.email) {
         try {
           await updateEmail(user, email);
@@ -71,14 +79,11 @@ export default function ProfilePage() {
         }
       }
 
-      // 3. Atualiza Senha (se preenchida)
       if (password) {
         await updatePassword(user, password);
         setPassword('');
       }
 
-      // 4. Atualiza Firestore (Nome, Email, Telefone)
-      // Usamos setDocumentNonBlocking com merge: true para garantir que o doc exista
       setDocumentNonBlocking(
         doc(db, 'users', user.uid), 
         {
@@ -92,7 +97,7 @@ export default function ProfilePage() {
 
       toast({
         title: "Sucesso!",
-        description: "Perfil updated com sucesso.",
+        description: "Perfil atualizado com sucesso.",
       });
     } catch (error: any) {
       toast({
@@ -105,9 +110,16 @@ export default function ProfilePage() {
     }
   };
 
-  if (isUserLoading || fetching) return <div className="p-20 text-center animate-pulse text-primary font-headline">Carregando dados...</div>;
+  if (isUserLoading || fetching) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-muted-foreground text-sm font-medium">Carregando perfil...</p>
+      </div>
+    );
+  }
 
-  if (!user) return <div className="p-20 text-center">Faça login para editar seu perfil.</div>;
+  if (!user) return null;
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-2xl">

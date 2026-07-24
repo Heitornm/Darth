@@ -1,301 +1,211 @@
-"use client";
+'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
-import { useUser } from '@/firebase';
-import { SERVICES } from '@/data/services';
-import { createNewAppointment } from '@/services/appointmentService';
-import { BookingCalendarView } from '@/components/features/appointments/BookingCalendarView';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { Calendar as CalendarIcon, Clock, Scissors } from 'lucide-react';
+import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Scissors, Clock, CheckCircle2, Loader2, ArrowRight, ShoppingBag } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { useFirebase } from '@/firebase';
+import { Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
-function BookingFlowContent() {
+import CheckoutButton from '@/components/features/checkout/CheckoutButton';
+
+const SERVICES = [
+  { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
+  { id: 'srv-2', name: 'Barba Completa', price: 40, durationMinutes: 30 },
+  { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 80, durationMinutes: 60 },
+  { id: 'srv-4', name: 'Corte Premium', price: 70, durationMinutes: 45 },
+];
+
+const TIME_SLOTS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
+];
+
+const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
+const WORK_START = 8;
+const WORK_END = 21;
+const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
+
+export default function ClientAppointmentsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user } = useUser();
+  const { toast } = useToast();
+  const { user, appointments } = useFirebase();
 
-  const initialServiceId = searchParams.get('serviceId');
-  const initialDate = searchParams.get('date');
-  const initialTime = searchParams.get('time');
+  const [date, setDate] = useState<Date>();
+  const [serviceId, setServiceId] = useState<string>("");
+  const [time, setTime] = useState<string>("");
 
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>(() => {
-    if (initialServiceId) return [initialServiceId];
-    return [SERVICES[0]?.id || 'srv-1'];
-  });
+  const selectedService = SERVICES.find(s => s.id === serviceId);
 
-  const [selectedDate, setSelectedDate] = useState<string>(
-    initialDate || new Date().toISOString().split('T')[0]
-  );
-  const [selectedTime, setSelectedTime] = useState<string>(initialTime || '');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const availabilityData = useMemo(() => {
+    if (!appointments) return {};
+    const stats: Record<string, number> = {};
+    appointments.forEach(apt => {
+      if (apt.status === 'cancelado') return;
+      const aptDate = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const dayKey = format(aptDate, 'yyyy-MM-dd');
+      stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
+    });
+    return stats;
+  }, [appointments]);
 
-  useEffect(() => {
-    const savedBooking = sessionStorage.getItem('darth_pending_booking');
-    if (savedBooking) {
-      try {
-        const parsed = JSON.parse(savedBooking);
-        if (parsed.selectedServiceIds) setSelectedServiceIds(parsed.selectedServiceIds);
-        if (parsed.selectedDate) setSelectedDate(parsed.selectedDate);
-        if (parsed.selectedTime) setSelectedTime(parsed.selectedTime);
-        sessionStorage.removeItem('darth_pending_booking');
-      } catch (e) {
-        console.error("Erro ao restaurar agendamento:", e);
-      }
-    }
-  }, []);
+  const isDayFull = (d: Date) => {
+    const dayKey = format(d, 'yyyy-MM-dd');
+    const occupied = availabilityData[dayKey] || 0;
+    return occupied >= TOTAL_MINUTES_PER_DAY;
+  };
 
-  const toggleService = (serviceId: string) => {
-    setSelectedServiceIds((prev) => {
-      if (prev.includes(serviceId)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((id) => id !== serviceId);
-      }
-      return [...prev, serviceId];
+  const isTimeSlotAvailable = (timeSlot: string) => {
+    if (!date || !selectedService || !appointments) return true;
+
+    const [hours, minutes] = timeSlot.split(':').map(Number);
+    const slotStart = new Date(date);
+    slotStart.setHours(hours, minutes, 0, 0);
+    const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
+
+    if (isBefore(slotStart, new Date())) return false;
+
+    return !appointments.filter(a => a.status !== 'cancelado').some(apt => {
+      const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
+      return isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
     });
   };
 
-  const selectedServices = SERVICES.filter((s) => selectedServiceIds.includes(s.id));
-  const totalPrice = selectedServices.reduce((acc, curr) => acc + curr.price, 0);
-  const totalDuration = selectedServices.reduce((acc, curr) => acc + curr.durationMinutes, 0);
-  const serviceNamesCombined = selectedServices.map((s) => s.name).join(' + ');
-
-  const handleTimeSlotSelect = (date: string, time: string) => {
-    setSelectedDate(date);
-    setSelectedTime(time);
-  };
-
-  const handleFinalizeBooking = async () => {
-    if (!selectedTime) {
-      alert("Por favor, selecione um horário no calendário para prosseguir.");
-      return;
-    }
-
-    if (!user) {
-      sessionStorage.setItem(
-        'darth_pending_booking',
-        JSON.stringify({ selectedServiceIds, selectedDate, selectedTime })
-      );
-      router.push('/login?redirectTo=/client/appointments/new');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await createNewAppointment({
-        clientId: user.uid,
-        userName: user.displayName || user.email?.split('@')[0] || 'Cliente',
-        userEmail: user.email || '',
-        serviceId: selectedServiceIds.join(','),
-        serviceName: serviceNamesCombined,
-        price: totalPrice,
-        date: selectedDate,
-        time: selectedTime,
-      });
-
-      setIsSuccess(true);
-      setTimeout(() => {
-        router.push('/client/appointments');
-      }, 2000);
-    } catch (err: any) {
-      console.error("Erro ao realizar agendamento:", err);
-      // Exibe a mensagem exata retornada pela API caso o horário já tenha sido pego
-      alert(err.message || "Erro ao confirmar agendamento. Tente novamente.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (isSuccess) {
-    return (
-      <div className="max-w-md mx-auto my-16 text-center space-y-4 p-8 bg-card border border-primary/20 rounded-3xl shadow-2xl">
-        <CheckCircle2 className="w-16 h-16 text-primary mx-auto animate-bounce" />
-        <h2 className="text-2xl font-headline font-bold text-foreground">Agendamento Confirmado!</h2>
-        <p className="text-muted-foreground text-sm">
-          Seu atendimento (<strong>{serviceNamesCombined}</strong>) foi agendado para o dia <strong>{selectedDate}</strong> às <strong>{selectedTime}</strong>.
-        </p>
-        <p className="text-xs text-primary animate-pulse">Redirecionando para seu painel...</p>
-      </div>
-    );
-  }
+  const fullSelectedDate = useMemo(() => {
+    if (!date || !time) return null;
+    const [hours, minutes] = time.split(':').map(Number);
+    const targetDate = new Date(date);
+    targetDate.setHours(hours, minutes, 0, 0);
+    return targetDate;
+  }, [date, time]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-12">
-      <header className="text-center space-y-2">
-        <h1 className="text-4xl md:text-5xl font-headline font-bold text-primary tracking-tight">
-          Monte seu Atendimento
-        </h1>
-        <p className="text-muted-foreground max-w-xl mx-auto text-sm md:text-base">
-          Selecione um ou mais serviços em nossos cards e escolha o melhor horário na agenda do barbeiro.
-        </p>
-      </header>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
+      </div>
 
-      {/* Etapa 1: Seleção de Serviços em Cards */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
-            <Scissors className="w-6 h-6 text-primary" /> 1. Escolha os Serviços
-          </h2>
-          <span className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-bold">
-            {selectedServiceIds.length} selecionado(s)
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {SERVICES.map((service) => {
-            const isSelected = selectedServiceIds.includes(service.id);
-
-            return (
-              <Card
-                key={service.id}
-                onClick={() => toggleService(service.id)}
-                className={`cursor-pointer overflow-hidden transition-all duration-300 border ${
-                  isSelected
-                    ? 'border-primary ring-2 ring-primary/30 bg-primary/5 shadow-xl'
-                    : 'border-border/60 bg-card/60 hover:border-primary/40'
-                }`}
-              >
-                <div className="grid sm:grid-cols-5 h-full">
-                  <div className="sm:col-span-2 relative h-48 sm:h-auto">
-                    <Image
-                      src={service.image}
-                      alt={service.name}
-                      width={400}
-                      height={300}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-3 left-3 bg-background/90 p-1.5 rounded-lg border border-border shadow-md">
-                      <Checkbox checked={isSelected} onCheckedChange={() => toggleService(service.id)} />
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-3 p-5 flex flex-col justify-between space-y-3">
-                    <div>
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-headline font-bold text-lg text-foreground">{service.name}</h3>
-                        <span className="text-accent font-bold text-base">R$ {service.price}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                        {service.desc}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs">
-                      <span className="flex items-center gap-1 text-muted-foreground font-medium">
-                        <Clock className="w-3.5 h-3.5 text-primary" /> {service.durationMinutes} min
-                      </span>
-                      <span className={`font-bold ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}>
-                        {isSelected ? '✓ Selecionado' : '+ Adicionar'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Etapa 2: Seleção de Data e Horário */}
-      <section className="space-y-4 pt-6 border-t border-border/60">
-        <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
-          <Clock className="w-6 h-6 text-primary" /> 2. Escolha o Horário na Agenda
-        </h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-2">
-            <BookingCalendarView
-              onSelectTimeSlot={handleTimeSlotSelect}
-              selectedDate={selectedDate}
-              selectedTime={selectedTime}
-            />
-          </div>
-
-          {/* Resumo do Pedido / Finalização */}
-          <Card className="border-primary/30 bg-card/80 backdrop-blur-md shadow-2xl sticky top-24">
-            <CardHeader className="border-b border-border/50 pb-4">
-              <CardTitle className="text-lg font-headline font-bold flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-primary" /> Resumo do Agendamento
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-primary/20">
+            <CardHeader className="bg-primary/5">
+              <CardTitle className="font-headline flex items-center gap-3 text-primary">
+                <Scissors className="w-5 h-5" /> Reserva
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-8 space-y-8">
               <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Serviços Incluídos:
-                </p>
-                <div className="space-y-2">
-                  {selectedServices.map((s) => (
-                    <div key={s.id} className="flex justify-between items-center text-sm font-medium">
-                      <span>{s.name}</span>
-                      <span className="text-muted-foreground">R$ {s.price}</span>
-                    </div>
-                  ))}
+                <Label>1. Serviço</Label>
+                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
+                  <SelectTrigger className="w-full h-12">
+                    <SelectValue placeholder="Escolha um serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SERVICES.map(srv => (
+                      <SelectItem key={srv.id} value={srv.id}>{srv.name} — R$ {srv.price}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <Label>2. Dia</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(d) => {
+                          if (d) {
+                            if (isDayFull(d)) {
+                              toast({ title: "Dia lotado", description: "Infelizmente não há horários.", variant: "destructive" });
+                              return;
+                            }
+                            setDate(d);
+                            setTime("");
+                          }
+                        }}
+                        locale={ptBR}
+                        disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
+                        modifiers={{
+                          full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
+                        }}
+                        modifiersStyles={{
+                          full: {
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            opacity: 1
+                          }
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>3. Hora</Label>
+                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
+                    <SelectTrigger className="w-full h-12">
+                      <Clock className="w-4 h-4 mr-3 text-primary" />
+                      <SelectValue placeholder="Escolha a hora" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_SLOTS.map(slot => {
+                        const available = isTimeSlotAvailable(slot);
+                        return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className="space-y-2 pt-4 border-t border-border/50 text-xs text-muted-foreground">
-                <div className="flex justify-between">
-                  <span>Duração Estimada:</span>
-                  <strong className="text-foreground">{totalDuration} minutos</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Data do Atendimento:</span>
-                  <strong className="text-foreground">{selectedDate}</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Horário Selecionado:</span>
-                  <strong className="text-primary font-bold">{selectedTime || 'Pendente'}</strong>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-border/50">
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-sm font-semibold text-muted-foreground">Total:</span>
-                  <span className="text-3xl font-headline font-bold text-accent">R$ {totalPrice},00</span>
-                </div>
-
-                <Button
-                  onClick={handleFinalizeBooking}
-                  disabled={isSubmitting || !selectedTime}
-                  className="w-full h-13 rounded-xl font-headline font-bold text-base gap-2 shadow-lg shadow-primary/20"
+              {!user ? (
+                <Button 
+                  className="w-full h-14 text-xl font-headline" 
+                  onClick={() => router.push('/login?redirectTo=/client/appointments/new')}
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" /> Processando...
-                    </>
-                  ) : !user ? (
-                    <>
-                      Entrar e Finalizar <ArrowRight className="w-4 h-4" />
-                    </>
-                  ) : (
-                    <>
-                      Confirmar Agendamento <CheckCircle2 className="w-5 h-5" />
-                    </>
-                  )}
+                  Faça Login para Agendar
                 </Button>
-              </div>
+              ) : (!date || !serviceId || !time || !selectedService || !fullSelectedDate) ? (
+                <Button className="w-full h-14 text-xl font-headline" disabled>
+                  Selecione os Campos Acima
+                </Button>
+              ) : (
+                <CheckoutButton
+                  clientId={user.uid}
+                  clientName={user.displayName || user.email || 'Cliente'}
+                  clientEmail={user.email}
+                  barberId={MASTER_BARBER_ID}
+                  serviceId={serviceId}
+                  serviceName={selectedService.name}
+                  price={selectedService.price}
+                  dataHoraSelection={fullSelectedDate}
+                />
+              )}
             </CardContent>
           </Card>
         </div>
-      </section>
+      </div>
     </div>
-  );
-}
-
-export default function NewAppointmentPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        </div>
-      }
-    >
-      <BookingFlowContent />
-    </Suspense>
   );
 }
