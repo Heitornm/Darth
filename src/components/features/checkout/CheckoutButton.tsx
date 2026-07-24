@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { appointmentService } from '@/services/appointmentService';
-import { Timestamp } from 'firebase/firestore';
 
 interface CheckoutButtonProps {
   clientId: string;
@@ -35,49 +33,65 @@ export default function CheckoutButton({
     setIsLoading(true);
 
     try {
-      // 1. Salva o agendamento no Firestore com status 'pendente'
-      const appointmentId = await appointmentService.createAppointment({
-        clientId,
-        clientName,
-        clientEmail: clientEmail || null,
-        barberId,
-        serviceId,
-        serviceName,
-        price,
-        dataHora: Timestamp.fromDate(dataHoraSelection),
+      // 1. Extrai 'date' (YYYY-MM-DD) e 'time' (HH:mm) para atender o contrato da API
+      const date = dataHoraSelection.toISOString().split('T')[0];
+      const time = dataHoraSelection.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
       });
 
-      // 2. Chama a API do Next.js passando o contrato correto esperado pela rota
-      const response = await fetch('/api/checkout', {
+      // 2. Salva o agendamento via API (Server-side com Firebase Admin)
+      const appointmentRes = await fetch('/api/appointments', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: appointmentId,
+          clientId,
+          userName: clientName,
+          userEmail: clientEmail || '',
+          serviceId,
+          serviceName,
+          price,
+          date,
+          time,
+          barberId,
+        }),
+      });
+
+      const appointmentData = await appointmentRes.json();
+
+      if (!appointmentRes.ok) {
+        throw new Error(appointmentData.error || 'Falha ao criar agendamento.');
+      }
+
+      // 3. Chama a API de checkout passando o ID do agendamento gerado
+      const checkoutRes = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: appointmentData.appointmentId,
           items: [
             {
               description: `Agendamento: ${serviceName}`,
               quantity: 1,
               price: price,
-            }
-          ]
+            },
+          ],
         }),
       });
 
-      const data = await response.json();
+      const checkoutData = await checkoutRes.json();
 
-      if (!response.ok || !data.url) {
-        throw new Error(data.error || 'Falha ao gerar o link de pagamento.');
+      if (!checkoutRes.ok || !checkoutData.url) {
+        throw new Error(checkoutData.error || 'Falha ao gerar o link de pagamento.');
       }
 
-      // 3. Redireciona o cliente para a página da InfinitePay
+      // 4. Sucesso: Redireciona para o gateway
       toast({
         title: "Agendamento reservado!",
         description: "Redirecionando para o pagamento seguro...",
       });
 
-      window.location.href = data.url;
+      window.location.href = checkoutData.url;
 
     } catch (error: any) {
       console.error(error);
