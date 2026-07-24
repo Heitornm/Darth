@@ -8,8 +8,8 @@ import { ptBR } from 'date-fns/locale';
 
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -17,9 +17,10 @@ import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
+import { ServiceSelector, Service } from '@/components/ServiceSelector';
 import CheckoutButton from '@/components/features/checkout/CheckoutButton';
 
-const SERVICES = [
+const SERVICES: Service[] = [
   { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
   { id: 'srv-2', name: 'Barba Completa', price: 40, durationMinutes: 30 },
   { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 80, durationMinutes: 60 },
@@ -43,10 +44,25 @@ export default function ClientAppointmentsPage() {
   const { user, appointments } = useFirebase();
 
   const [date, setDate] = useState<Date>();
-  const [serviceId, setServiceId] = useState<string>("");
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [time, setTime] = useState<string>("");
 
-  const selectedService = SERVICES.find(s => s.id === serviceId);
+  const handleToggleService = (service: Service) => {
+    setSelectedServices((prev) => {
+      const exists = prev.some((s) => s.id === service.id);
+      if (exists) {
+        return prev.filter((s) => s.id !== service.id);
+      } else {
+        return [...prev, service];
+      }
+    });
+    setTime("");
+  };
+
+  const totalPrice = selectedServices.reduce((acc, curr) => acc + curr.price, 0);
+  const totalDuration = selectedServices.reduce((acc, curr) => acc + (curr.durationMinutes || 30), 0);
+  const combinedServiceIds = selectedServices.map((s) => s.id).join(',');
+  const combinedServiceNames = selectedServices.map((s) => s.name).join(' + ');
 
   const availabilityData = useMemo(() => {
     if (!appointments) return {};
@@ -67,12 +83,12 @@ export default function ClientAppointmentsPage() {
   };
 
   const isTimeSlotAvailable = (timeSlot: string) => {
-    if (!date || !selectedService || !appointments) return true;
+    if (!date || selectedServices.length === 0 || !appointments) return true;
 
     const [hours, minutes] = timeSlot.split(':').map(Number);
     const slotStart = new Date(date);
     slotStart.setHours(hours, minutes, 0, 0);
-    const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
+    const slotEnd = addMinutes(slotStart, totalDuration);
 
     if (isBefore(slotStart, new Date())) return false;
 
@@ -92,120 +108,98 @@ export default function ClientAppointmentsPage() {
   }, [date, time]);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-headline font-bold text-primary">Agende seu Estilo</h1>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-primary/20">
-            <CardHeader className="bg-primary/5">
-              <CardTitle className="font-headline flex items-center gap-3 text-primary">
-                <Scissors className="w-5 h-5" /> Reserva
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="space-y-3">
-                <Label>1. Serviço</Label>
-                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
-                  <SelectTrigger className="w-full h-12">
-                    <SelectValue placeholder="Escolha um serviço" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SERVICES.map(srv => (
-                      <SelectItem key={srv.id} value={srv.id}>{srv.name} — R$ {srv.price}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <Card className="border-primary/20 max-w-2xl mx-auto">
+        <CardHeader className="bg-primary/5">
+          <CardTitle className="font-headline flex items-center gap-3 text-primary text-xl">
+            <Scissors className="w-5 h-5" /> Reserva de Serviço
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">1. Serviços</Label>
+            <ServiceSelector
+              services={SERVICES}
+              selectedServiceIds={selectedServices.map((s) => s.id)}
+              onToggleService={handleToggleService}
+            />
+          </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label>2. Dia</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(d) => {
-                          if (d) {
-                            if (isDayFull(d)) {
-                              toast({ title: "Dia lotado", description: "Infelizmente não há horários.", variant: "destructive" });
-                              return;
-                            }
-                            setDate(d);
-                            setTime("");
-                          }
-                        }}
-                        locale={ptBR}
-                        disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
-                        modifiers={{
-                          full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
-                        }}
-                        modifiersStyles={{
-                          full: {
-                            backgroundColor: '#ef4444',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            opacity: 1
-                          }
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">2. Dia</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full h-11 justify-start", !date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
+                    {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(d) => {
+                      if (d) {
+                        if (isDayFull(d)) {
+                          toast({ title: "Dia lotado", description: "Infelizmente não há horários.", variant: "destructive" });
+                          return;
+                        }
+                        setDate(d);
+                        setTime("");
+                      }
+                    }}
+                    locale={ptBR}
+                    disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-                <div className="space-y-3">
-                  <Label>3. Hora</Label>
-                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
-                    <SelectTrigger className="w-full h-12">
-                      <Clock className="w-4 h-4 mr-3 text-primary" />
-                      <SelectValue placeholder="Escolha a hora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_SLOTS.map(slot => {
-                        const available = isTimeSlotAvailable(slot);
-                        return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">3. Hora</Label>
+              <Select value={time} onValueChange={setTime} disabled={!date || selectedServices.length === 0}>
+                <SelectTrigger className="w-full h-11">
+                  <Clock className="w-4 h-4 mr-3 text-primary" />
+                  <SelectValue placeholder="Escolha a hora" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_SLOTS.map(slot => {
+                    const available = isTimeSlotAvailable(slot);
+                    return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-              {!user ? (
-                <Button 
-                  className="w-full h-14 text-xl font-headline" 
-                  onClick={() => router.push('/login?redirectTo=/client/appointments/new')}
-                >
-                  Faça Login para Agendar
-                </Button>
-              ) : (!date || !serviceId || !time || !selectedService || !fullSelectedDate) ? (
-                <Button className="w-full h-14 text-xl font-headline" disabled>
-                  Selecione os Campos Acima
-                </Button>
-              ) : (
-                <CheckoutButton
-                  clientId={user.uid}
-                  clientName={user.displayName || user.email || 'Cliente'}
-                  clientEmail={user.email}
-                  barberId={MASTER_BARBER_ID}
-                  serviceId={serviceId}
-                  serviceName={selectedService.name}
-                  price={selectedService.price}
-                  dataHoraSelection={fullSelectedDate}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+          {!user ? (
+            <Button className="w-full h-12 text-lg font-headline" onClick={() => router.push('/login')}>
+              Faça Login para Agendar
+            </Button>
+          ) : (!date || selectedServices.length === 0 || !time || !fullSelectedDate) ? (
+            <Button className="w-full h-12 text-lg font-headline" disabled>
+              Selecione os Campos Acima
+            </Button>
+          ) : (
+            <CheckoutButton
+              clientId={user.uid}
+              clientName={user.displayName || user.email || 'Cliente'}
+              clientEmail={user.email || ''}
+              barberId={MASTER_BARBER_ID}
+              serviceId={combinedServiceIds}
+              serviceName={combinedServiceNames}
+              price={totalPrice}
+              dataHoraSelection={fullSelectedDate}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

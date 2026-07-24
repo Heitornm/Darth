@@ -30,7 +30,7 @@ export function Navbar() {
     setIsMounted(true);
   }, []);
 
-  // Busca a permissão (role) no Firestore sem travar a navegação caso o documento não exista
+  // Busca a permissão (role) no Firestore
   useEffect(() => {
     let isSubscribed = true;
 
@@ -40,7 +40,6 @@ export function Navbar() {
         return;
       }
 
-      // Verificação rápida por e-mail ou UID de barbeiro mestre
       if (user.email === BARBER_EMAIL || user.uid === MASTER_BARBER_ID) {
         if (isSubscribed) setUserRole('barber');
         return;
@@ -54,7 +53,7 @@ export function Navbar() {
           if (userDoc.exists()) {
             setUserRole(userDoc.data()?.role || 'client');
           } else {
-            setUserRole('client'); // Padrão seguro para novos usuários
+            setUserRole('client');
           }
         }
       } catch (error) {
@@ -108,10 +107,7 @@ export function Navbar() {
                     <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Painel" />
                   </>
                 ) : (
-                  <>
-                    <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                    <NavLink href="/client/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
-                  </>
+                  <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
                 )}
               </>
             )}
@@ -135,6 +131,15 @@ export function Navbar() {
                     </p>
                   </div>
                   <DropdownMenuSeparator />
+                  
+                  {/* Opção "Minhas Reservas" apenas para Clientes */}
+                  {!isBarber && (
+                    <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
+                      <ClipboardList className="w-4 h-4 mr-2" />
+                      Minhas Reservas
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
                     <Settings className="w-4 h-4 mr-2" />
                     Editar Perfil
