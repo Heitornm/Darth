@@ -1,209 +1,207 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors } from 'lucide-react';
-import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-
-import { Calendar } from '@/components/ui/calendar';
+import { 
+  Calendar, 
+  Clock, 
+  Scissors, 
+  AlertCircle, 
+  Plus, 
+  CheckCircle2, 
+  XCircle, 
+  Hourglass 
+} from 'lucide-react';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { useFirebase } from '@/firebase';
-import { Timestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
-// 🚀 Reter apenas o CheckoutButton necessário
-import CheckoutButton from '@/components/features/checkout/CheckoutButton';
+interface Appointment {
+  id: string;
+  serviceName: string;
+  price: number;
+  status: 'pending' | 'confirmed' | 'canceled' | 'completed';
+  createdAt?: any;
+  date?: string;
+  time?: string;
+}
 
-const SERVICES = [
-  { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
-  { id: 'srv-2', name: 'Barba Completa', price: 40, durationMinutes: 30 },
-  { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 80, durationMinutes: 60 },
-  { id: 'srv-4', name: 'Corte Premium', price: 70, durationMinutes: 45 },
-];
-
-const TIME_SLOTS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
-];
-
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
-const WORK_START = 8;
-const WORK_END = 21;
-const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
-
-export default function ClientAppointmentsPage() {
+function AppointmentsContent() {
+  const { user, isUserLoading } = useUser();
+  const db = useFirestore();
   const router = useRouter();
-  const { toast } = useToast();
-  const { user, appointments } = useFirebase(); // ✨ Removido 'firestore' daqui
 
-  const [date, setDate] = useState<Date>();
-  const [serviceId, setServiceId] = useState<string>("");
-  const [time, setTime] = useState<string>("");
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedService = SERVICES.find(s => s.id === serviceId);
+  useEffect(() => {
+    if (isUserLoading) return;
 
-  const availabilityData = useMemo(() => {
-    if (!appointments) return {};
-    const stats: Record<string, number> = {};
-    appointments.forEach(apt => {
-      if (apt.status === 'cancelado') return;
-      const aptDate = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
-      const dayKey = format(aptDate, 'yyyy-MM-dd');
-      stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
-    });
-    return stats;
-  }, [appointments]);
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
-  const isDayFull = (d: Date) => {
-    const dayKey = format(d, 'yyyy-MM-dd');
-    const occupied = availabilityData[dayKey] || 0;
-    return occupied >= TOTAL_MINUTES_PER_DAY;
+    async function fetchAppointments() {
+      if (!db || !user) return;
+
+      try {
+        setLoading(true);
+        // Busca agendamentos associados ao usuário logado
+        const q = query(
+          collection(db, "appointments"),
+          where("clientId", "==", user.uid)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const docs: Appointment[] = [];
+
+        querySnapshot.forEach((docSnap) => {
+          docs.push({
+            id: docSnap.id,
+            ...docSnap.data(),
+          } as Appointment);
+        });
+
+        setAppointments(docs);
+      } catch (err: any) {
+        console.error("Erro ao buscar agendamentos:", err);
+        setError("Não foi possível carregar seus agendamentos.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAppointments();
+  }, [user, isUserLoading, db, router]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return (
+          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Confirmado
+          </Badge>
+        );
+      case 'completed':
+        return (
+          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Concluído
+          </Badge>
+        );
+      case 'canceled':
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="w-3.5 h-3.5" /> Cancelado
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 gap-1">
+            <Hourglass className="w-3.5 h-3.5" /> Pendente
+          </Badge>
+        );
+    }
   };
 
-  const isTimeSlotAvailable = (timeSlot: string) => {
-    if (!date || !selectedService || !appointments) return true;
+  if (isUserLoading || loading) {
+    return (
+      <div className="container mx-auto px-4 py-12 max-w-2xl space-y-4">
+        <div className="h-8 bg-muted rounded w-1/3 animate-pulse" />
+        <div className="h-32 bg-muted rounded-2xl animate-pulse" />
+        <div className="h-32 bg-muted rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
 
-    const [hours, minutes] = timeSlot.split(':').map(Number);
-    const slotStart = new Date(date);
-    slotStart.setHours(hours, minutes, 0, 0);
-    const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
-
-    if (isBefore(slotStart, new Date())) return false;
-
-    return !appointments.filter(a => a.status !== 'cancelado').some(apt => {
-      const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
-      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
-      return isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
-    });
-  };
-
-  const fullSelectedDate = useMemo(() => {
-    if (!date || !time) return null;
-    const [hours, minutes] = time.split(':').map(Number);
-    const targetDate = new Date(date);
-    targetDate.setHours(hours, minutes, 0, 0);
-    return targetDate;
-  }, [date, time]);
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-12 max-w-md text-center">
+        <Card className="border-destructive/20 bg-destructive/5">
+          <CardHeader>
+            <AlertCircle className="w-10 h-10 text-destructive mx-auto mb-2" />
+            <CardTitle>Erro de Carregamento</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-primary/20">
-            <CardHeader className="bg-primary/5">
-              <CardTitle className="font-headline flex items-center gap-3 text-primary">
-                <Scissors className="w-5 h-5" /> Reserva
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="space-y-3">
-                <Label>1. Serviço</Label>
-                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
-                  <SelectTrigger className="w-full h-12">
-                    <SelectValue placeholder="Escolha um serviço" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SERVICES.map(srv => (
-                      <SelectItem key={srv.id} value={srv.id}>{srv.name} — R$ {srv.price}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label>2. Dia</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(d) => {
-                          if (d) {
-                            if (isDayFull(d)) {
-                              toast({ title: "Dia lotado", description: "Infelizmente não há horários.", variant: "destructive" });
-                              return;
-                            }
-                            setDate(d);
-                            setTime("");
-                          }
-                        }}
-                        locale={ptBR}
-                        disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
-                        modifiers={{
-                          full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
-                        }}
-                        modifiersStyles={{
-                          full: {
-                            backgroundColor: '#ef4444',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            opacity: 1
-                          }
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-3">
-                  <Label>3. Hora</Label>
-                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
-                    <SelectTrigger className="w-full h-12">
-                      <Clock className="w-4 h-4 mr-3 text-primary" />
-                      <SelectValue placeholder="Escolha a hora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_SLOTS.map(slot => {
-                        const available = isTimeSlotAvailable(slot);
-                        return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {!user ? (
-                <Button className="w-full h-14 text-xl font-headline" onClick={() => router.push('/login')}>
-                  Faça Login para Agendar
-                </Button>
-              ) : (!date || !serviceId || !time || !selectedService || !fullSelectedDate) ? (
-                <Button className="w-full h-14 text-xl font-headline" disabled>
-                  Selecione os Campos Acima
-                </Button>
-              ) : (
-                <CheckoutButton
-                  clientId={user.uid}
-                  clientName={user.displayName || user.email || 'Cliente'}
-                  clientEmail={user.email}
-                  barberId={MASTER_BARBER_ID}
-                  serviceId={serviceId}
-                  serviceName={selectedService.name}
-                  price={selectedService.price}
-                  dataHoraSelection={fullSelectedDate}
-                />
-              )}
-            </CardContent>
-          </Card>
+    <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-headline">Minhas Reservas</h1>
+          <p className="text-sm text-muted-foreground">Acompanhe seus horários e histórico de serviços</p>
         </div>
+        <Button asChild className="rounded-xl gap-2 font-semibold">
+          <Link href="/services">
+            <Plus className="w-4 h-4" /> Novo Agendamento
+          </Link>
+        </Button>
       </div>
+
+      {appointments.length === 0 ? (
+        <Card className="text-center py-12 bg-card/50 border-dashed">
+          <CardContent className="space-y-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-bold text-lg">Nenhum agendamento encontrado</h3>
+              <p className="text-sm text-muted-foreground">Você ainda não possui reservas ativas.</p>
+            </div>
+            <Button asChild variant="outline" className="rounded-xl">
+              <Link href="/services">Agendar um Serviço</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {appointments.map((app) => (
+            <Card key={app.id} className="overflow-hidden border-primary/10 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Scissors className="w-4 h-4 text-primary" />
+                    <h3 className="font-bold text-lg text-foreground">{app.serviceName || "Serviço Barbearia"}</h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-primary" />
+                      <span>{app.date ? `${app.date} às ${app.time}` : "Aguardando confirmação"}</span>
+                    </div>
+                    <span className="font-semibold text-foreground">
+                      R$ {Number(app.price || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  {getStatusBadge(app.status)}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function AppointmentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
+        Carregando suas reservas...
+      </div>
+    }>
+      <AppointmentsContent />
+    </Suspense>
   );
 }
