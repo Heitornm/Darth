@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { auth } from "@/firebase/firebase";
@@ -9,7 +9,7 @@ import { SERVICES, ServiceItem } from "@/data/services";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-export default function NewAppointmentPage() {
+function NewAppointmentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preSelectedId = searchParams.get("serviceId");
@@ -18,7 +18,7 @@ export default function NewAppointmentPage() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  
+
   const serviceList = SERVICES ?? [];
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(() => {
     return serviceList.find((s) => s.id === preSelectedId) || null;
@@ -170,5 +170,20 @@ export default function NewAppointmentPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// Exportação principal com Suspense Boundary para passar no build SSG
+export default function NewAppointmentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto max-w-4xl p-8 text-center text-muted-foreground">
+          Carregando...
+        </div>
+      }
+    >
+      <NewAppointmentContent />
+    </Suspense>
   );
 }
