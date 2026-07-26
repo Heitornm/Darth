@@ -19,12 +19,8 @@ import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-const SERVICES = [
-  { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
-  { id: 'srv-2', name: 'Barba Completa', price: 40, durationMinutes: 30 },
-  { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 80, durationMinutes: 60 },
-  { id: 'srv-4', name: 'Corte Premium', price: 70, durationMinutes: 45 },
-];
+// 🚀 IMPORTANTE: Importação centralizada dos serviços oficiais
+import { SERVICES } from '@/data/services';
 
 const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -48,14 +44,17 @@ function NewAppointmentContent() {
   const [serviceId, setServiceId] = useState<string>("");
   const [time, setTime] = useState<string>("");
 
-  // Se o serviço vier especificado na URL, pré-seleciona no formulário
+  // Pré-seleciona o serviço caso um ID válido venha na Query String da URL
   useEffect(() => {
     if (urlServiceId) {
       setServiceId(urlServiceId);
     }
   }, [urlServiceId]);
 
-  const selectedService = SERVICES.find(s => s.id === serviceId);
+  // Busca o serviço correspondente na lista importada
+  const selectedService = useMemo(() => {
+    return SERVICES.find(s => s.id === serviceId);
+  }, [serviceId]);
 
   const availabilityData = useMemo(() => {
     if (!appointments) return {};
@@ -81,7 +80,10 @@ function NewAppointmentContent() {
     const [hours, minutes] = timeSlot.split(':').map(Number);
     const slotStart = new Date(date);
     slotStart.setHours(hours, minutes, 0, 0);
-    const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
+
+    // Suporte flexível para 'duration' ou 'durationMinutes'
+    const duration = Number(selectedService.duration) || (selectedService as any).durationMinutes || 30;
+    const slotEnd = addMinutes(slotStart, duration);
 
     if (isBefore(slotStart, new Date())) return false;
 
@@ -90,12 +92,12 @@ function NewAppointmentContent() {
     return !appointments.filter(a => {
       if (a.status === 'cancelado' || a.status === 'canceled') return false;
 
-      // Trava de 10 minutos para agendamentos pendentes de pagamento
+      // Bloqueio temporário de 10 minutos para agendamentos pendentes
       if (a.status === 'pendente' || a.status === 'pending') {
         const createdAt = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || Date.now());
         const expiresAt = new Date(createdAt.getTime() + 10 * 60 * 1000);
         if (isAfter(now, expiresAt)) {
-          return false; // Expirou: libera o horário na agenda
+          return false; // Trava expirada: libera slot
         }
       }
       return true;
@@ -114,7 +116,11 @@ function NewAppointmentContent() {
     }
 
     if (!date || !serviceId || !time) {
-      toast({ title: "Campos obrigatórios", description: "Por favor, selecione serviço, data e horário.", variant: "destructive" });
+      toast({ 
+        title: "Campos obrigatórios", 
+        description: "Por favor, selecione serviço, data e horário.", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -145,7 +151,9 @@ function NewAppointmentContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {SERVICES.map(srv => (
-                      <SelectItem key={srv.id} value={srv.id}>{srv.name} — R$ {srv.price.toFixed(2)}</SelectItem>
+                      <SelectItem key={srv.id} value={srv.id}>
+                        {srv.name} — R$ {Number(srv.price).toFixed(2)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -203,7 +211,11 @@ function NewAppointmentContent() {
                     <SelectContent>
                       {TIME_SLOTS.map(slot => {
                         const available = isTimeSlotAvailable(slot);
-                        return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
+                        return (
+                          <SelectItem key={slot} value={slot} disabled={!available}>
+                            {slot} {!available && "(Ocupado)"}
+                          </SelectItem>
+                        );
                       })}
                     </SelectContent>
                   </Select>

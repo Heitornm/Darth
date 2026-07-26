@@ -3,7 +3,7 @@ export interface ServiceItem {
   name: string;
   price: number;
   description?: string;
-  duration?: number | string;
+  duration: number; // Força número para simplificar cálculos de agenda
   image?: string;
   imageUrl?: string;
 }
@@ -12,7 +12,7 @@ export const SERVICES: ServiceItem[] = [
   {
     id: "corte",
     name: "Corte de Cabelo",
-    price: 1.0,
+    price: 1.0, // Ajuste para o preço real quando sair de teste
     description: "Corte moderno ou tradicional ajustado ao seu estilo.",
     duration: 30,
     image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800",
