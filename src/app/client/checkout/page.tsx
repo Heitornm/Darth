@@ -51,8 +51,10 @@ function CheckoutContent() {
       setIsSubmitting(true);
       setErrorMessage("");
 
+      // 1. Salva o agendamento no Firestore
       const appointmentData = {
         userId: user.uid,
+        clientId: user.uid,
         userName: user.displayName || user.email || "Cliente",
         userEmail: user.email,
         serviceId: service.id,
@@ -60,17 +62,42 @@ function CheckoutContent() {
         price: service.price,
         date: selectedDate,
         time: selectedTime,
-        status: "confirmed",
+        status: "pending_payment", // Mantém como pendente até a confirmação do webhook
         createdAt: serverTimestamp(),
       };
 
       const docRef = await addDoc(collection(db, "appointments"), appointmentData);
 
-      // Redireciona para a página de sucesso enviando o ID do agendamento
-      router.push(`/client/checkout/sucesso?appointmentId=${docRef.id}`);
+      // 2. Chamada para a API de Checkout de Pagamento (Mercado Pago / Stripe)
+      const paymentResponse = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          appointmentId: docRef.id,
+          serviceName: service.name,
+          price: service.price,
+          userEmail: user.email,
+        }),
+      });
+
+      const paymentData = await paymentResponse.json();
+
+      if (paymentResponse.ok && paymentData.init_point) {
+        // Redireciona para o gateway de pagamento externo (Ex: Mercado Pago)
+        window.location.href = paymentData.init_point;
+      } else if (paymentResponse.ok && paymentData.url) {
+        // Redireciona para Stripe ou outro gateway se retornar 'url'
+        window.location.href = paymentData.url;
+      } else {
+        // Se a API de pagamento falhar, redireciona para a confirmação interna
+        console.warn("API de pagamento não retornou URL. Redirecionando para tela de sucesso local.");
+        router.push(`/client/checkout/sucesso?appointmentId=${docRef.id}`);
+      }
     } catch (err: any) {
-      console.error("Erro ao salvar agendamento:", err);
-      setErrorMessage("Ocorreu um erro ao processar o agendamento. Tente novamente.");
+      console.error("Erro ao processar agendamento e pagamento:", err);
+      setErrorMessage("Ocorreu um erro ao conectar com o meio de pagamento. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -86,7 +113,7 @@ function CheckoutContent() {
 
   return (
     <div className="container mx-auto max-w-xl p-4 space-y-6">
-      <h1 className="text-2xl font-bold">Confirmar Agendamento</h1>
+      <h1 className="text-2xl font-bold">Confirmar e Pagar</h1>
 
       {/* Resumo do Serviço */}
       <Card>
@@ -164,7 +191,7 @@ function CheckoutContent() {
           onClick={handleConfirmAppointment}
           disabled={isSubmitting || !selectedDate || !selectedTime}
         >
-          {isSubmitting ? "Finalizando..." : "Finalizar Agendamento"}
+          {isSubmitting ? "Gerando Pagamento..." : "Ir para Pagamento"}
         </Button>
       </div>
     </div>

@@ -107,7 +107,10 @@ export function Navbar() {
                     <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Painel" />
                   </>
                 ) : (
-                  <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
+                  <>
+                    <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
+                    <NavLink href="/client/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
+                  </>
                 )}
               </>
             )}
@@ -132,7 +135,7 @@ export function Navbar() {
                   </div>
                   <DropdownMenuSeparator />
                   
-                  {/* Opção "Minhas Reservas" apenas para Clientes */}
+                  {/* Opção "Minhas Reservas" no Menu do Usuário */}
                   {!isBarber && (
                     <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
                       <ClipboardList className="w-4 h-4 mr-2" />
