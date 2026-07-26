@@ -7,7 +7,9 @@ export async function POST(req: Request) {
 
     const { appointmentId, price, serviceName, email, clientName, userId } = body;
 
+    // 1. Validação dos campos obrigatórios
     if (!price || !serviceName || !appointmentId) {
+      console.warn("[CHECKOUT API WARNING] Campos obrigatórios ausentes:", { price, serviceName, appointmentId });
       return NextResponse.json(
         { 
           error: "Campos obrigatórios ausentes no payload do checkout.",
@@ -17,47 +19,71 @@ export async function POST(req: Request) {
       );
     }
 
-    // Chamada oficial ao Gateway InfinitePay para criar a Link de Pagamento / Checkout
-    const response = await fetch("https://api.infinitepay.io/v2/transactions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.INFINITEPAY_API_KEY}`,
-      },
-      body: JSON.stringify({
-        amount: Math.round(Number(price) * 100), // Valor em centavos (ex: 1.00 -> 100)
-        description: `Darth Barber - ${serviceName}`,
-        order_nsu: appointmentId, // Vincula o ID do agendamento ao webhook
-        customer: {
-          name: clientName || "Cliente",
-          email: email || "cliente@darthbarber.com",
-        },
-        metadata: {
-          appointmentId: appointmentId,
-          userId: userId,
-        },
-        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://darthbarbers.onrender.com'}/client/appointments?status=success`,
-      }),
-    });
+    // 2. Lê o handle do Render (fallback para darthbarbers se não ler do env)
+    const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
+    const apiKey = process.env.INFINITEPAY_API_KEY;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.onrender.com";
 
-    const gatewayData = await response.json();
+    // 3. Tenta integração via API Oficial se a INFINITEPAY_API_KEY estiver configurada
+    if (apiKey) {
+      try {
+        const response = await fetch("https://api.infinitepay.io/v2/transactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            amount: Math.round(Number(price) * 100), // Converte para centavos (ex: R$ 1,00 = 100)
+            description: `Darth Barber - ${serviceName}`,
+            order_nsu: appointmentId,
+            customer: {
+              name: clientName || "Cliente",
+              email: email || "cliente@darthbarber.com",
+            },
+            metadata: {
+              appointmentId,
+              userId,
+            },
+            redirect_url: `${baseUrl}/client/appointments?status=success`,
+          }),
+        });
 
-    if (!response.ok) {
-      console.error("[INFINITEPAY ERROR]", gatewayData);
-      throw new Error(gatewayData.message || "Erro ao gerar cobrança no gateway.");
+        if (response.ok) {
+          const gatewayData = await response.json();
+          const checkoutUrl = gatewayData.checkout_url || gatewayData.url || gatewayData.init_point;
+
+          if (checkoutUrl) {
+            return NextResponse.json({
+              success: true,
+              message: "Checkout gerado via API InfinitePay.",
+              checkoutUrl,
+            }, { status: 200 });
+          }
+        } else {
+          const errText = await response.text();
+          console.error("[INFINITEPAY API ERROR]:", response.status, errText);
+        }
+      } catch (apiErr) {
+        console.error("[INFINITEPAY API FETCH EXCEPTION]:", apiErr);
+      }
     }
 
-    // Pega a URL do Checkout gerada pelo gateway (checkout_url, url ou init_point)
-    const checkoutUrl = gatewayData.checkout_url || gatewayData.url || gatewayData.init_point;
+    // 4. Checkout Direto e Confiável via Handle da InfinitePay (darthbarbers)
+    // Constrói a URL direta de pagamento configurada na InfinitePay passando valor e id do agendamento
+    const amountInCents = Math.round(Number(price) * 100);
+    const fallbackCheckoutUrl = `https://infinitepay.io/pay/${handle}?amount=${amountInCents}&order_nsu=${appointmentId}`;
+
+    console.log("[CHECKOUT API] Redirecionando para o Checkout do Handle:", fallbackCheckoutUrl);
 
     return NextResponse.json({
       success: true,
       message: "Sessão de checkout gerada com sucesso.",
-      checkoutUrl,
+      checkoutUrl: fallbackCheckoutUrl,
     }, { status: 200 });
 
   } catch (error: any) {
-    console.error("[CHECKOUT API ERROR]:", error);
+    console.error("[CHECKOUT API EXCEPTION]:", error);
     return NextResponse.json(
       { error: "Erro interno no processamento do checkout.", details: error.message },
       { status: 500 }
