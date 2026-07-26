@@ -53,7 +53,7 @@ function AppointmentsContent() {
         setLoading(true);
         const q = query(
           collection(db, "appointments"),
-          where("clientId", "==", user.uid)
+          where("userId", "==", user.uid)
         );
 
         const querySnapshot = await getDocs(q);
@@ -64,6 +64,13 @@ function AppointmentsContent() {
             id: docSnap.id,
             ...docSnap.data(),
           } as Appointment);
+        });
+
+        // Ordena por data de criação mais recente
+        docs.sort((a, b) => {
+          const dateA = a.createdAt?.seconds || 0;
+          const dateB = b.createdAt?.seconds || 0;
+          return dateB - dateA;
         });
 
         setAppointments(docs);
