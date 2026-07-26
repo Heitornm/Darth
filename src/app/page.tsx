@@ -1,93 +1,106 @@
-'use client';
-
-export const dynamic = 'force-dynamic';
-
-import { useRouter } from 'next/navigation';
-import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
-import { BookingCalendarView } from '@/components/features/appointments/BookingCalendarView';
+import Link from 'next/link';
+import { Scissors, Calendar, ShieldCheck, Sparkles, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Clock, Scissors } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
+import { SERVICES } from '@/data/services';
 
-export default function Home() {
-  const router = useRouter();
-  const barberImage = PlaceHolderImages.find(img => img.id === 'barber-profile');
-
-  const handleTimeSlotSelect = (date: string, time: string) => {
-    router.push(`/client/appointments/new?date=${date}&time=${time}`);
-  };
-
+export default function HomePage() {
   return (
-    <div className="flex flex-col items-center min-h-[85vh] px-4 py-8 md:py-16 space-y-16 max-w-6xl mx-auto">
-      
-      {/* Cabeçalho */}
-      <div className="text-center space-y-4 max-w-2xl">
-        <h1 className="text-5xl md:text-7xl font-headline font-bold text-primary tracking-tight">
-          DARTH BARBER
-        </h1>
-        <p className="text-lg md:text-xl text-muted-foreground font-medium leading-relaxed">
-          Estilo, precisão e experiência premium. Confira os horários livres abaixo e agende seu atendimento.
-        </p>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      {/* Hero Section */}
+      <section className="relative py-20 md:py-32 overflow-hidden bg-gradient-to-b from-background via-background/80 to-card/50">
+        <div className="container mx-auto px-4 relative z-10 text-center max-w-4xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-6">
+            <Sparkles className="w-3.5 h-3.5" />
+            Estilo & Tradição
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 font-headline">
+            Sua experiência de barbearia num <span className="text-primary">novo nível</span>.
+          </h1>
+          
+          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
+            Agende seus cortes, barbas e tratamentos com os melhores profissionais da região em poucos cliques.
+          </p>
 
-      {/* Carrossel de Serviços */}
-      <div className="relative w-full overflow-hidden">
-        <ServiceCarousel />
-      </div>
-
-      {/* Calendário da Barbearia (Aberto a Todos) */}
-      <div className="w-full max-w-3xl space-y-4">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl font-headline font-bold text-foreground">Consulta de Agenda em Tempo Real</h2>
-          <p className="text-sm text-muted-foreground">Selecione o dia e o horário desejado para iniciar seu agendamento</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button asChild size="lg" className="w-full sm:w-auto gap-2 text-base px-8 py-6 rounded-xl">
+              <Link href="/client/appointments/new">
+                <Calendar className="w-5 h-5" />
+                Agendar Horário
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto gap-2 text-base px-8 py-6 rounded-xl">
+              <Link href="/services">
+                Ver Todos os Serviços
+              </Link>
+            </Button>
+          </div>
         </div>
-        
-        <BookingCalendarView onSelectTimeSlot={handleTimeSlotSelect} />
+      </section>
 
-        <div className="pt-2 text-center">
-          <Button 
-            onClick={() => router.push('/client/appointments/new')}
-            size="lg" 
-            className="h-14 px-8 text-lg font-headline bg-primary hover:bg-primary/90 rounded-2xl gap-3 shadow-xl shadow-primary/20"
-          >
-            <Scissors className="w-5 h-5" />
-            Ver Todos os Serviços e Agendar
+      {/* Carrossel / Lista de Serviços Principais */}
+      <section className="py-16 container mx-auto px-4">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight font-headline">
+              Nossos Serviços
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              Escolha o tratamento ideal para o seu visual.
+            </p>
+          </div>
+          <Button asChild variant="link" className="text-primary p-0 h-auto font-semibold mt-4 md:mt-0">
+            <Link href="/services">Ver tabela completa →</Link>
           </Button>
         </div>
-      </div>
 
-      {/* Cartão de Informações e Expediente */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 text-left pt-12 border-t border-primary/10">
-        <Card className="md:col-span-2 border-primary/20 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden">
-          <CardContent className="p-6 flex items-center gap-6">
-            <Avatar className="h-20 w-20 border-2 border-primary/30">
-              <AvatarImage
-                src={barberImage?.imageUrl}
-                alt="Darth Barber"
-                className="object-cover"
-              />
-              <AvatarFallback>DB</AvatarFallback>
-            </Avatar>
-            <div>
-              <h2 className="font-headline font-bold text-xl text-primary">Darth Barber</h2>
-              <p className="text-muted-foreground text-sm italic">Especialista em visagismo, cortes clássicos e barba completa sob medida.</p>
+        {/* Componente corrigido passando a prop 'services' */}
+        <ServiceCarousel services={SERVICES} />
+      </section>
+
+      {/* Diferenciais */}
+      <section className="py-16 bg-card/40 border-y">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex items-start gap-4 p-6 rounded-2xl bg-card border">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Sem Filas</h3>
+                <p className="text-sm text-muted-foreground">
+                  Agendamento online rápido e garantido no horário marcado.
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <div className="p-6 bg-accent/5 rounded-2xl border border-accent/20 flex flex-col justify-center">
-          <div className="flex items-center gap-3 mb-2">
-            <Clock className="w-5 h-5 text-accent" />
-            <h3 className="font-headline font-bold text-accent uppercase tracking-wider text-xs">Expediente Oficial</h3>
+            <div className="flex items-start gap-4 p-6 rounded-2xl bg-card border">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                <Scissors className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Profissionais Elite</h3>
+                <p className="text-sm text-muted-foreground">
+                  Especialistas nos cortes clássicos e tendências modernas.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 p-6 rounded-2xl bg-card border">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Ambiente Premium</h3>
+                <p className="text-sm text-muted-foreground">
+                  Espaço confortável com atendimento de alto padrão.
+                </p>
+              </div>
+            </div>
           </div>
-          <p className="text-sm font-semibold">Terça a Sábado: <span className="text-primary font-bold">09:00 — 21:00</span></p>
-          <p className="text-sm font-semibold mt-1">Domingos: <span className="text-primary font-bold">08:00 — 12:00</span></p>
-          <p className="text-[11px] text-muted-foreground mt-2">Segunda-feira: Fechado para manutenção institucional.</p>
         </div>
-      </div>
-
+      </section>
     </div>
   );
 }
