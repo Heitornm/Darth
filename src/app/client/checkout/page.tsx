@@ -58,7 +58,7 @@ function CheckoutContent() {
         userId: user.uid,
         clientId: user.uid,
         clientName: user.displayName || "Cliente",
-        clientEmail: user.email,
+        clientEmail: user.email || "",
         serviceId: service.id,
         serviceName: service.name,
         price: service.price,
@@ -66,28 +66,37 @@ function CheckoutContent() {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Redireciona para o fluxo de pagamento ou confirmação
+      // 2. Envia a requisição completa para a API de Checkout (evitando erro 400)
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appointmentId: appointmentRef.id,
           serviceId: service.id,
-          price: service.price,
           serviceName: service.name,
+          price: service.price,
+          email: user.email || "cliente@darthbarber.com",
+          clientName: user.displayName || "Cliente",
+          userId: user.uid,
         }),
       });
 
       const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Erro ao processar o pagamento.");
+      }
+
       if (data.url) {
         window.location.href = data.url;
+      } else if (data.init_point) {
+        window.location.href = data.init_point;
       } else {
         router.push('/client/appointments');
       }
     } catch (err: any) {
       console.error("Erro ao confirmar agendamento:", err);
-      setError("Falha ao processar o agendamento. Tente novamente.");
+      setError(err.message || "Falha ao processar o agendamento. Tente novamente.");
     } finally {
       setLoading(false);
     }
