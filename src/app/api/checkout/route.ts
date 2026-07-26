@@ -19,12 +19,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Lê o handle do Render (fallback para darthbarbers se não ler do env)
+    // 2. Variáveis de ambiente
     const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
     const apiKey = process.env.INFINITEPAY_API_KEY;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.onrender.com";
 
-    // 3. Tenta integração via API Oficial se a INFINITEPAY_API_KEY estiver configurada
+    // 3. Integração via API Oficial v2 (se a API Key estiver configurada no Render)
     if (apiKey) {
       try {
         const response = await fetch("https://api.infinitepay.io/v2/transactions", {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
             "Authorization": `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            amount: Math.round(Number(price) * 100), // Converte para centavos (ex: R$ 1,00 = 100)
+            amount: Math.round(Number(price) * 100), // Em centavos para a API oficial
             description: `Darth Barber - ${serviceName}`,
             order_nsu: appointmentId,
             customer: {
@@ -69,12 +69,14 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Checkout Direto e Confiável via Handle da InfinitePay (darthbarbers)
-    // Constrói a URL direta de pagamento configurada na InfinitePay passando valor e id do agendamento
-    const amountInCents = Math.round(Number(price) * 100);
-    const fallbackCheckoutUrl = `https://infinitepay.io/pay/${handle}?amount=${amountInCents}&order_nsu=${appointmentId}`;
+    // 4. Checkout Direto via Handle (com formatação em Reais ou Link Limpo)
+    // Converte o valor para float formatado (ex: R$ 35.00)
+    const formattedPrice = Number(price).toFixed(2);
+    
+    // Formato de link público da InfinitePay com valor e referência do agendamento
+    const fallbackCheckoutUrl = `https://infinitepay.io/pay/${handle}/${formattedPrice}?order_nsu=${appointmentId}`;
 
-    console.log("[CHECKOUT API] Redirecionando para o Checkout do Handle:", fallbackCheckoutUrl);
+    console.log("[CHECKOUT API] Redirecionando para:", fallbackCheckoutUrl);
 
     return NextResponse.json({
       success: true,
