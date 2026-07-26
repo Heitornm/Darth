@@ -4,6 +4,7 @@ export interface ServiceItem {
   price: number;
   description?: string;
   duration?: number | string;
+  image?: string;
   imageUrl?: string;
 }
 
@@ -14,7 +15,7 @@ export const SERVICES: ServiceItem[] = [
     price: 1.0,
     description: "Corte moderno ou tradicional ajustado ao seu estilo.",
     duration: 30,
-    imageUrl: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800",
   },
   {
     id: "barba",
@@ -22,7 +23,7 @@ export const SERVICES: ServiceItem[] = [
     price: 1.0,
     description: "Modelagem de barba com toalha quente e finalização.",
     duration: 30,
-    imageUrl: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&q=80&w=800",
   },
   {
     id: "combo",
@@ -30,6 +31,6 @@ export const SERVICES: ServiceItem[] = [
     price: 1.0,
     description: "Serviço completo de corte e barba com desconto especial.",
     duration: 60,
-    imageUrl: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=800",
+    image: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80&w=800",
   },
 ];
