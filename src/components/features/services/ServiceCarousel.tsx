@@ -23,9 +23,7 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {services.map((service) => {
-        // Fallback seguro de imagem caso service.image venha indefinido
         const imageUrl = service.image || "/images/placeholder-service.jpg";
-        // Garante a exibição do tempo de duração de forma tratada
         const durationDisplay = service.duration || (service as any).durationMinutes || "30";
 
         return (
@@ -62,7 +60,7 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
 
             <CardFooter className="pt-2">
               <Button asChild className="w-full gap-2">
-                <Link href={`/client/checkout?serviceId=${service.id}`}>
+                <Link href={`/client/appointments/new?serviceId=${service.id}`}>
                   <Scissors className="w-4 h-4" />
                   Agendar este serviço
                 </Link>
