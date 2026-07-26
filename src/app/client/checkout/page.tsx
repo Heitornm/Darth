@@ -6,7 +6,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { 
   Scissors, 
-  Calendar, 
   Clock, 
   CheckCircle2, 
   ArrowLeft, 
