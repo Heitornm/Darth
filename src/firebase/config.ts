@@ -1,5 +1,5 @@
 // 1. Exporta a inicialização do cliente (db, auth, app)
-export * from '@/lib/firebase';
+export * from '@/firebase/firebase';
 
 // 2. Exporta os hooks personalizados do Firestore
 export { useCollection } from './firestore/use-collection';

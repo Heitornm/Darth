@@ -6,7 +6,6 @@ import Autoplay from 'embla-carousel-autoplay';
 import { Clock } from 'lucide-react';
 import { SERVICES } from '@/data/services';
 import { BookingButton } from './BookingButton';
-import { MouseEvent } from 'react';
 
 interface ServiceCarouselProps {
   onSelectService?: (service: typeof SERVICES[0]) => void;

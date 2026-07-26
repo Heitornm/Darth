@@ -2,7 +2,7 @@
 
 import { type ReactNode } from 'react';
 import { FirebaseProvider } from './provider'; // ✅ Correção: Importação relativa limpa para quebrar o loop circular
-import { app, auth, db } from '@/lib/firebase';
+import { app, auth, db } from '@/firebase/firebase';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;

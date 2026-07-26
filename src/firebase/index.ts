@@ -1,5 +1,5 @@
 // 1. Inicialização do Cliente vinda da lib (Garante a exportação de app, auth e db)
-import { app, auth, db } from '@/lib/firebase';
+import { app, auth, db } from '@/firebase/firebase';
 export { app, auth, db };
 
 // 2. Elementos Core do Contexto (Hooks e Provider)
