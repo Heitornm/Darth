@@ -19,7 +19,6 @@ import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-// 🚀 IMPORTANTE: Importação centralizada dos serviços oficiais
 import { SERVICES } from '@/data/services';
 
 const TIME_SLOTS = [
@@ -44,14 +43,12 @@ function NewAppointmentContent() {
   const [serviceId, setServiceId] = useState<string>("");
   const [time, setTime] = useState<string>("");
 
-  // Pré-seleciona o serviço caso um ID válido venha na Query String da URL
   useEffect(() => {
     if (urlServiceId) {
       setServiceId(urlServiceId);
     }
   }, [urlServiceId]);
 
-  // Busca o serviço correspondente na lista importada
   const selectedService = useMemo(() => {
     return SERVICES.find(s => s.id === serviceId);
   }, [serviceId]);
@@ -81,7 +78,6 @@ function NewAppointmentContent() {
     const slotStart = new Date(date);
     slotStart.setHours(hours, minutes, 0, 0);
 
-    // Suporte flexível para 'duration' ou 'durationMinutes'
     const duration = Number(selectedService.duration) || (selectedService as any).durationMinutes || 30;
     const slotEnd = addMinutes(slotStart, duration);
 
@@ -92,12 +88,11 @@ function NewAppointmentContent() {
     return !appointments.filter(a => {
       if (a.status === 'cancelado' || a.status === 'canceled') return false;
 
-      // Bloqueio temporário de 10 minutos para agendamentos pendentes
       if (a.status === 'pendente' || a.status === 'pending') {
         const createdAt = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || Date.now());
         const expiresAt = new Date(createdAt.getTime() + 10 * 60 * 1000);
         if (isAfter(now, expiresAt)) {
-          return false; // Trava expirada: libera slot
+          return false;
         }
       }
       return true;
@@ -129,109 +124,108 @@ function NewAppointmentContent() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="text-center mb-12">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="text-center mb-10">
         <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-primary/20">
-            <CardHeader className="bg-primary/5">
-              <CardTitle className="font-headline flex items-center gap-3 text-primary">
-                <Scissors className="w-5 h-5" /> Reserva de Horário
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
+      {/* Centralização do card principal */}
+      <div className="flex justify-center w-full">
+        <Card className="w-full max-w-2xl border-primary/20 shadow-md">
+          <CardHeader className="bg-primary/5">
+            <CardTitle className="font-headline flex items-center gap-3 text-primary">
+              <Scissors className="w-5 h-5" /> Reserva de Horário
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 md:p-8 space-y-8">
+            <div className="space-y-3">
+              <Label>1. Serviço</Label>
+              <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
+                <SelectTrigger className="w-full h-12">
+                  <SelectValue placeholder="Escolha um serviço" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SERVICES.map(srv => (
+                    <SelectItem key={srv.id} value={srv.id}>
+                      {srv.name} — R$ {Number(srv.price).toFixed(2)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <Label>1. Serviço</Label>
-                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
+                <Label>2. Dia</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
+                      {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={(d) => {
+                        if (d) {
+                          if (isDayFull(d)) {
+                            toast({ title: "Dia lotado", description: "Infelizmente não há horários disponíveis.", variant: "destructive" });
+                            return;
+                          }
+                          setDate(d);
+                          setTime("");
+                        }
+                      }}
+                      locale={ptBR}
+                      disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
+                      modifiers={{
+                        full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
+                      }}
+                      modifiersStyles={{
+                        full: {
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          opacity: 1
+                        }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-3">
+                <Label>3. Hora</Label>
+                <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
                   <SelectTrigger className="w-full h-12">
-                    <SelectValue placeholder="Escolha um serviço" />
+                    <Clock className="w-4 h-4 mr-3 text-primary" />
+                    <SelectValue placeholder="Escolha a hora" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SERVICES.map(srv => (
-                      <SelectItem key={srv.id} value={srv.id}>
-                        {srv.name} — R$ {Number(srv.price).toFixed(2)}
-                      </SelectItem>
-                    ))}
+                    {TIME_SLOTS.map(slot => {
+                      const available = isTimeSlotAvailable(slot);
+                      return (
+                        <SelectItem key={slot} value={slot} disabled={!available}>
+                          {slot} {!available && "(Ocupado)"}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label>2. Dia</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(d) => {
-                          if (d) {
-                            if (isDayFull(d)) {
-                              toast({ title: "Dia lotado", description: "Infelizmente não há horários disponíveis.", variant: "destructive" });
-                              return;
-                            }
-                            setDate(d);
-                            setTime("");
-                          }
-                        }}
-                        locale={ptBR}
-                        disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
-                        modifiers={{
-                          full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
-                        }}
-                        modifiersStyles={{
-                          full: {
-                            backgroundColor: '#ef4444',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            opacity: 1
-                          }
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-3">
-                  <Label>3. Hora</Label>
-                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
-                    <SelectTrigger className="w-full h-12">
-                      <Clock className="w-4 h-4 mr-3 text-primary" />
-                      <SelectValue placeholder="Escolha a hora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_SLOTS.map(slot => {
-                        const available = isTimeSlotAvailable(slot);
-                        return (
-                          <SelectItem key={slot} value={slot} disabled={!available}>
-                            {slot} {!available && "(Ocupado)"}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button
-                className="w-full h-14 text-xl font-headline"
-                onClick={handleBooking}
-                disabled={!date || !serviceId || !time}
-              >
-                Prosseguir para o Pagamento
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            <Button
+              className="w-full h-14 text-xl font-headline"
+              onClick={handleBooking}
+              disabled={!date || !serviceId || !time}
+            >
+              Prosseguir para o Pagamento
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
