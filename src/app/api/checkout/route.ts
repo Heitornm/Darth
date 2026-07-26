@@ -3,14 +3,11 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
-    // Log para depuração de desenvolvimento
     console.log("[CHECKOUT API] Payload recebido:", body);
 
     const { appointmentId, price, serviceName, userId } = body;
 
-    // Validação de presença dos campos obrigatórios
-    if (!price || !serviceName) {
+    if (!price || !serviceName || !appointmentId) {
       return NextResponse.json(
         { 
           error: "Campos obrigatórios ausentes no payload do checkout.",
@@ -20,11 +17,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Lógica da criação de sessão ou cobrança
+    // Integração com gateway de pagamento enviando appointmentId como referência da ordem
+    const checkoutUrl = `/client/appointments?status=success&id=${appointmentId}`;
+
     return NextResponse.json({
       success: true,
       message: "Sessão de checkout gerada com sucesso.",
-      checkoutUrl: `/client/checkout/sucesso?id=${appointmentId || 'draft'}`
+      checkoutUrl
     }, { status: 200 });
 
   } catch (error: any) {

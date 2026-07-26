@@ -23,7 +23,7 @@ interface Appointment {
   id: string;
   serviceName: string;
   price: number;
-  status: 'pending' | 'confirmed' | 'canceled' | 'completed';
+  status: 'pendente' | 'pending' | 'confirmado' | 'confirmed' | 'cancelado' | 'canceled' | 'concluido' | 'completed';
   createdAt?: any;
   date?: string;
   time?: string;
@@ -51,7 +51,6 @@ function AppointmentsContent() {
 
       try {
         setLoading(true);
-        // Busca agendamentos associados ao usuário logado
         const q = query(
           collection(db, "appointments"),
           where("clientId", "==", user.uid)
@@ -81,18 +80,21 @@ function AppointmentsContent() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'confirmado':
       case 'confirmed':
         return (
           <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Confirmado
           </Badge>
         );
+      case 'concluido':
       case 'completed':
         return (
           <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> Concluído
           </Badge>
         );
+      case 'cancelado':
       case 'canceled':
         return (
           <Badge variant="destructive" className="gap-1">
@@ -102,7 +104,7 @@ function AppointmentsContent() {
       default:
         return (
           <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 gap-1">
-            <Hourglass className="w-3.5 h-3.5" /> Pendente
+            <Hourglass className="w-3.5 h-3.5" /> Aguardando Pagamento (10 min)
           </Badge>
         );
     }
@@ -140,7 +142,7 @@ function AppointmentsContent() {
           <p className="text-sm text-muted-foreground">Acompanhe seus horários e histórico de serviços</p>
         </div>
         <Button asChild className="rounded-xl gap-2 font-semibold">
-          <Link href="/services">
+          <Link href="/client/appointments/new">
             <Plus className="w-4 h-4" /> Novo Agendamento
           </Link>
         </Button>
@@ -157,7 +159,7 @@ function AppointmentsContent() {
               <p className="text-sm text-muted-foreground">Você ainda não possui reservas ativas.</p>
             </div>
             <Button asChild variant="outline" className="rounded-xl">
-              <Link href="/services">Agendar um Serviço</Link>
+              <Link href="/client/appointments/new">Agendar um Serviço</Link>
             </Button>
           </CardContent>
         </Card>
@@ -174,7 +176,7 @@ function AppointmentsContent() {
                   <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-primary" />
-                      <span>{app.date ? `${app.date} às ${app.time}` : "Aguardando confirmação"}</span>
+                      <span>{app.date ? `${app.date.split('-').reverse().join('/')} às ${app.time}` : "Aguardando confirmação"}</span>
                     </div>
                     <span className="font-semibold text-foreground">
                       R$ {Number(app.price || 0).toFixed(2)}

@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Captura os dados enviados pela InfinitePay
+    // Captura os dados da notificação de pagamento do gateway (order_nsu representa o appointmentId)
     const { order_nsu, paid } = body;
 
     if (paid && order_nsu) {
@@ -16,7 +16,6 @@ export async function POST(request: Request) {
 
       console.log(`[Webhook InfinitePay] Atualizando agendamento ${order_nsu} para confirmado.`);
       
-      // Localiza e atualiza usando a instância segura de Administrador
       const appointmentRef = adminDb.collection('appointments').doc(order_nsu);
       
       await appointmentRef.update({
@@ -25,10 +24,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // Retorna status 200 obrigatório exigido pela InfinitePay
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error: any) {
-    console.error('Erro ao processar Webhook da InfinitePay:', error);
+    console.error('Erro ao processar Webhook:', error);
     return NextResponse.json({ error: 'Erro no processamento do webhook' }, { status: 400 });
   }
 }
