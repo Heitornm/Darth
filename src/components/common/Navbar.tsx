@@ -14,6 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { NotificationMenu } from '@/components/common/NotificationMenu';
+import { NotificationListener } from '@/components/common/NotificationListener';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
@@ -85,6 +87,9 @@ export function Navbar() {
 
   return (
     <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50 h-16">
+      {/* Listener global de notificações ativado em background */}
+      <NotificationListener />
+
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
@@ -116,44 +121,49 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="flex items-center min-w-[40px] justify-end">
+          <div className="flex items-center gap-2 min-w-[40px] justify-end">
             {!isMounted || isUserLoading ? (
               <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse border border-primary/10" />
             ) : user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0 focus-visible:ring-0">
-                    <User className="w-5 h-5 text-primary" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 mt-2">
-                  <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
-                    <p className="text-xs leading-none text-muted-foreground truncate">
-                      {user.email}
-                    </p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  
-                  {/* Opção "Minhas Reservas" no Menu do Usuário */}
-                  {!isBarber && (
-                    <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
-                      <ClipboardList className="w-4 h-4 mr-2" />
-                      Minhas Reservas
-                    </DropdownMenuItem>
-                  )}
+              <>
+                {/* Menu com Sininho e Popover de Notificações */}
+                <NotificationMenu />
 
-                  <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Editar Perfil
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer focus:text-red-500">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sair da Conta
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0 focus-visible:ring-0">
+                      <User className="w-5 h-5 text-primary" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 mt-2">
+                    <div className="flex flex-col space-y-1 p-2">
+                      <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
+                      <p className="text-xs leading-none text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    
+                    {/* Opção "Minhas Reservas" no Menu do Usuário */}
+                    {!isBarber && (
+                      <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
+                        <ClipboardList className="w-4 h-4 mr-2" />
+                        Minhas Reservas
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Editar Perfil
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer focus:text-red-500">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sair da Conta
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <Button asChild size="sm" className="rounded-full px-4 sm:px-6 bg-primary hover:bg-primary/90">
                 <Link href="/login" className="flex items-center gap-2">

@@ -70,7 +70,7 @@ function CheckoutContent() {
       // Tratamento para ler duração independente do nome do tipo em ServiceItem
       const durationVal = (service as any).durationMinutes || Number(service.duration) || 30;
 
-      // 1. Cria o registro no Firestore com status pendente (reserva por 10 min)
+      // 1. Cria o registro do agendamento no Firestore
       const appointmentRef = await addDoc(collection(db, "appointments"), {
         userId: user.uid,
         clientId: user.uid,
@@ -85,6 +85,19 @@ function CheckoutContent() {
         date: dateStr,
         time: timeStr,
         status: "pendente",
+        createdAt: serverTimestamp(),
+      });
+
+      // 1.5. Dispara a notificação para o Master Barber
+      const formattedDate = dateStr.split('-').reverse().join('/');
+      await addDoc(collection(db, "notifications"), {
+        toId: MASTER_BARBER_ID,
+        fromId: user.uid,
+        title: '✂️ Novo Agendamento Recebido',
+        message: `${user.displayName || user.email || 'Um cliente'} agendou ${service.name} para ${formattedDate} às ${timeStr}.`,
+        type: 'new_appointment',
+        appointmentId: appointmentRef.id,
+        read: false,
         createdAt: serverTimestamp(),
       });
 

@@ -2,9 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { query, collection, where, orderBy, limit, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { query, collection, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Scissors } from 'lucide-react'; // 👈 Removido o 'Bell' daqui
+import { Scissors, AlertTriangle, DollarSign } from 'lucide-react'; // 👈 Removido o 'Bell'
 
 export function NotificationListener() {
   const { user } = useUser();
@@ -29,35 +29,50 @@ export function NotificationListener() {
     if (notifications && notifications.length > 0) {
       notifications.forEach((notif) => {
         const createdAt = notif.createdAt instanceof Timestamp ? notif.createdAt.toMillis() : 0;
-        
-        // Apenas processar notificações novas criadas após o componente carregar
+
         if (createdAt > lastProcessedTime.current) {
+          let IconComponent = Scissors;
+          let iconBg = 'bg-primary';
+
+          if (notif.type === 'cancellation_request') {
+            IconComponent = AlertTriangle;
+            iconBg = 'bg-amber-500';
+          } else if (notif.type === 'payment_confirmed') {
+            IconComponent = DollarSign;
+            iconBg = 'bg-emerald-500';
+          }
+
           toast({
-            title: "Novo Agendamento!",
+            title: notif.title || 'Novo Aviso!',
             description: notif.message,
+            variant: notif.type === 'cancellation_request' ? 'destructive' : 'default',
             action: (
-              <div className="bg-primary p-2 rounded-full">
-                <Scissors className="w-4 h-4 text-primary-foreground" />
+              <div className={`${iconBg} p-2 rounded-full text-white`}>
+                <IconComponent className="w-4 h-4 text-primary-foreground" />
               </div>
             ),
           });
-          
-          // Marcar como lida
-          if (db) {
-            const notifRef = doc(db, 'notifications', notif.id);
-            updateDoc(notifRef, { read: true });
+
+          try {
+            const audio = new Audio('/sounds/notification.mp3');
+            audio.volume = 0.6;
+            audio.play().catch(() => {});
+          } catch (e) {
+            console.error('Erro ao reproduzir som do aviso:', e);
           }
         }
       });
-      
-      const newest = Math.max(...notifications.map(n => 
-        n.createdAt instanceof Timestamp ? n.createdAt.toMillis() : 0
-      ));
+
+      const newest = Math.max(
+        ...notifications.map((n) =>
+          n.createdAt instanceof Timestamp ? n.createdAt.toMillis() : 0
+        )
+      );
       if (newest > lastProcessedTime.current) {
         lastProcessedTime.current = newest;
       }
     }
-  }, [notifications, toast, db]);
+  }, [notifications, toast]);
 
   return null;
 }

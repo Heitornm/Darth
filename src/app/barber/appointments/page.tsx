@@ -1,236 +1,128 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
+import { useState, useEffect } from 'react';
+import { db } from '@/firebase/config';
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors } from 'lucide-react';
-import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+interface Appointment {
+  id: string;
+  userName?: string;
+  userEmail?: string;
+  serviceName: string;
+  date: string;
+  time: string;
+  price: number;
+  status: 'pendente' | 'confirmado' | 'solicitado_cancelamento' | 'concluido' | 'cancelado';
+  previousStatus?: string;
+}
 
-import { Calendar } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { useFirebase } from '@/firebase';
-import { collection, Timestamp, addDoc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+export default function BarberAppointmentsPage() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const SERVICES = [
-  { id: 'srv-1', name: 'Corte Clássico', price: 50, durationMinutes: 30 },
-  { id: 'srv-2', name: 'Barba Completa', price: 40, durationMinutes: 30 },
-  { id: 'srv-3', name: 'Combo (Corte + Barba)', price: 80, durationMinutes: 60 },
-  { id: 'srv-4', name: 'Corte Premium', price: 70, durationMinutes: 45 },
-];
+  useEffect(() => {
+    const appointmentsRef = collection(db, 'appointments');
 
-const TIME_SLOTS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
-];
+    const unsubscribe = onSnapshot(appointmentsRef, (snapshot) => {
+      const list: Appointment[] = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as Appointment[];
 
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
-const WORK_START = 8;
-const WORK_END = 21;
-const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
-
-export default function ClientAppointmentsPage() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user, appointments, firestore } = useFirebase();
-
-  const [date, setDate] = useState<Date>();
-  const [serviceId, setServiceId] = useState<string>("");
-  const [time, setTime] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-
-  const selectedService = SERVICES.find(s => s.id === serviceId);
-
-  const availabilityData = useMemo(() => {
-    if (!appointments) return {};
-    const stats: Record<string, number> = {};
-    appointments.forEach(apt => {
-      if (apt.status === 'cancelado') return;
-      const aptDate = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
-      const dayKey = format(aptDate, 'yyyy-MM-dd');
-      stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
+      // Ordena pelos mais recentes
+      list.sort((a, b) => new Date(`${b.date}T${b.time || '00:00'}`).getTime() - new Date(`${a.date}T${a.time || '00:00'}`).getTime());
+      setAppointments(list);
+      setLoading(false);
     });
-    return stats;
-  }, [appointments]);
 
-  const isDayFull = (d: Date) => {
-    const dayKey = format(d, 'yyyy-MM-dd');
-    const occupied = availabilityData[dayKey] || 0;
-    return occupied >= TOTAL_MINUTES_PER_DAY;
-  };
+    return () => unsubscribe();
+  }, []);
 
-  const isTimeSlotAvailable = (timeSlot: string) => {
-    if (!date || !selectedService || !appointments) return true;
-
-    const [hours, minutes] = timeSlot.split(':').map(Number);
-    const slotStart = new Date(date);
-    slotStart.setHours(hours, minutes, 0, 0);
-    const slotEnd = addMinutes(slotStart, selectedService.durationMinutes);
-
-    if (isBefore(slotStart, new Date())) return false;
-
-    return !appointments.filter(a => a.status !== 'cancelado').some(apt => {
-      const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
-      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
-      return isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
-    });
-  };
-
-  const handleBooking = () => {
-    if (!user || !firestore) {
-      toast({ title: "Login necessário", description: "Faça login para agendar." });
-      router.push('/login');
-      return;
+  // Barbeiro/Admin confirma o cancelamento definitivo
+  const handleApproveCancellation = async (appointmentId: string) => {
+    try {
+      const docRef = doc(db, 'appointments', appointmentId);
+      await updateDoc(docRef, {
+        status: 'cancelado',
+        cancelledBy: 'barber_admin',
+        cancelledAt: new Date(),
+      });
+      alert('Cancelamento confirmado.');
+    } catch (error) {
+      console.error('Erro ao cancelar agendamento:', error);
+      alert('Erro ao atualizar status.');
     }
-
-    if (!date || !serviceId || !time) {
-      toast({ title: "Campos obrigatórios", description: "Preencha tudo.", variant: "destructive" });
-      return;
-    }
-
-    setLoading(true);
-    const [hours, minutes] = time.split(':').map(Number);
-    const appointmentDate = new Date(date);
-    appointmentDate.setHours(hours, minutes, 0, 0);
-
-    const appointmentData = {
-      clientId: user.uid,
-      clientEmail: user.email,
-      clientName: user.displayName || user.email,
-      barberId: MASTER_BARBER_ID,
-      serviceId,
-      serviceName: selectedService?.name,
-      durationMinutes: selectedService?.durationMinutes,
-      price: selectedService?.price,
-      dataHora: Timestamp.fromDate(appointmentDate),
-      status: 'pendente',
-      createdAt: Timestamp.now(),
-    };
-
-    addDoc(collection(firestore, "appointments"), appointmentData)
-      .then(() => {
-        toast({ title: "Sucesso!", description: "Seu agendamento foi realizado." });
-        router.push('/client/my-appointments');
-      })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: 'appointments',
-          operation: 'create',
-          requestResourceData: appointmentData,
-        } satisfies SecurityRuleContext));
-      })
-      .finally(() => setLoading(false));
   };
+
+  // Barbeiro/Admin recusa a solicitação de cancelamento
+  const handleRejectCancellation = async (appointmentId: string) => {
+    try {
+      const docRef = doc(db, 'appointments', appointmentId);
+      // Retorna para o status de confirmado (ou pendente)
+      await updateDoc(docRef, {
+        status: 'confirmado',
+      });
+      alert('Solicitação de cancelamento recusada. Agendamento mantido.');
+    } catch (error) {
+      console.error('Erro ao recusar cancelamento:', error);
+    }
+  };
+
+  if (loading) {
+    return <p className="p-8 text-zinc-400">Carregando painel do barbeiro...</p>;
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
-      </div>
+    <main className="min-h-screen bg-zinc-950 text-white p-6 max-w-5xl mx-auto">
+      <h1 className="text-2xl font-bold text-amber-500 mb-6">Painel do Barbeiro - Agendamentos</h1>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-primary/20">
-            <CardHeader className="bg-primary/5">
-              <CardTitle className="font-headline flex items-center gap-3 text-primary">
-                <Scissors className="w-5 h-5" /> Reserva
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="space-y-3">
-                <Label>1. Serviço</Label>
-                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
-                  <SelectTrigger className="w-full h-12">
-                    <SelectValue placeholder="Escolha um serviço" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SERVICES.map(srv => (
-                      <SelectItem key={srv.id} value={srv.id}>{srv.name} — R$ {srv.price}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      <div className="space-y-4">
+        {appointments.map((app) => (
+          <div
+            key={app.id}
+            className={`p-5 rounded-xl border ${
+              app.status === 'solicitado_cancelamento'
+                ? 'bg-amber-950/20 border-amber-500/50'
+                : 'bg-zinc-900 border-zinc-800'
+            }`}
+          >
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h3 className="font-bold text-lg">{app.serviceName}</h3>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300">
+                    {app.status}
+                  </span>
+                </div>
+                <p className="text-sm text-zinc-400 mt-1">
+                  Cliente: <strong className="text-zinc-200">{app.userName || app.userEmail || 'Não informado'}</strong>
+                </p>
+                <p className="text-sm text-zinc-400">
+                  Data: {app.date} às {app.time} — R$ {Number(app.price).toFixed(2)}
+                </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label>2. Dia</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(d) => {
-                          if (d) {
-                            if (isDayFull(d)) {
-                              toast({ title: "Dia lotado", description: "Infelizmente não há horários.", variant: "destructive" });
-                              return;
-                            }
-                            setDate(d);
-                            setTime("");
-                          }
-                        }}
-                        locale={ptBR}
-                        disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
-                        modifiers={{
-                          full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
-                        }}
-                        modifiersStyles={{
-                          full: {
-                            backgroundColor: '#ef4444',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            opacity: 1
-                          }
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+              {/* Ações exclusivas para solicitações de cancelamento */}
+              {app.status === 'solicitado_cancelamento' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleApproveCancellation(app.id)}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition"
+                  >
+                    Confirmar Cancelamento
+                  </button>
+                  <button
+                    onClick={() => handleRejectCancellation(app.id)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-3 py-1.5 rounded-lg text-xs transition"
+                  >
+                    Manter Agendamento
+                  </button>
                 </div>
-
-                <div className="space-y-3">
-                  <Label>3. Hora</Label>
-                  <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
-                    <SelectTrigger className="w-full h-12">
-                      <Clock className="w-4 h-4 mr-3 text-primary" />
-                      <SelectValue placeholder="Escolha a hora" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIME_SLOTS.map(slot => {
-                        const available = isTimeSlotAvailable(slot);
-                        return <SelectItem key={slot} value={slot} disabled={!available}>{slot} {!available && "(Ocupado)"}</SelectItem>;
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button
-                className="w-full h-14 text-xl font-headline"
-                onClick={handleBooking}
-                disabled={loading || !date || !serviceId || !time}
-              >
-                Confirmar Reserva
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+    </main>
   );
 }

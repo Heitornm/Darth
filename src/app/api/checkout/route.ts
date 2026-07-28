@@ -5,7 +5,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("[CHECKOUT API] Payload recebido:", body);
 
-    const { appointmentId, price, serviceName, email, clientName } = body;
+    const { appointmentId, price, serviceName } = body;
 
     // 1. Validação dos campos obrigatórios
     if (!price || !serviceName || !appointmentId) {
