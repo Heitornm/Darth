@@ -5,83 +5,63 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("[CHECKOUT API] Payload recebido:", body);
 
-    const { appointmentId, price, serviceName, email, clientName, userId } = body;
+    const { appointmentId, price, serviceName, email, clientName } = body;
 
     // 1. Validação dos campos obrigatórios
     if (!price || !serviceName || !appointmentId) {
-      console.warn("[CHECKOUT API WARNING] Campos obrigatórios ausentes:", { price, serviceName, appointmentId });
       return NextResponse.json(
-        { 
-          error: "Campos obrigatórios ausentes no payload do checkout.",
-          received: { price, serviceName, appointmentId, userId }
-        },
+        { error: "Campos obrigatórios ausentes no payload." },
         { status: 400 }
       );
     }
 
-    // 2. Variáveis de ambiente
     const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
-    const apiKey = process.env.INFINITEPAY_API_KEY;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.onrender.com";
 
-    // 3. Integração via API Oficial v2 (se a API Key estiver configurada no Render)
-    if (apiKey) {
-      try {
-        const response = await fetch("https://api.infinitepay.io/v2/transactions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            amount: Math.round(Number(price) * 100), // Em centavos para a API oficial
+    // 2. Converte o preço para centavos (ex: R$ 35,00 = 3500)
+    const amountInCents = Math.round(Number(price) * 100);
+
+    // 3. Chamada à API Oficial de Checkout da InfinitePay
+    const response = await fetch("https://api.checkout.infinitepay.io/links", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        handle: handle,
+        redirect_url: `${baseUrl}/client/appointments?status=success`,
+        webhook_url: `${baseUrl}/api/webhooks/infinitepay`,
+        order_nsu: appointmentId,
+        items: [
+          {
+            quantity: 1,
+            price: amountInCents,
             description: `Darth Barber - ${serviceName}`,
-            order_nsu: appointmentId,
-            customer: {
-              name: clientName || "Cliente",
-              email: email || "cliente@darthbarber.com",
-            },
-            metadata: {
-              appointmentId,
-              userId,
-            },
-            redirect_url: `${baseUrl}/client/appointments?status=success`,
-          }),
-        });
+          },
+        ],
+      }),
+    });
 
-        if (response.ok) {
-          const gatewayData = await response.json();
-          const checkoutUrl = gatewayData.checkout_url || gatewayData.url || gatewayData.init_point;
+    const responseData = await response.json();
 
-          if (checkoutUrl) {
-            return NextResponse.json({
-              success: true,
-              message: "Checkout gerado via API InfinitePay.",
-              checkoutUrl,
-            }, { status: 200 });
-          }
-        } else {
-          const errText = await response.text();
-          console.error("[INFINITEPAY API ERROR]:", response.status, errText);
-        }
-      } catch (apiErr) {
-        console.error("[INFINITEPAY API FETCH EXCEPTION]:", apiErr);
-      }
+    if (response.ok && (responseData.url || responseData.checkout_url)) {
+      const checkoutUrl = responseData.url || responseData.checkout_url;
+      console.log("[CHECKOUT API] Link de checkout gerado com sucesso:", checkoutUrl);
+
+      return NextResponse.json({
+        success: true,
+        checkoutUrl,
+      }, { status: 200 });
     }
 
-    // 4. Checkout Direto via Handle (com formatação em Reais ou Link Limpo)
-    // Converte o valor para float formatado (ex: R$ 35.00)
-    const formattedPrice = Number(price).toFixed(2);
-    
-    // Formato de link público da InfinitePay com valor e referência do agendamento
-    const fallbackCheckoutUrl = `https://infinitepay.io/pay/${handle}/${formattedPrice}?order_nsu=${appointmentId}`;
+    console.error("[CHECKOUT API ERROR] Falha na API da InfinitePay:", responseData);
 
-    console.log("[CHECKOUT API] Redirecionando para:", fallbackCheckoutUrl);
-
+    // 4. Fallback para a página pública do handle se a API não retornar a URL
+    const fallbackUrl = `https://infinitepay.io/pay/${handle}`;
     return NextResponse.json({
       success: true,
-      message: "Sessão de checkout gerada com sucesso.",
-      checkoutUrl: fallbackCheckoutUrl,
+      message: "Redirecionando para o perfil do estabelecimento.",
+      checkoutUrl: fallbackUrl,
     }, { status: 200 });
 
   } catch (error: any) {
