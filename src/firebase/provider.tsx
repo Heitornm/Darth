@@ -2,11 +2,9 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, collection, query, where, orderBy, onSnapshot, doc } from 'firebase/firestore';
+import { Firestore, collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/common/FirebaseErrorListener';
-
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -31,19 +29,6 @@ export interface FirebaseContextState {
   appointments: any[] | null;
   isUserLoading: boolean;
   isAppointmentsLoading: boolean;
-  userError: Error | null;
-}
-
-export interface FirebaseServicesAndUser extends FirebaseContextState {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-}
-
-export interface UserHookResult {
-  user: User | null;
-  userProfile: any | null;
-  isUserLoading: boolean;
   userError: Error | null;
 }
 
@@ -101,8 +86,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   }, [userAuthState.user, firestore]);
 
   useEffect(() => {
-    // CORREÇÃO CIRÚRGICA: Evita que a query global execute sem que o usuário esteja autenticado.
-    // Isso impede o disparo do erro de permissões insuficientes no console.
+    // Garante a execução da query somente quando o usuário estiver autenticado
     if (!firestore || !userAuthState.user) {
       setAppointments(null);
       setIsAppointmentsLoading(false);
@@ -113,8 +97,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     
     const q = query(
       collection(firestore, 'appointments'), 
-      where('barberId', '==', MASTER_BARBER_ID), 
-      orderBy('dataHora', 'desc')
+      where('clientId', '==', userAuthState.user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
@@ -122,12 +105,11 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       setAppointments(apts);
       setIsAppointmentsLoading(false);
     }, (err) => {
-      console.error("Global Appointments Fetch Error:", err);
+      console.error("Erro ao buscar agendamentos do usuário:", err);
       setIsAppointmentsLoading(false);
     });
 
     return () => unsubscribe();
-    // Adicionado userAuthState.user como dependência para carregar as consultas assim que o login ocorrer
   }, [firestore, userAuthState.user]);
 
   const contextValue = useMemo((): FirebaseContextState => {
@@ -157,7 +139,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 export const useFirebase = (): FirebaseContextState => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
-    throw new Error('useFirebase must be used within a FirebaseProvider.');
+    throw new Error('useFirebase deve ser utilizado dentro de um FirebaseProvider.');
   }
   return context;
 };
@@ -166,15 +148,15 @@ export const useAuth = () => useFirebase().auth;
 export const useFirestore = () => useFirebase().firestore;
 export const useFirebaseApp = () => useFirebase().firebaseApp;
 
-type MemoFirebase <T> = T & {__memo?: boolean};
+type MemoFirebase<T> = T & { __memo?: boolean };
 export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
   const memoized = useMemo(factory, deps);
-  if(typeof memoized !== 'object' || memoized === null) return memoized;
+  if (typeof memoized !== 'object' || memoized === null) return memoized;
   (memoized as MemoFirebase<T>).__memo = true;
   return memoized;
 }
 
-export const useUser = (): UserHookResult => {
+export const useUser = () => {
   const { user, userProfile, isUserLoading, userError } = useFirebase();
   return { user, userProfile, isUserLoading, userError };
 };

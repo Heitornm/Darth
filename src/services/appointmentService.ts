@@ -1,4 +1,4 @@
-import { db } from '@/firebase/config';
+import { db } from '@/firebase/firebase';
 import { 
   collection, 
   query, 
@@ -20,7 +20,9 @@ export interface Appointment {
   createdAt?: any;
 }
 
-// 1. Buscar os horários ocupados para uma determinada data
+/**
+ * Busca os horários ocupados para uma determinada data
+ */
 export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
   try {
     const q = query(
@@ -31,8 +33,12 @@ export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
 
     const querySnapshot = await getDocs(q);
     const bookedTimes: string[] = [];
+    
     querySnapshot.forEach((doc) => {
-      bookedTimes.push(doc.data().time);
+      const data = doc.data();
+      if (data.time) {
+        bookedTimes.push(data.time);
+      }
     });
 
     return bookedTimes;
@@ -42,7 +48,9 @@ export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
   }
 }
 
-// 2. Criar um novo agendamento via API Route (Proteção contra duplicação/concorrência)
+/**
+ * Cria um novo agendamento via API Route
+ */
 export async function createNewAppointment(data: Omit<Appointment, 'id' | 'createdAt' | 'status'>) {
   const response = await fetch('/api/appointments', {
     method: 'POST',
@@ -61,7 +69,6 @@ export async function createNewAppointment(data: Omit<Appointment, 'id' | 'creat
   return result;
 }
 
-// 3. Objeto unificado para compatibilidade
 export const appointmentService = {
   getBookedSlotsByDate,
   createNewAppointment,

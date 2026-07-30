@@ -2,77 +2,79 @@
 
 import { useEffect, useRef } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { query, collection, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { query, collection, where, limit, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Scissors, AlertTriangle, DollarSign } from 'lucide-react'; // 👈 Removido o 'Bell'
+import { Scissors, AlertTriangle, DollarSign } from 'lucide-react';
 
 export function NotificationListener() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const lastProcessedTime = useRef<number>(Date.now());
 
   const notificationsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
+    // Bloqueia a execução se a sessão ainda estiver carregando ou sem UID
+    if (!db || !user?.uid || isUserLoading) return null;
+
     return query(
       collection(db, 'notifications'),
       where('toId', '==', user.uid),
-      where('read', '==', false),
-      orderBy('createdAt', 'desc'),
-      limit(5)
+      limit(10)
     );
-  }, [db, user]);
+  }, [db, user?.uid, isUserLoading]);
 
-  const { data: notifications } = useCollection(notificationsQuery);
+  const { data: rawNotifications } = useCollection(notificationsQuery);
 
   useEffect(() => {
-    if (notifications && notifications.length > 0) {
-      notifications.forEach((notif) => {
-        const createdAt = notif.createdAt instanceof Timestamp ? notif.createdAt.toMillis() : 0;
+    if (!rawNotifications || rawNotifications.length === 0) return;
 
-        if (createdAt > lastProcessedTime.current) {
-          let IconComponent = Scissors;
-          let iconBg = 'bg-primary';
+    // Filtra notificações não lidas
+    const unreadNotifications = rawNotifications.filter((n) => n.read === false);
 
-          if (notif.type === 'cancellation_request') {
-            IconComponent = AlertTriangle;
-            iconBg = 'bg-amber-500';
-          } else if (notif.type === 'payment_confirmed') {
-            IconComponent = DollarSign;
-            iconBg = 'bg-emerald-500';
-          }
+    unreadNotifications.forEach((notif) => {
+      const createdAt = notif.createdAt instanceof Timestamp ? notif.createdAt.toMillis() : 0;
 
-          toast({
-            title: notif.title || 'Novo Aviso!',
-            description: notif.message,
-            variant: notif.type === 'cancellation_request' ? 'destructive' : 'default',
-            action: (
-              <div className={`${iconBg} p-2 rounded-full text-white`}>
-                <IconComponent className="w-4 h-4 text-primary-foreground" />
-              </div>
-            ),
-          });
+      if (createdAt > lastProcessedTime.current) {
+        let IconComponent = Scissors;
+        let iconBg = 'bg-primary';
 
-          try {
-            const audio = new Audio('/sounds/notification.mp3');
-            audio.volume = 0.6;
-            audio.play().catch(() => {});
-          } catch (e) {
-            console.error('Erro ao reproduzir som do aviso:', e);
-          }
+        if (notif.type === 'cancellation_request') {
+          IconComponent = AlertTriangle;
+          iconBg = 'bg-amber-500';
+        } else if (notif.type === 'payment_confirmed') {
+          IconComponent = DollarSign;
+          iconBg = 'bg-emerald-500';
         }
-      });
 
-      const newest = Math.max(
-        ...notifications.map((n) =>
-          n.createdAt instanceof Timestamp ? n.createdAt.toMillis() : 0
-        )
-      );
-      if (newest > lastProcessedTime.current) {
-        lastProcessedTime.current = newest;
+        toast({
+          title: notif.title || 'Novo Aviso!',
+          description: notif.message,
+          variant: notif.type === 'cancellation_request' ? 'destructive' : 'default',
+          action: (
+            <div className={`${iconBg} p-2 rounded-full text-white`}>
+              <IconComponent className="w-4 h-4 text-primary-foreground" />
+            </div>
+          ),
+        });
+
+        try {
+          const audio = new Audio('/sounds/notification.mp3');
+          audio.volume = 0.6;
+          audio.play().catch(() => {});
+        } catch (e) {
+          console.error('Erro ao reproduzir som do aviso:', e);
+        }
       }
-    }
-  }, [notifications, toast]);
+    });
+
+    // Processamento do timestamp mais recente via reduce
+    const newestTimestamp = rawNotifications.reduce((latest, notif) => {
+      const notifTime = notif.createdAt instanceof Timestamp ? notif.createdAt.toMillis() : 0;
+      return notifTime > latest ? notifTime : latest;
+    }, lastProcessedTime.current);
+
+    lastProcessedTime.current = newestTimestamp;
+  }, [rawNotifications, toast]);
 
   return null;
 }
