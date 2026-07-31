@@ -24,18 +24,32 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      // Leitura pública permitida para checagem de horários ocupados no calendário
+      // Leitura pública para checagem de horários no calendário
       allow read: if true;
       
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (
-        isMasterBarber() || 
-        resource.data.clientId == request.auth.uid
+      // Apenas cria se for o próprio cliente criando ou o Barbeiro Master
+      allow create: if isSignedIn() && (
+        isMasterBarber() ||
+        request.resource.data.clientId == request.auth.uid ||
+        request.resource.data.userId == request.auth.uid
       );
+      
+      // Cliente só altera status para cancelamento. Edição geral apenas para o Barbeiro.
+      allow update: if isSignedIn() && (
+        isMasterBarber() || 
+        (
+          (resource.data.clientId == request.auth.uid || resource.data.userId == request.auth.uid) &&
+          request.resource.data.status == 'solicitado_cancelamento'
+        )
+      );
+
+      // Apenas Barbeiro Master pode deletar agendamentos do banco
+      allow delete: if isMasterBarber();
     }
 
     match /notifications/{notificationId} {
-      allow read, list: if isSignedIn();
+      // 'read' cobre automaticamente 'get' e 'list'
+      allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
         isMasterBarber() ||

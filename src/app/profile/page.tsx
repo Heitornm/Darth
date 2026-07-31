@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading } = useUser();
   const db = useFirestore(); 
   const { toast } = useToast();
 
@@ -27,10 +27,10 @@ export default function ProfilePage() {
 
   // Redireciona usuários não autenticados para o login de forma limpa
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (!isLoading && !user) {
       router.replace('/login?redirectTo=/profile');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isLoading, router]);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -50,12 +50,12 @@ export default function ProfilePage() {
         } finally {
           setFetching(false);
         }
-      } else if (!isUserLoading && !user) {
+      } else if (!isLoading && !user) {
         setFetching(false);
       }
     }
     fetchUserProfile();
-  }, [user, db, isUserLoading]);
+  }, [user, db, isLoading]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +70,7 @@ export default function ProfilePage() {
       if (email !== user.email) {
         try {
           await updateEmail(user, email);
-        } catch (e: any) {
+        } catch (err: unknown) {
           toast({
             variant: "destructive",
             title: "Reautenticação Necessária",
@@ -99,18 +99,19 @@ export default function ProfilePage() {
         title: "Sucesso!",
         description: "Perfil atualizado com sucesso.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um problema ao salvar seu perfil.";
       toast({
         variant: "destructive",
         title: "Erro ao Atualizar",
-        description: error.message || "Ocorreu um problema ao salvar seu perfil."
+        description: errorMessage
       });
     } finally {
       setLoading(false);
     }
   };
 
-  if (isUserLoading || fetching) {
+  if (isLoading || fetching) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
