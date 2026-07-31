@@ -28,6 +28,7 @@ export interface FirebaseContextState {
   userProfile: any | null;
   appointments: any[] | null;
   isUserLoading: boolean;
+  isProfileLoading: boolean;
   isAppointmentsLoading: boolean;
   userError: Error | null;
 }
@@ -47,12 +48,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   });
 
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(true);
   const [appointments, setAppointments] = useState<any[] | null>(null);
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(false);
 
+  // 1. Escuta mudanças no Firebase Auth
   useEffect(() => {
     if (!auth) {
       setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+      setIsProfileLoading(false);
       return;
     }
 
@@ -60,33 +64,50 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       auth,
       (firebaseUser) => {
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        if (!firebaseUser) {
+          setUserProfile(null);
+          setIsProfileLoading(false);
+        }
       },
       (error) => {
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        setIsProfileLoading(false);
       }
     );
     return () => unsubscribe();
   }, [auth]);
 
+  // 2. Busca o documento de perfil do Firestore quando o usuário é autenticado
   useEffect(() => {
     if (!userAuthState.user || !firestore) {
       setUserProfile(null);
+      setIsProfileLoading(false);
       return;
     }
 
-    const unsubscribe = onSnapshot(doc(firestore, 'users', userAuthState.user.uid), (snap) => {
-      if (snap.exists()) {
-        setUserProfile({ ...snap.data(), id: snap.id });
-      } else {
-        setUserProfile(null);
+    setIsProfileLoading(true);
+
+    const unsubscribe = onSnapshot(
+      doc(firestore, 'users', userAuthState.user.uid),
+      (snap) => {
+        if (snap.exists()) {
+          setUserProfile({ ...snap.data(), id: snap.id });
+        } else {
+          setUserProfile(null);
+        }
+        setIsProfileLoading(false);
+      },
+      (err) => {
+        console.error("Erro ao carregar perfil do usuário:", err);
+        setIsProfileLoading(false);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [userAuthState.user, firestore]);
 
+  // 3. Busca agendamentos do usuário logado
   useEffect(() => {
-    // Garante a execução da query somente quando o usuário estiver autenticado
     if (!firestore || !userAuthState.user) {
       setAppointments(null);
       setIsAppointmentsLoading(false);
@@ -100,14 +121,18 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       where('clientId', '==', userAuthState.user.uid)
     );
 
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      setAppointments(apts);
-      setIsAppointmentsLoading(false);
-    }, (err) => {
-      console.error("Erro ao buscar agendamentos do usuário:", err);
-      setIsAppointmentsLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q, 
+      (snap) => {
+        const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        setAppointments(apts);
+        setIsAppointmentsLoading(false);
+      }, 
+      (err) => {
+        console.error("Erro ao buscar agendamentos do usuário:", err);
+        setIsAppointmentsLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [firestore, userAuthState.user]);
@@ -123,10 +148,20 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       userProfile,
       appointments,
       isUserLoading: userAuthState.isUserLoading,
+      isProfileLoading,
       isAppointmentsLoading,
       userError: userAuthState.userError,
     };
-  }, [firebaseApp, firestore, auth, userAuthState, userProfile, appointments, isAppointmentsLoading]);
+  }, [
+    firebaseApp, 
+    firestore, 
+    auth, 
+    userAuthState, 
+    userProfile, 
+    isProfileLoading, 
+    appointments, 
+    isAppointmentsLoading
+  ]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -157,6 +192,11 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
 }
 
 export const useUser = () => {
-  const { user, userProfile, isUserLoading, userError } = useFirebase();
-  return { user, userProfile, isUserLoading, userError };
+  const { user, userProfile, isUserLoading, isProfileLoading, userError } = useFirebase();
+  return { 
+    user, 
+    userProfile, 
+    isLoading: isUserLoading || isProfileLoading, 
+    userError 
+  };
 };

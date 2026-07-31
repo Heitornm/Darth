@@ -21,9 +21,11 @@ export interface Appointment {
 }
 
 /**
- * Busca os horários ocupados para uma determinada data
+ * Busca os horários ocupados para uma determinada data de forma segura
  */
 export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
+  if (!dateStr) return [];
+
   try {
     const q = query(
       collection(db, 'appointments'),
@@ -32,18 +34,22 @@ export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
     );
 
     const querySnapshot = await getDocs(q);
-    const bookedTimes: string[] = [];
     
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.time) {
-        bookedTimes.push(data.time);
-      }
-    });
+    // Converte os documentos em lista de horários utilizando map e filter
+    const bookedTimes = querySnapshot.docs
+      .map((doc) => doc.data()?.time)
+      .filter((time): time is string => typeof time === 'string' && time.trim() !== '');
 
     return bookedTimes;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao buscar horários ocupados:", error);
+
+    // Se o erro for de índice ausente no Firestore, exibe instrução no console sem travar a UI
+    if (error?.code === 'failed-precondition') {
+      console.warn(
+        "Atenção: O Firestore exige um índice composto para esta consulta. Verifique o link de criação de índice no Console do Firebase."
+      );
+    }
     return [];
   }
 }

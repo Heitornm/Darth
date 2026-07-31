@@ -1,19 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/firebase/firebase";
+import { useUser } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, userProfile, isLoading } = useUser();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Redireciona automaticamente quando o estado global de Auth + Perfil estiver pronto
+  useEffect(() => {
+    if (isLoading) return; // Aguarda a busca do usuário e do documento no Firestore
+
+    if (user) {
+      const isMaster = user.email === "heitornmartins@gmail.com" || userProfile?.role === "barber";
+
+      if (isMaster) {
+        router.push("/barber/dashboard");
+      } else {
+        router.push("/client/appointments/new");
+      }
+    }
+  }, [user, userProfile, isLoading, router]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,14 +40,13 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/client/appointments/new");
+      // O useEffect acima tratará o redirecionamento assim que o estado atualizar
     } catch (error: any) {
       if (error.code === "auth/invalid-credential" || error.code === "auth/user-not-found") {
         setErrorMessage("E-mail ou senha incorretos. Verifique suas credenciais.");
       } else {
         setErrorMessage("Ocorreu um erro ao realizar o login. Tente novamente.");
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -41,14 +58,21 @@ export default function LoginPage() {
 
     try {
       await signInWithPopup(auth, provider);
-      router.push("/client/appointments/new");
+      // O useEffect acima tratará o redirecionamento assim que o estado atualizar
     } catch (error: any) {
       console.error("Erro no login Google:", error);
       setErrorMessage("Falha ao autenticar com o Google. Tente novamente.");
-    } finally {
       setLoading(false);
     }
   };
+
+  if (isLoading || (user && !userProfile && loading)) {
+    return (
+      <div className="flex h-64 w-full items-center justify-center">
+        <p className="text-sm text-muted-foreground animate-pulse">Carregando perfil...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto my-12 p-6 border rounded-lg shadow-sm space-y-6">
@@ -75,6 +99,7 @@ export default function LoginPage() {
             required 
             autoComplete="username"
             placeholder="seu@email.com"
+            disabled={loading}
           />
         </div>
 
@@ -87,6 +112,7 @@ export default function LoginPage() {
             required 
             autoComplete="current-password"
             placeholder="••••••••"
+            disabled={loading}
           />
         </div>
 
@@ -134,7 +160,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-muted-foreground pt-2">
         Não tem uma conta?{" "}
-        <Link href="/register" className="text-primary underline font-medium">
+        <Link href="/login" className="text-primary underline font-medium">
           Cadastre-se aqui
         </Link>
       </p>
