@@ -1,80 +1,54 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { query, collection, where, limit, Timestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { Scissors, AlertTriangle, DollarSign } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { db } from "@/firebase/firebase";
+import { useUser } from "@/firebase";
+
+export interface NotificationItem {
+  id: string;
+  toId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: any;
+}
 
 export function NotificationListener() {
-  const { user, isLoading } = useUser();
-  const db = useFirestore();
-  const { toast } = useToast();
-  const lastProcessedTime = useRef<number>(Date.now());
-
-  const notificationsQuery = useMemoFirebase(() => {
-    // Bloqueia a execução se a sessão ainda estiver carregando ou sem UID
-    if (!db || !user?.uid || isLoading) return null;
-
-    return query(
-      collection(db, 'notifications'),
-      where('toId', '==', user.uid),
-      limit(10)
-    );
-  }, [db, user?.uid, isLoading]);
-
-  const { data: rawNotifications } = useCollection(notificationsQuery);
+  const { user } = useUser();
+  const [, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
-    if (!rawNotifications || rawNotifications.length === 0) return;
+    // Se o usuário não estiver logado, cancela a busca para não dar erro de permissão
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
 
-    // Filtra notificações não lidas
-    const unreadNotifications = rawNotifications.filter((n) => n.read === false);
+    // A QUERY PRECISA CONTER O 'where("toId", "==", user.uid)' PARA BATER COM A REGRA DO FIRESTORE
+    const q = query(
+      collection(db, "notifications"),
+      where("toId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
 
-    unreadNotifications.forEach((notif) => {
-      const createdAt = notif.createdAt instanceof Timestamp ? notif.createdAt.toMillis() : 0;
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: NotificationItem[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as NotificationItem[];
 
-      if (createdAt > lastProcessedTime.current) {
-        let IconComponent = Scissors;
-        let iconBg = 'bg-primary';
-
-        if (notif.type === 'cancellation_request') {
-          IconComponent = AlertTriangle;
-          iconBg = 'bg-amber-500';
-        } else if (notif.type === 'payment_confirmed') {
-          IconComponent = DollarSign;
-          iconBg = 'bg-emerald-500';
-        }
-
-        toast({
-          title: notif.title || 'Novo Aviso!',
-          description: notif.message,
-          variant: notif.type === 'cancellation_request' ? 'destructive' : 'default',
-          action: (
-            <div className={`${iconBg} p-2 rounded-full text-white`}>
-              <IconComponent className="w-4 h-4 text-primary-foreground" />
-            </div>
-          ),
-        });
-
-        try {
-          const audio = new Audio('/sounds/notification.mp3');
-          audio.volume = 0.6;
-          audio.play().catch(() => {});
-        } catch (e) {
-          console.error('Erro ao reproduzir som do aviso:', e);
-        }
+        setNotifications(list);
+      },
+      (error) => {
+        console.error("Erro ao buscar notificações:", error);
       }
-    });
+    );
 
-    // Processamento do timestamp mais recente via reduce
-    const newestTimestamp = rawNotifications.reduce((latest, notif) => {
-      const notifTime = notif.createdAt instanceof Timestamp ? notif.createdAt.toMillis() : 0;
-      return notifTime > latest ? notifTime : latest;
-    }, lastProcessedTime.current);
+    return () => unsubscribe();
+  }, [user]);
 
-    lastProcessedTime.current = newestTimestamp;
-  }, [rawNotifications, toast]);
-
-  return null;
+  return null; // ou renderize o menu de notificações aqui
 }

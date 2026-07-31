@@ -2,114 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ==========================================
-    // FUNÇÕES AUXILIARES DE AUTENTICAÇÃO E FUNÇÕES
-    // ==========================================
-
-    // Verifica se o usuário está autenticado
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Verifica se o usuário é o Barbeiro Master / Admin (via UIDs ou E-mails específicos)
-    function isMasterBarber() {
-      return isSignedIn() && (
-        // Se usar Custom Claims no Firebase Auth:
-        request.auth.token.role == 'master' ||
-        // Lista de UIDs de administradores:
-        request.auth.uid in [
-          "wWlt2ixyjwfLqDHDQFFNQgaYfCT2" // Substiua/adicione os UIDs de administradores aqui se necessário
-        ] ||
-        // Ou validação por e-mail de administradores:
-        request.auth.token.email in [
-          "admin@suabarbearia.com"
-        ]
+    // Função utilitária para identificar Barbeiros / Masters
+    function isMaster() {
+      return request.auth != null && (
+        request.auth.token.email in ['heitornmartins@gmail.com', 'darthbarber@darth.com.br'] ||
+        request.auth.uid in ['wWlt2ixyjwfLqDHDQFFNQgaYfCT2'] || // Adicione UIDs específicos se necessário
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'barber'
       );
     }
 
-    // ==========================================
-    // COLEÇÃO: USERS (Perfis de Usuários)
-    // ==========================================
-    match /users/{userId} {
-      // Qualquer usuário autenticado pode ler perfis
-      allow read: if isSignedIn();
-      // Usuário pode criar ou editar o próprio perfil; Master edita qualquer um
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || isMasterBarber());
-      allow delete: if isMasterBarber();
-    }
-
-    // ==========================================
-    // COLEÇÃO: SERVICES (Tabela de Serviços)
-    // ==========================================
-    match /services/{serviceId} {
-      // Leitura pública (mesmo sem login, para exibir no site/landing page)
-      allow read: if true;
-      // Apenas o Barbeiro Master pode criar, alterar ou excluir serviços
-      allow write: if isMasterBarber();
-    }
-
-    // ==========================================
-    // COLEÇÃO: APPOINTMENTS (Agendamentos)
-    // ==========================================
-    match /appointments/{appointmentId} {
-      // Leitura pública permitida para o calendário mostrar horários ocupados/livres
-      allow read: if true;
-
-      // Criação de novos agendamentos:
-      // - Cliente criando seu próprio agendamento (com status inicial 'pending')
-      // - Ou Barbeiro Master criando para qualquer cliente
-      allow create: if isSignedIn() && (
-        (
-          (request.resource.data.userId == request.auth.uid || request.resource.data.clientId == request.auth.uid) &&
-          (request.resource.data.status == 'pending' || !('status' in request.resource.data))
-        ) ||
-        isMasterBarber()
-      );
-
-      // Atualização de agendamentos:
-      // - Cliente alterando o status para solicitar cancelamento no próprio agendamento
-      // - Ou Barbeiro Master alterando qualquer campo (confirmar, remarcar, cancelar, etc.)
-      allow update: if isSignedIn() && (
-        (
-          (resource.data.userId == request.auth.uid || resource.data.clientId == request.auth.uid) &&
-          request.resource.data.status == 'solicitado_cancelamento'
-        ) ||
-        isMasterBarber()
-      );
-
-      // Exclusão: Apenas o Barbeiro Master
-      allow delete: if isMasterBarber();
-    }
-
-    // ==========================================
-    // COLEÇÃO: NOTIFICATIONS (Notificações)
-    // ==========================================
+    // Coleção de Notificações
     match /notifications/{notificationId} {
-      // Leitura: O cliente lê/lista apenas as notificações destinadas a ele (toId == uid).
-      // Se não houver documento criado ainda (listagem via query), verifica se está logado.
-      // Master lê todas as notificações.
-      allow read: if isSignedIn() && (
-        resource == null ||
-        resource.data.toId == request.auth.uid ||
-        isMasterBarber()
+      // O usuário pode ler apenas as notificações destinadas a ele (toId == uid) OU se for Master/Barbeiro
+      allow read: if request.auth != null && (
+        resource.data.toId == request.auth.uid || isMaster()
+      );
+      
+      // Permitir criar notificações (ex: quando um agendamento é feito)
+      allow create: if request.auth != null;
+      
+      // Permitir atualizar (ex: marcar como lida) se for dono da notificação ou Master
+      allow update: if request.auth != null && (
+        resource.data.toId == request.auth.uid || isMaster()
       );
 
-      // Criação: Qualquer usuário logado pode gerar uma notificação (ex: ao criar um agendamento)
-      allow create: if isSignedIn();
-
-      // Atualização e Exclusão: Dono da notificação ou Master
-      allow update, delete: if isSignedIn() && (
-        (resource != null && resource.data.toId == request.auth.uid) || 
-        isMasterBarber()
-      );
+      // Apenas Master pode excluir
+      allow delete: if isMaster();
     }
 
-    // ==========================================
-    // COLEÇÃO: SETTINGS / SYSTEM (Configurações Gerais)
-    // ==========================================
-    match /settings/{settingId} {
-      allow read: if isSignedIn();
-      allow write: if isMasterBarber();
-    }
+    // Demais coleções (users, appointments, etc)...
   }
 }
