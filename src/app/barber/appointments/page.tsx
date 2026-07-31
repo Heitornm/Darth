@@ -46,7 +46,7 @@ interface Appointment {
 }
 
 export default function BarberAppointmentsPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();

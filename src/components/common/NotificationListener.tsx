@@ -7,21 +7,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Scissors, AlertTriangle, DollarSign } from 'lucide-react';
 
 export function NotificationListener() {
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const lastProcessedTime = useRef<number>(Date.now());
 
   const notificationsQuery = useMemoFirebase(() => {
     // Bloqueia a execução se a sessão ainda estiver carregando ou sem UID
-    if (!db || !user?.uid || isUserLoading) return null;
+    if (!db || !user?.uid || isLoading) return null;
 
     return query(
       collection(db, 'notifications'),
       where('toId', '==', user.uid),
       limit(10)
     );
-  }, [db, user?.uid, isUserLoading]);
+  }, [db, user?.uid, isLoading]);
 
   const { data: rawNotifications } = useCollection(notificationsQuery);
 

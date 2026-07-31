@@ -21,7 +21,7 @@ const BARBER_EMAIL = "darthbarber@darth.com.br";
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
 export function Navbar() {
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
@@ -104,7 +104,7 @@ export function Navbar() {
           <div className="flex items-center gap-1 sm:gap-2">
             <NavLink href="/services" icon={<Sparkles className="w-4 h-4" />} label="Serviços" />
             
-            {isMounted && !isUserLoading && user && (
+            {isMounted && !isLoading && user && (
               <>
                 {isBarber ? (
                   <>
@@ -122,7 +122,7 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2 min-w-[40px] justify-end">
-            {!isMounted || isUserLoading ? (
+            {!isMounted || isLoading ? (
               <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse border border-primary/10" />
             ) : user ? (
               <>
