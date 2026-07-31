@@ -2,61 +2,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Retorna verdadeiro se o usuário estiver autenticado no sistema
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Define o perfil de Administrador / Barbeiro Master
     function isMasterBarber() {
       return isSignedIn() && (
+        request.auth.token.email == 'heitornmartins@gmail.com' ||
+        request.auth.uid == '2cAVs3U9ciV3NiqApJuOlYGEJS32' ||
         request.auth.token.email == 'darthbarber@darth.com.br' ||
         request.auth.uid == 'eUCAkXknM1N0mcC04hCIfF3HcMk1'
       );
     }
 
+    // Coleção de Usuários
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && (request.auth.uid == userId || isMasterBarber());
     }
 
+    // Coleção de Serviços
     match /services/{serviceId} {
       allow read: if true;
       allow write: if isMasterBarber();
     }
 
+    // Coleção de Agendamentos
     match /appointments/{appointmentId} {
-      // Leitura pública para checagem de horários no calendário
       allow read: if true;
       
-      // Apenas cria se for o próprio cliente criando ou o Barbeiro Master
       allow create: if isSignedIn() && (
         isMasterBarber() ||
-        request.resource.data.clientId == request.auth.uid ||
-        request.resource.data.userId == request.auth.uid
+        (
+          (request.resource.data.userId == request.auth.uid || request.resource.data.clientId == request.auth.uid) &&
+          (request.resource.data.status == 'pending' || !('status' in request.resource.data))
+        )
       );
       
-      // Cliente só altera status para cancelamento. Edição geral apenas para o Barbeiro.
       allow update: if isSignedIn() && (
         isMasterBarber() || 
         (
-          (resource.data.clientId == request.auth.uid || resource.data.userId == request.auth.uid) &&
+          (resource.data.userId == request.auth.uid || resource.data.clientId == request.auth.uid) &&
           request.resource.data.status == 'solicitado_cancelamento'
         )
       );
 
-      // Apenas Barbeiro Master pode deletar agendamentos do banco
       allow delete: if isMasterBarber();
     }
 
+    // Coleção de Notificações
     match /notifications/{notificationId} {
-      // 'read' cobre automaticamente 'get' e 'list'
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (
-        isMasterBarber() ||
-        resource.data.toId == request.auth.uid
+        resource.data.toId == request.auth.uid || isMasterBarber()
       );
     }
-    
+
+    // Trava padrão de segurança para coleções não especificadas
     match /{path=**} {
       allow read, write: if false;
     }
