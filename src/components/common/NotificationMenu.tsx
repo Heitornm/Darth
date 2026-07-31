@@ -1,200 +1,174 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { query, collection, where, orderBy, limit, doc, updateDoc, writeBatch, Timestamp } from 'firebase/firestore';
-import { Bell, Check, Scissors, AlertTriangle, DollarSign, CheckCheck } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEffect, useState } from "react";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { Bell, CheckCheck, Check } from "lucide-react";
+import { db } from "@/firebase/firebase";
+import { useUser } from "@/firebase";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-interface NotificationItem {
+export interface NotificationItem {
   id: string;
-  title?: string;
+  toId: string;
+  title: string;
   message: string;
-  type?: 'new_appointment' | 'cancellation_request' | 'payment_confirmed';
   read: boolean;
-  createdAt?: Timestamp;
+  createdAt: any;
 }
 
 export function NotificationMenu() {
   const { user } = useUser();
-  const db = useFirestore();
-  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Consulta de notificações direcionadas ao usuário logado (máximo 15 mais recentes)
-  const notificationsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(
-      collection(db, 'notifications'),
-      where('toId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(15)
+  // Escuta as notificações destinadas ao usuário logado em tempo real
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
+    // A query atende estritamente à regra do Firestore (where toId == user.uid)
+    const q = query(
+      collection(db, "notifications"),
+      where("toId", "==", user.uid),
+      orderBy("createdAt", "desc")
     );
-  }, [db, user]);
 
-  const { data: notifications } = useCollection<NotificationItem>(notificationsQuery);
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: NotificationItem[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as NotificationItem[];
 
-  // Contador de não lidas
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+        setNotifications(list);
+      },
+      (error) => {
+        console.error("Erro ao escutar notificações:", error);
+      }
+    );
 
-  // Marca uma notificação individual como lida
-  const handleMarkAsRead = async (id: string) => {
-    if (!db) return;
+    return () => unsubscribe();
+  }, [user]);
+
+  // Quantidade de notificações não lidas
+  const unreadCount = notifications.filter((item) => !item.read).length;
+
+  // Marcar uma única notificação como lida
+  const markAsRead = async (notificationId: string) => {
     try {
-      const docRef = doc(db, 'notifications', id);
-      await updateDoc(docRef, { read: true });
+      const notifRef = doc(db, "notifications", notificationId);
+      await updateDoc(notifRef, {
+        read: true,
+      });
     } catch (error) {
-      console.error('Erro ao marcar notificação como lida:', error);
+      console.error("Erro ao marcar notificação como lida:", error);
     }
   };
 
-  // Marca todas as notificações visíveis como lidas de uma vez
-  const handleMarkAllAsRead = async () => {
-    if (!db || !notifications) return;
+  // Marcar TODAS as notificações como lidas em lote (Batch write)
+  const markAllAsRead = async () => {
+    const unreadNotifications = notifications.filter((item) => !item.read);
+    if (unreadNotifications.length === 0) return;
+
+    setLoading(true);
     try {
       const batch = writeBatch(db);
-      const unreadNotifications = notifications.filter((n) => !n.read);
 
-      unreadNotifications.forEach((n) => {
-        const docRef = doc(db, 'notifications', n.id);
-        batch.update(docRef, { read: true });
+      unreadNotifications.forEach((item) => {
+        const notifRef = doc(db, "notifications", item.id);
+        batch.update(notifRef, { read: true });
       });
 
       await batch.commit();
     } catch (error) {
-      console.error('Erro ao marcar todas como lidas:', error);
-    }
-  };
-
-  // Seleciona ícone e cor de fundo por tipo de aviso
-  const getNotificationIcon = (type?: string) => {
-    switch (type) {
-      case 'cancellation_request':
-        return (
-          <div className="p-2 rounded-full bg-amber-500/10 text-amber-500 shrink-0">
-            <AlertTriangle className="w-4 h-4" />
-          </div>
-        );
-      case 'payment_confirmed':
-        return (
-          <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-500 shrink-0">
-            <DollarSign className="w-4 h-4" />
-          </div>
-        );
-      default:
-        return (
-          <div className="p-2 rounded-full bg-primary/10 text-primary shrink-0">
-            <Scissors className="w-4 h-4" />
-          </div>
-        );
+      console.error("Erro ao marcar todas notificações como lidas:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   if (!user) return null;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-muted">
-          <Bell className="w-5 h-5 text-foreground" />
-          
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notificações">
+          <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <>
-              {/* Animação de pulso no contador */}
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 min-w-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950 border border-background"
-              >
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </Badge>
-            </>
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-sm">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
           )}
         </Button>
-      </PopoverTrigger>
+      </DropdownMenuTrigger>
 
-      <PopoverContent align="end" className="w-80 sm:w-96 p-0 shadow-2xl border-border bg-card">
-        {/* Cabeçalho do Popover */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-sm text-foreground">Notificações</h3>
-            {unreadCount > 0 && (
-              <Badge variant="secondary" className="text-[10px] font-semibold">
-                {unreadCount} não {unreadCount === 1 ? 'lida' : 'lidas'}
-              </Badge>
-            )}
-          </div>
-
+      <DropdownMenuContent align="end" className="w-80 p-0 sm:w-96">
+        <div className="flex items-center justify-between border-b p-3">
+          <span className="font-semibold text-sm">Notificações</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleMarkAllAsRead}
-              className="text-xs text-muted-foreground hover:text-foreground h-auto p-1"
+              className="h-auto p-1 text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+              onClick={markAllAsRead}
+              disabled={loading}
             >
-              <CheckCheck className="w-3.5 h-3.5 mr-1" />
-              Marcar todas
+              <CheckCheck className="h-3.5 w-3.5" />
+              Marcar lidas
             </Button>
           )}
         </div>
 
-        {/* Lista de Notificações */}
-        <ScrollArea className="max-h-[380px] divide-y divide-border">
-          {!notifications || notifications.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground text-xs">
-              <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              Você não possui nenhuma notificação.
+        <div className="max-h-80 overflow-y-auto divide-y">
+          {notifications.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              Nenhuma notificação por aqui.
             </div>
           ) : (
-            notifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={`flex items-start gap-3 p-3.5 transition-colors ${
-                  !notif.read ? 'bg-muted/40 hover:bg-muted/60' : 'hover:bg-muted/20 opacity-80'
+            notifications.map((item) => (
+              <DropdownMenuItem
+                key={item.id}
+                className={`flex flex-col items-start gap-1 p-3 cursor-pointer transition-colors ${
+                  !item.read ? "bg-muted/40 font-medium" : "opacity-75"
                 }`}
+                onClick={() => !item.read && markAsRead(item.id)}
               >
-                {getNotificationIcon(notif.type)}
-
-                <div className="flex-1 space-y-1 overflow-hidden">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`text-xs font-semibold truncate ${!notif.read ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
-                      {notif.title || 'Aviso'}
-                    </p>
-                    
-                    {!notif.read && (
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                    )}
-                  </div>
-
-                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                    {notif.message}
-                  </p>
-
-                  <p className="text-[10px] text-muted-foreground/70 pt-1">
-                    {notif.createdAt instanceof Timestamp
-                      ? new Date(notif.createdAt.toMillis()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                      : 'Agora'}
-                  </p>
+                <div className="flex w-full items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">
+                    {item.title}
+                  </span>
+                  {!item.read ? (
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
                 </div>
-
-                {!notif.read && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleMarkAsRead(notif.id)}
-                    className="h-6 w-6 rounded-full hover:bg-background shrink-0 text-muted-foreground hover:text-foreground"
-                    title="Marcar como lida"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {item.message}
+                </p>
+              </DropdownMenuItem>
             ))
           )}
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
