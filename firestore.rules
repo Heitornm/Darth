@@ -2,68 +2,114 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Retorna verdadeiro se o usuário estiver autenticado no sistema
+    // ==========================================
+    // FUNÇÕES AUXILIARES DE AUTENTICAÇÃO E FUNÇÕES
+    // ==========================================
+
+    // Verifica se o usuário está autenticado
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Define o perfil de Administrador / Barbeiro Master
+    // Verifica se o usuário é o Barbeiro Master / Admin (via UIDs ou E-mails específicos)
     function isMasterBarber() {
       return isSignedIn() && (
-        request.auth.token.email == 'heitornmartins@gmail.com' ||
-        request.auth.uid == '2cAVs3U9ciV3NiqApJuOlYGEJS32' ||
-        request.auth.token.email == 'darthbarber@darth.com.br' ||
-        request.auth.uid == 'eUCAkXknM1N0mcC04hCIfF3HcMk1'
+        // Se usar Custom Claims no Firebase Auth:
+        request.auth.token.role == 'master' ||
+        // Lista de UIDs de administradores:
+        request.auth.uid in [
+          "wWlt2ixyjwfLqDHDQFFNQgaYfCT2" // Substiua/adicione os UIDs de administradores aqui se necessário
+        ] ||
+        // Ou validação por e-mail de administradores:
+        request.auth.token.email in [
+          "admin@suabarbearia.com"
+        ]
       );
     }
 
-    // Coleção de Usuários
+    // ==========================================
+    // COLEÇÃO: USERS (Perfis de Usuários)
+    // ==========================================
     match /users/{userId} {
+      // Qualquer usuário autenticado pode ler perfis
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (request.auth.uid == userId || isMasterBarber());
-    }
-
-    // Coleção de Serviços
-    match /services/{serviceId} {
-      allow read: if true;
-      allow write: if isMasterBarber();
-    }
-
-    // Coleção de Agendamentos
-    match /appointments/{appointmentId} {
-      allow read: if true;
-      
-      allow create: if isSignedIn() && (
-        isMasterBarber() ||
-        (
-          (request.resource.data.userId == request.auth.uid || request.resource.data.clientId == request.auth.uid) &&
-          (request.resource.data.status == 'pending' || !('status' in request.resource.data))
-        )
-      );
-      
-      allow update: if isSignedIn() && (
-        isMasterBarber() || 
-        (
-          (resource.data.userId == request.auth.uid || resource.data.clientId == request.auth.uid) &&
-          request.resource.data.status == 'solicitado_cancelamento'
-        )
-      );
-
+      // Usuário pode criar ou editar o próprio perfil; Master edita qualquer um
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || isMasterBarber());
       allow delete: if isMasterBarber();
     }
 
-    // Coleção de Notificações
+    // ==========================================
+    // COLEÇÃO: SERVICES (Tabela de Serviços)
+    // ==========================================
+    match /services/{serviceId} {
+      // Leitura pública (mesmo sem login, para exibir no site/landing page)
+      allow read: if true;
+      // Apenas o Barbeiro Master pode criar, alterar ou excluir serviços
+      allow write: if isMasterBarber();
+    }
+
+    // ==========================================
+    // COLEÇÃO: APPOINTMENTS (Agendamentos)
+    // ==========================================
+    match /appointments/{appointmentId} {
+      // Leitura pública permitida para o calendário mostrar horários ocupados/livres
+      allow read: if true;
+
+      // Criação de novos agendamentos:
+      // - Cliente criando seu próprio agendamento (com status inicial 'pending')
+      // - Ou Barbeiro Master criando para qualquer cliente
+      allow create: if isSignedIn() && (
+        (
+          (request.resource.data.userId == request.auth.uid || request.resource.data.clientId == request.auth.uid) &&
+          (request.resource.data.status == 'pending' || !('status' in request.resource.data))
+        ) ||
+        isMasterBarber()
+      );
+
+      // Atualização de agendamentos:
+      // - Cliente alterando o status para solicitar cancelamento no próprio agendamento
+      // - Ou Barbeiro Master alterando qualquer campo (confirmar, remarcar, cancelar, etc.)
+      allow update: if isSignedIn() && (
+        (
+          (resource.data.userId == request.auth.uid || resource.data.clientId == request.auth.uid) &&
+          request.resource.data.status == 'solicitado_cancelamento'
+        ) ||
+        isMasterBarber()
+      );
+
+      // Exclusão: Apenas o Barbeiro Master
+      allow delete: if isMasterBarber();
+    }
+
+    // ==========================================
+    // COLEÇÃO: NOTIFICATIONS (Notificações)
+    // ==========================================
     match /notifications/{notificationId} {
-      allow read: if isSignedIn();
+      // Leitura: O cliente lê/lista apenas as notificações destinadas a ele (toId == uid).
+      // Se não houver documento criado ainda (listagem via query), verifica se está logado.
+      // Master lê todas as notificações.
+      allow read: if isSignedIn() && (
+        resource == null ||
+        resource.data.toId == request.auth.uid ||
+        isMasterBarber()
+      );
+
+      // Criação: Qualquer usuário logado pode gerar uma notificação (ex: ao criar um agendamento)
       allow create: if isSignedIn();
+
+      // Atualização e Exclusão: Dono da notificação ou Master
       allow update, delete: if isSignedIn() && (
-        resource.data.toId == request.auth.uid || isMasterBarber()
+        (resource != null && resource.data.toId == request.auth.uid) || 
+        isMasterBarber()
       );
     }
 
-    // Trava padrão de segurança para coleções não especificadas
-    match /{path=**} {
-      allow read, write: if false;
+    // ==========================================
+    // COLEÇÃO: SETTINGS / SYSTEM (Configurações Gerais)
+    // ==========================================
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isMasterBarber();
     }
   }
 }
