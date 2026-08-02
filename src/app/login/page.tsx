@@ -160,7 +160,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-muted-foreground pt-2">
         Não tem uma conta?{" "}
-        <Link href="/login" className="text-primary underline font-medium">
+        <Link href="/register" className="text-primary underline font-medium">
           Cadastre-se aqui
         </Link>
       </p>
