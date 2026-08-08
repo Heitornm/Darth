@@ -1,12 +1,12 @@
 'use client';
-//1
-import { useEffect } from 'react';
+
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
-export default function ClientAppointmentsPage() {
+function AppointmentsContent() {
   const searchParams = useSearchParams();
   const db = useFirestore();
   const { toast } = useToast();
@@ -46,4 +46,16 @@ export default function ClientAppointmentsPage() {
   );
 }
 
-
+export default function ClientAppointmentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
+          Carregando agendamentos...
+        </div>
+      }
+    >
+      <AppointmentsContent />
+    </Suspense>
+  );
+}
