@@ -7,19 +7,18 @@ export async function POST(req: Request) {
 
     const { appointmentId, price, serviceName } = body;
 
-    // 1. Validação dos campos obrigatórios
     if (!price || !serviceName || !appointmentId) {
       return NextResponse.json(
-        { error: "Campos obrigatórios ausentes no payload (appointmentId, price ou serviceName)." },
+        { error: "Campos obrigatórios ausentes no payload." },
         { status: 400 }
       );
     }
 
     const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.onrender.com";
-    const apiKey = process.env.INFINITEPAY_API_KEY; // Opcional, se configurado no ambiente
+    const apiKey = process.env.INFINITEPAY_API_KEY;
 
-    // 2. Converte o preço para centavos (ex: R$ 35,00 = 3500)
+    // Converte o valor em reais para centavos (ex: R$ 35,00 = 3500)
     const amountInCents = Math.round(Number(price) * 100);
 
     const headers: Record<string, string> = {
@@ -30,13 +29,13 @@ export async function POST(req: Request) {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    // 3. Chamada à API Oficial de Checkout da InfinitePay
+    // Chamada oficial à API de links da InfinitePay
     const response = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
       headers,
       body: JSON.stringify({
         handle: handle,
-        redirect_url: `${baseUrl}/client/appointments?status=success`,
+        redirect_url: `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`,
         webhook_url: `${baseUrl}/api/webhooks/infinitepay`,
         order_nsu: appointmentId,
         items: [
@@ -53,7 +52,7 @@ export async function POST(req: Request) {
 
     if (response.ok && (responseData.url || responseData.checkout_url)) {
       const checkoutUrl = responseData.url || responseData.checkout_url;
-      console.log("[CHECKOUT API] Link de checkout gerado com sucesso:", checkoutUrl);
+      console.log("[CHECKOUT API] Link gerado com sucesso:", checkoutUrl);
 
       return NextResponse.json({
         success: true,
@@ -61,13 +60,12 @@ export async function POST(req: Request) {
       }, { status: 200 });
     }
 
-    console.error("[CHECKOUT API ERROR] Falha na resposta da InfinitePay:", responseData);
+    console.error("[CHECKOUT API ERROR] Falha na InfinitePay:", responseData);
 
-    // 4. Fallback com aviso explicativo mantendo o direcionamento do handle
     const fallbackUrl = `https://infinitepay.io/pay/${handle}`;
     return NextResponse.json({
       success: true,
-      message: "Redirecionando para a página pública de pagamento.",
+      message: "Redirecionando para a chave pública.",
       checkoutUrl: fallbackUrl,
     }, { status: 200 });
 

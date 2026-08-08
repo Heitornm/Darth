@@ -9,20 +9,22 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('[WEBHOOK INFINITEPAY RECEBIDO]:', JSON.stringify(body, null, 2));
 
-    // Extrai os dados do payload com suporte a estruturas aninhadas
+    // Extrai o order_nsu de todas as variações conhecidas do payload da InfinitePay
     const eventData = body.data || body;
     const appointmentId = 
+      body.order_nsu || 
       eventData.order_nsu || 
       eventData.metadata?.appointmentId || 
-      eventData.custom_id ||
-      body.order_nsu;
+      eventData.custom_id;
 
-    // Valida o status do pagamento
+    // A InfinitePay envia paid: true ou invoice_slug / status / paid_amount
     const isPaid = 
+      body.paid === true || 
       eventData.paid === true || 
       eventData.status === 'approved' || 
       eventData.status === 'PAID' || 
-      body.event === 'transaction.paid';
+      body.event === 'transaction.paid' ||
+      (body.paid_amount && body.paid_amount > 0);
 
     if (!appointmentId) {
       console.warn('[WEBHOOK WARNING] Identificador order_nsu (appointmentId) não encontrado no payload.');
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
     if (isPaid) {
       if (!adminDb) {
         console.error('[WEBHOOK ERROR] Instância do Firebase Admin (adminDb) não inicializada no servidor.');
-        return NextResponse.json({ error: 'Erro de infraestrutura interna' }, { status: 500 });
+        return NextResponse.json({ error: 'Erro de infraestrutura interna' }, { status: 503 });
       }
 
       console.log(`[WEBHOOK SUCCESS] Atualizando agendamento ID: ${appointmentId} para status "confirmado".`);
@@ -47,14 +49,15 @@ export async function POST(request: Request) {
 
       const appointmentData = appointmentSnap.data();
 
-      // 1. Atualiza o agendamento no Firestore usando Timestamps nativos do Firebase Admin
+      // 1. Atualiza o status do agendamento para "confirmado"
       await appointmentRef.update({
         status: 'confirmado',
+        paid: true,
         paidAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
 
-      // 2. Formatação tratada e segura da data
+      // 2. Formata informações para a notificação
       const clientName = appointmentData?.userName || appointmentData?.clientName || 'Cliente';
       const serviceName = appointmentData?.serviceName || 'Serviço';
       const timeStr = appointmentData?.time || '';
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
         dateStr = appointmentData.date.split('-').reverse().join('/');
       }
 
-      // 3. Dispara a notificação para o Master Barber
+      // 3. Notifica o Master Barber
       await adminDb.collection('notifications').add({
         toId: MASTER_BARBER_ID,
         fromId: appointmentData?.clientId || appointmentData?.userId || 'system',
@@ -76,13 +79,13 @@ export async function POST(request: Request) {
         createdAt: Timestamp.now(),
       });
 
-      return NextResponse.json({ success: true, message: 'Agendamento confirmado e barbeiro notificado.' }, { status: 200 });
+      return NextResponse.json({ success: true, message: 'Agendamento confirmado com sucesso!' }, { status: 200 });
     }
 
-    return NextResponse.json({ received: true, message: 'Evento processado sem alteração de status.' }, { status: 200 });
+    return NextResponse.json({ received: true, message: 'Evento recebido sem alteração de status.' }, { status: 200 });
 
   } catch (error: any) {
     console.error('[WEBHOOK EXCEPTION]:', error);
-    return NextResponse.json({ error: 'Erro interno ao processar o webhook.', details: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno no webhook.', details: error.message }, { status: 500 });
   }
 }
