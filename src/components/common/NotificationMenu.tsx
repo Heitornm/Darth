@@ -1,30 +1,29 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from 'react';
+import { Bell, Check, Trash2 } from 'lucide-react';
+import { useUser, useFirestore } from '@/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  Timestamp 
+} from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  doc,
-  updateDoc,
-  writeBatch,
-} from "firebase/firestore";
-import { Bell, CheckCheck, Check } from "lucide-react";
-import { db } from "@/firebase/firebase";
-import { useUser } from "@/firebase";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-export interface NotificationItem {
+interface NotificationItem {
   id: string;
-  toId: string;
   title: string;
   message: string;
   read: boolean;
@@ -33,142 +32,154 @@ export interface NotificationItem {
 
 export function NotificationMenu() {
   const { user } = useUser();
+  const db = useFirestore();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Escuta as notificações destinadas ao usuário logado em tempo real
   useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
+    if (!user || !db) return;
 
-    // A query atende estritamente à regra do Firestore (where toId == user.uid)
-    const q = query(
-      collection(db, "notifications"),
-      where("toId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const list: NotificationItem[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as NotificationItem[];
-
-        setNotifications(list);
-      },
-      (error) => {
-        console.error("Erro ao escutar notificações:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Quantidade de notificações não lidas
-  const unreadCount = notifications.filter((item) => !item.read).length;
-
-  // Marcar uma única notificação como lida
-  const markAsRead = async (notificationId: string) => {
     try {
-      const notifRef = doc(db, "notifications", notificationId);
-      await updateDoc(notifRef, {
-        read: true,
-      });
-    } catch (error) {
-      console.error("Erro ao marcar notificação como lida:", error);
+      const q = query(
+        collection(db, 'notifications'),
+        where('toId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const list: NotificationItem[] = [];
+          let unread = 0;
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (!data.read) unread++;
+            list.push({
+              id: docSnap.id,
+              title: data.title || 'Notificação',
+              message: data.message || '',
+              read: !!data.read,
+              createdAt: data.createdAt,
+            });
+          });
+
+          setNotifications(list);
+          setUnreadCount(unread);
+        },
+        (err) => {
+          console.warn('Aguardando criação do índice de notificações:', err.message);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Erro ao buscar notificações:', err);
+    }
+  }, [user, db]);
+
+  const markAsRead = async (id: string) => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'notifications', id), { read: true });
+    } catch (err) {
+      console.error('Erro ao marcar notificação como lida:', err);
     }
   };
 
-  // Marcar TODAS as notificações como lidas em lote (Batch write)
-  const markAllAsRead = async () => {
-    const unreadNotifications = notifications.filter((item) => !item.read);
-    if (unreadNotifications.length === 0) return;
-
-    setLoading(true);
+  const removeNotification = async (id: string) => {
+    if (!db) return;
     try {
-      const batch = writeBatch(db);
-
-      unreadNotifications.forEach((item) => {
-        const notifRef = doc(db, "notifications", item.id);
-        batch.update(notifRef, { read: true });
-      });
-
-      await batch.commit();
-    } catch (error) {
-      console.error("Erro ao marcar todas notificações como lidas:", error);
-    } finally {
-      setLoading(false);
+      await deleteDoc(doc(db, 'notifications', id));
+    } catch (err) {
+      console.error('Erro ao remover notificação:', err);
     }
   };
 
-  if (!user) return null;
+  // Helper seguro para formatação de data
+  const formatDateSafe = (dateVal: any): string => {
+    if (!dateVal) return 'Recente';
+    try {
+      const d = dateVal instanceof Timestamp ? dateVal.toDate() : new Date(dateVal);
+      if (isNaN(d.getTime())) return 'Recente';
+      
+      return d.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return 'Recente';
+    }
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notificações">
-          <Bell className="h-5 w-5" />
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card">
+          <Bell className="w-4 h-4 text-primary" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-sm">
-              {unreadCount > 9 ? "9+" : unreadCount}
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-n8n-glow">
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-80 p-0 sm:w-96">
-        <div className="flex items-center justify-between border-b p-3">
-          <span className="font-semibold text-sm">Notificações</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0 bg-card border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h4 className="font-headline font-bold text-sm">Notificações</h4>
           {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto p-1 text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
-              onClick={markAllAsRead}
-              disabled={loading}
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-              Marcar lidas
-            </Button>
+            <span className="text-xs text-muted-foreground">{unreadCount} não lida(s)</span>
           )}
         </div>
-
-        <div className="max-h-80 overflow-y-auto divide-y">
+        <ScrollArea className="h-72">
           {notifications.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              Nenhuma notificação por aqui.
+            <div className="p-8 text-center text-xs text-muted-foreground">
+              Nenhuma notificação por enquanto.
             </div>
           ) : (
-            notifications.map((item) => (
-              <DropdownMenuItem
-                key={item.id}
-                className={`flex flex-col items-start gap-1 p-3 cursor-pointer transition-colors ${
-                  !item.read ? "bg-muted/40 font-medium" : "opacity-75"
-                }`}
-                onClick={() => !item.read && markAsRead(item.id)}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">
-                    {item.title}
-                  </span>
-                  {!item.read ? (
-                    <span className="h-2 w-2 rounded-full bg-blue-600" />
-                  ) : (
-                    <Check className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
+            <div className="divide-y divide-border/40">
+              {notifications.map((item) => (
+                <div 
+                  key={item.id} 
+                  className={`p-3.5 transition-colors flex items-start justify-between gap-2 ${
+                    !item.read ? 'bg-primary/5' : ''
+                  }`}
+                >
+                  <div className="space-y-1 pr-2">
+                    <p className="text-xs font-bold leading-tight">{item.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{item.message}</p>
+                    <p className="text-[10px] text-muted-foreground/70 pt-1">
+                      {formatDateSafe(item.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!item.read && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                        onClick={() => markAsRead(item.id)}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                      onClick={() => removeNotification(item.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {item.message}
-                </p>
-              </DropdownMenuItem>
-            ))
+              ))}
+            </div>
           )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
   );
 }
