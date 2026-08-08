@@ -71,8 +71,45 @@ function NewAppointmentContent() {
     return occupied >= TOTAL_MINUTES_PER_DAY;
   };
 
+  // Helper que verifica com precisão se o slot selecionado já passou no dia de hoje
+  const isTimeSlotPast = (timeSlot: string): boolean => {
+    if (!date) return false;
+
+    const now = new Date();
+    const selectedDayKey = format(date, 'yyyy-MM-dd');
+    const todayKey = format(now, 'yyyy-MM-dd');
+
+    // Se o dia for anterior ao dia de hoje
+    if (selectedDayKey < todayKey) return true;
+
+    // Se for um dia futuro
+    if (selectedDayKey > todayKey) return false;
+
+    // Se for EXATAMENTE O DIA DE HOJE: compara horas e minutos
+    const [slotHours, slotMinutes] = timeSlot.split(':').map(Number);
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+
+    if (slotHours < currentHours) {
+      return true;
+    }
+
+    if (slotHours === currentHours && slotMinutes <= currentMinutes) {
+      return true;
+    }
+
+    return false;
+  };
+
   const isTimeSlotAvailable = (timeSlot: string) => {
-    if (!date || !selectedService || !appointments) return true;
+    if (!date || !selectedService) return true;
+
+    // 1. Bloqueia imediatamente se o horário já tiver passado hoje
+    if (isTimeSlotPast(timeSlot)) {
+      return false;
+    }
+
+    if (!appointments) return true;
 
     const [hours, minutes] = timeSlot.split(':').map(Number);
     const slotStart = new Date(date);
@@ -81,10 +118,9 @@ function NewAppointmentContent() {
     const duration = Number(selectedService.duration) || (selectedService as any).durationMinutes || 30;
     const slotEnd = addMinutes(slotStart, duration);
 
-    if (isBefore(slotStart, new Date())) return false;
-
     const now = new Date();
 
+    // 2. Bloqueia se houver choque com agendamento ativo ou pendente não expirado
     return !appointments.filter(a => {
       if (a.status === 'cancelado' || a.status === 'canceled') return false;
 
@@ -129,7 +165,6 @@ function NewAppointmentContent() {
         <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
       </div>
 
-      {/* Centralização do card principal */}
       <div className="flex justify-center w-full">
         <Card className="w-full max-w-2xl border-primary/20 shadow-md">
           <CardHeader className="bg-primary/5">
@@ -205,10 +240,19 @@ function NewAppointmentContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {TIME_SLOTS.map(slot => {
+                      const past = isTimeSlotPast(slot);
                       const available = isTimeSlotAvailable(slot);
+
+                      let labelStatus = "";
+                      if (past) {
+                        labelStatus = "(Indisponível)";
+                      } else if (!available) {
+                        labelStatus = "(Ocupado)";
+                      }
+
                       return (
                         <SelectItem key={slot} value={slot} disabled={!available}>
-                          {slot} {!available && "(Ocupado)"}
+                          {slot} {labelStatus}
                         </SelectItem>
                       );
                     })}
