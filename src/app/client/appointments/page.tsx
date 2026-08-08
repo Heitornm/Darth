@@ -1,5 +1,5 @@
 'use client';
-
+//1
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFirestore } from '@/firebase';
@@ -45,3 +45,5 @@ export default function ClientAppointmentsPage() {
     </div>
   );
 }
+
+
