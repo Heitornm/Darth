@@ -32,7 +32,6 @@ export function Navbar() {
     setIsMounted(true);
   }, []);
 
-  // Busca a permissão (role) no Firestore
   useEffect(() => {
     let isSubscribed = true;
 
@@ -86,23 +85,22 @@ export function Navbar() {
   const isBarber = userRole === 'barber' || user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
 
   return (
-    <nav className="border-b bg-card/60 backdrop-blur-xl sticky top-0 z-50 h-16">
-      {/* Listener global de notificações ativado em background */}
+    <nav className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50 h-16">
       <NotificationListener />
 
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform duration-300">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-all shadow-n8n-glow">
             <Scissors className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-headline font-bold text-xl tracking-tighter text-foreground hidden sm:block">
-            DarthBarber
+          <span className="font-headline font-bold text-xl tracking-tight text-foreground hidden sm:block">
+            Darth<span className="text-primary">Barber</span>
           </span>
         </Link>
         
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-2">
-            <NavLink href="/services" icon={<Sparkles className="w-4 h-4" />} label="Serviços" />
+            <NavLink href="/services" icon={<Sparkles className="w-4 h-4 text-primary" />} label="Serviços" />
             
             {isMounted && !isLoading && user && (
               <>
@@ -123,28 +121,26 @@ export function Navbar() {
 
           <div className="flex items-center gap-2 min-w-[40px] justify-end">
             {!isMounted || isLoading ? (
-              <div className="w-10 h-10 rounded-full bg-muted/20 animate-pulse border border-primary/10" />
+              <div className="w-9 h-9 rounded-full bg-muted/30 animate-pulse border border-border" />
             ) : user ? (
               <>
-                {/* Menu com Sininho e Popover de Notificações */}
                 <NotificationMenu />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full border border-primary/20 bg-primary/5 p-0 focus-visible:ring-0">
-                      <User className="w-5 h-5 text-primary" />
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full border border-border bg-card p-0 hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary">
+                      <User className="w-4 h-4 text-primary" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 mt-2">
+                  <DropdownMenuContent align="end" className="w-56 mt-2 bg-card border-border">
                     <div className="flex flex-col space-y-1 p-2">
                       <p className="text-sm font-bold leading-none">{user.displayName || "Usuário"}</p>
                       <p className="text-xs leading-none text-muted-foreground truncate">
                         {user.email}
                       </p>
                     </div>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className="bg-border" />
                     
-                    {/* Opção "Minhas Reservas" no Menu do Usuário */}
                     {!isBarber && (
                       <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
                         <ClipboardList className="w-4 h-4 mr-2" />
@@ -156,8 +152,8 @@ export function Navbar() {
                       <Settings className="w-4 h-4 mr-2" />
                       Editar Perfil
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer focus:text-red-500">
+                    <DropdownMenuSeparator className="bg-border" />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-400 cursor-pointer focus:text-red-400 focus:bg-red-500/10">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sair da Conta
                     </DropdownMenuItem>
@@ -165,7 +161,7 @@ export function Navbar() {
                 </DropdownMenu>
               </>
             ) : (
-              <Button asChild size="sm" className="rounded-full px-4 sm:px-6 bg-primary hover:bg-primary/90">
+              <Button asChild size="sm" className="rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-n8n-glow">
                 <Link href="/login" className="flex items-center gap-2">
                   <LogIn className="w-4 h-4" />
                   <span className="hidden xs:inline">Entrar</span>
@@ -181,7 +177,7 @@ export function Navbar() {
 
 function NavLink({ href, icon, label }: { href: string; icon: any; label: string }) {
   return (
-    <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary transition-all gap-2 h-9 rounded-xl px-2 sm:px-3">
+    <Button variant="ghost" asChild className="text-sm font-medium hover:text-primary hover:bg-secondary/50 transition-all gap-2 h-9 rounded-xl px-3">
       <Link href={href}>
         {icon}
         <span className="hidden md:inline">{label}</span>

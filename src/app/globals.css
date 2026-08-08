@@ -1,39 +1,71 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 @layer base {
   :root {
-    --background: 240 14% 15%;
-    --foreground: 210 40% 98%;
-    --card: 240 14% 18%;
-    --card-foreground: 210 40% 98%;
-    --popover: 240 14% 15%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 229 89% 63%;
+    /* Tema Dark Padrão Inspirado no n8n.io */
+    --background: 240 10% 4%;        /* #0a0a0c - Preto Profundo */
+    --foreground: 0 0% 98%;          /* #fafafa - Texto Principal */
+    
+    --card: 240 8% 8%;               /* #131317 - Superfície de Cards */
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 8% 8%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 7 100% 68%;           /* #ff6d5a - Laranja Vibrante n8n */
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 14% 25%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 240 14% 22%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 198 100% 78%;
-    --accent-foreground: 240 14% 15%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 240 14% 25%;
-    --input: 240 14% 25%;
-    --ring: 198 100% 78%;
-    --radius: 0.75rem;
+    
+    --secondary: 240 6% 14%;         /* #212126 - Cinza de Apoio */
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 240 6% 14%;             /* #212126 */
+    --muted-foreground: 240 5% 65%;  /* Texto Secundário */
+    
+    --accent: 7 100% 68%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 6% 18%;            /* #2a2a32 - Borda Sutil */
+    --input: 240 6% 18%;
+    --ring: 7 100% 68%;              /* Brilho de Foco Laranja */
+    
+    --radius: 0.85rem;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  body::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--primary-foreground));
+  }
+}
+
+/* Padrão de Grade de Fundo (Grid Pattern do n8n) */
+.bg-n8n-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* Efeito Glow / Radar do n8n */
+.bg-n8n-glow {
+  background: radial-gradient(circle at 50% 0%, rgba(255, 109, 90, 0.15) 0%, rgba(10, 10, 12, 0) 70%);
 }
 
 .font-headline {
