@@ -10,23 +10,30 @@ export async function POST(req: Request) {
     // 1. Validação dos campos obrigatórios
     if (!price || !serviceName || !appointmentId) {
       return NextResponse.json(
-        { error: "Campos obrigatórios ausentes no payload." },
+        { error: "Campos obrigatórios ausentes no payload (appointmentId, price ou serviceName)." },
         { status: 400 }
       );
     }
 
     const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.onrender.com";
+    const apiKey = process.env.INFINITEPAY_API_KEY; // Opcional, se configurado no ambiente
 
     // 2. Converte o preço para centavos (ex: R$ 35,00 = 3500)
     const amountInCents = Math.round(Number(price) * 100);
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     // 3. Chamada à API Oficial de Checkout da InfinitePay
     const response = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         handle: handle,
         redirect_url: `${baseUrl}/client/appointments?status=success`,
@@ -54,13 +61,13 @@ export async function POST(req: Request) {
       }, { status: 200 });
     }
 
-    console.error("[CHECKOUT API ERROR] Falha na API da InfinitePay:", responseData);
+    console.error("[CHECKOUT API ERROR] Falha na resposta da InfinitePay:", responseData);
 
-    // 4. Fallback para a página pública do handle se a API não retornar a URL
+    // 4. Fallback com aviso explicativo mantendo o direcionamento do handle
     const fallbackUrl = `https://infinitepay.io/pay/${handle}`;
     return NextResponse.json({
       success: true,
-      message: "Redirecionando para o perfil do estabelecimento.",
+      message: "Redirecionando para a página pública de pagamento.",
       checkoutUrl: fallbackUrl,
     }, { status: 200 });
 

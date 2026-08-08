@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/firebase/firebaseAdmin';
+import { Timestamp } from 'firebase-admin/firestore';
 
 const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
 
@@ -8,11 +9,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('[WEBHOOK INFINITEPAY RECEBIDO]:', JSON.stringify(body, null, 2));
 
-    // Extracts payload data safely from direct properties or nested data
+    // Extrai os dados do payload com suporte a estruturas aninhadas
     const eventData = body.data || body;
-    const appointmentId = eventData.order_nsu || eventData.metadata?.appointmentId || eventData.custom_id;
-    
-    // Validates payment approval status
+    const appointmentId = 
+      eventData.order_nsu || 
+      eventData.metadata?.appointmentId || 
+      eventData.custom_id ||
+      body.order_nsu;
+
+    // Valida o status do pagamento
     const isPaid = 
       eventData.paid === true || 
       eventData.status === 'approved' || 
@@ -42,28 +47,33 @@ export async function POST(request: Request) {
 
       const appointmentData = appointmentSnap.data();
 
-      // 1. Atualiza o agendamento no Firestore
+      // 1. Atualiza o agendamento no Firestore usando Timestamps nativos do Firebase Admin
       await appointmentRef.update({
         status: 'confirmado',
-        paidAt: new Date(),
-        updatedAt: new Date()
+        paidAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
       });
 
-      // 2. Dispara a notificação de Pagamento Confirmado para o Master Barber
-      const clientName = appointmentData?.clientName || 'Cliente';
+      // 2. Formatação tratada e segura da data
+      const clientName = appointmentData?.userName || appointmentData?.clientName || 'Cliente';
       const serviceName = appointmentData?.serviceName || 'Serviço';
       const timeStr = appointmentData?.time || '';
-      const dateStr = appointmentData?.date ? appointmentData.date.split('-').reverse().join('/') : '';
+      
+      let dateStr = '';
+      if (appointmentData?.date && typeof appointmentData.date === 'string') {
+        dateStr = appointmentData.date.split('-').reverse().join('/');
+      }
 
+      // 3. Dispara a notificação para o Master Barber
       await adminDb.collection('notifications').add({
         toId: MASTER_BARBER_ID,
-        fromId: appointmentData?.userId || 'system',
+        fromId: appointmentData?.clientId || appointmentData?.userId || 'system',
         title: '💰 Pagamento Confirmado!',
-        message: `${clientName} pagou o agendamento de ${serviceName} (${dateStr} às ${timeStr}).`,
+        message: `${clientName} pagou o agendamento de ${serviceName}${dateStr ? ` (${dateStr}${timeStr ? ` às ${timeStr}` : ''})` : ''}.`,
         type: 'payment_confirmed',
         appointmentId: appointmentId,
         read: false,
-        createdAt: new Date(),
+        createdAt: Timestamp.now(),
       });
 
       return NextResponse.json({ success: true, message: 'Agendamento confirmado e barbeiro notificado.' }, { status: 200 });
