@@ -2,34 +2,76 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Função auxiliar para verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Função auxiliar para verificar se o usuário é dono do recurso
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
     // Função utilitária para identificar Barbeiros / Masters
     function isMaster() {
-      return request.auth != null && (
+      return isAuthenticated() && (
         request.auth.token.email in ['heitornmartins@gmail.com', 'darthbarber@darth.com.br'] ||
-        request.auth.uid in ['wWlt2ixyjwfLqDHDQFFNQgaYfCT2'] || // Adicione UIDs específicos se necessário
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'barber'
+        request.auth.uid in ['eUCAkXknM1N0mcC04hCIfF3HcMk1', 'wWlt2ixyjwfLqDHDQFFNQgaYfCT2'] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'barber')
       );
     }
 
-    // Coleção de Notificações
-    match /notifications/{notificationId} {
-      // O usuário pode ler apenas as notificações destinadas a ele (toId == uid) OU se for Master/Barbeiro
-      allow read: if request.auth != null && (
-        resource.data.toId == request.auth.uid || isMaster()
-      );
-      
-      // Permitir criar notificações (ex: quando um agendamento é feito)
-      allow create: if request.auth != null;
-      
-      // Permitir atualizar (ex: marcar como lida) se for dono da notificação ou Master
-      allow update: if request.auth != null && (
-        resource.data.toId == request.auth.uid || isMaster()
-      );
-
-      // Apenas Master pode excluir
+    // 1. Coleção de Usuários (/users)
+    match /users/{userId} {
+      // Permite ler o próprio perfil, ou se for barbeiro/master
+      allow read: if isOwner(userId) || isMaster();
+      // Permite criar/atualizar o próprio perfil se estiver logado
+      allow create, update: if isOwner(userId);
       allow delete: if isMaster();
     }
 
-    // Demais coleções (users, appointments, etc)...
+    // 2. Coleção de Agendamentos (/appointments)
+    match /appointments/{appointmentId} {
+      // O cliente pode ler seus agendamentos, o barbeiro/master pode ler todos
+      allow read: if isAuthenticated() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.barberId == request.auth.uid ||
+        isMaster()
+      );
+
+      // Qualquer usuário autenticado pode criar um agendamento
+      allow create: if isAuthenticated();
+
+      // Permitir atualizar se for o dono do agendamento ou barbeiro/master
+      allow update: if isAuthenticated() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        isMaster()
+      );
+
+      // Apenas barbeiros/masters podem deletar agendamentos
+      allow delete: if isMaster();
+    }
+
+    // 3. Coleção de Notificações (/notifications)
+    match /notifications/{notificationId} {
+      // Permite leitura se for o destinatário ou se for Master
+      allow read: if isAuthenticated() && (
+        resource.data.toId == request.auth.uid || isMaster()
+      );
+
+      // Permitir criar notificações (ex: no agendamento ou confirmação de pagamento)
+      allow create: if isAuthenticated();
+
+      // Permitir marcar como lida se for o dono ou Master
+      allow update: if isAuthenticated() && (
+        resource.data.toId == request.auth.uid || isMaster()
+      );
+
+      // Apenas Master pode excluir notificações
+      allow delete: if isMaster();
+    }
   }
 }
