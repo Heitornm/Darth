@@ -5,7 +5,9 @@ import { Calendar, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useUser } from '@/firebase';
-import { BookingCalendarView } from '@/components/BookingCalendarView';
+
+// ✅ Caminho CORRIGIDO conforme estrutura real do projeto
+import { BookingCalendarView } from '@/components/features/appointments/BookingCalendarView';
 
 export default function ClientHomePage() {
   const { user } = useUser();
