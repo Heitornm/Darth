@@ -61,41 +61,30 @@ export default function HomePage() {
         <ServiceCarousel services={SERVICES} />
       </section>
 
-      {/* Cards de Diferenciais estilo n8n */}
-      <section className="py-20 border-t border-border/40 bg-card/20 bg-n8n-grid">
+      {/* Cards Compactos de Diferenciais — Sem texto descritivo */}
+      <section className="py-10 border-t border-border/40 bg-card/20 bg-n8n-grid">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <div className="group p-8 rounded-2xl bg-card/80 border border-border/60 hover:border-primary/40 transition-all shadow-n8n-card backdrop-blur-sm">
-              <div className="p-3.5 rounded-xl bg-primary/10 text-primary w-fit mb-5 group-hover:scale-110 transition-transform">
-                <Clock className="w-6 h-6" />
+          <div className="grid grid-cols-3 gap-4 justify-items-center">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-card/80 border border-border/60 hover:border-primary/40 transition-all">
+              <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                <Clock className="w-5 h-5" />
               </div>
-              <h3 className="font-bold text-xl mb-2 font-headline">Sem Filas</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Agendamento online em tempo real. Escolha seu horário e seja atendido pontualmente.
-              </p>
+              <h3 className="font-bold text-lg font-headline">Sem Filas</h3>
             </div>
 
-            <div className="group p-8 rounded-2xl bg-card/80 border border-border/60 hover:border-primary/40 transition-all shadow-n8n-card backdrop-blur-sm">
-              <div className="p-3.5 rounded-xl bg-primary/10 text-primary w-fit mb-5 group-hover:scale-110 transition-transform">
-                <Scissors className="w-6 h-6" />
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-card/80 border border-border/60 hover:border-primary/40 transition-all">
+              <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                <Scissors className="w-5 h-5" />
               </div>
-              <h3 className="font-bold text-xl mb-2 font-headline">Profissionais Elite</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Barbeiros especialistas master em visagismo, cortes clássicos e estilos modernos.
-              </p>
+              <h3 className="font-bold text-lg font-headline">Profissionais Elite</h3>
             </div>
 
-            <div className="group p-8 rounded-2xl bg-card/80 border border-border/60 hover:border-primary/40 transition-all shadow-n8n-card backdrop-blur-sm">
-              <div className="p-3.5 rounded-xl bg-primary/10 text-primary w-fit mb-5 group-hover:scale-110 transition-transform">
-                <ShieldCheck className="w-6 h-6" />
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-card/80 border border-border/60 hover:border-primary/40 transition-all">
+              <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                <ShieldCheck className="w-5 h-5" />
               </div>
-              <h3 className="font-bold text-xl mb-2 font-headline">Ambiente Premium</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Espaço exclusivo equipado para garantir seu conforto e uma experiência completa.
-              </p>
+              <h3 className="font-bold text-lg font-headline">Ambiente Premium</h3>
             </div>
-
           </div>
         </div>
       </section>
