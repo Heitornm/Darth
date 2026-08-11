@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Calendar, ExternalLink, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Calendar, Link, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -10,9 +10,18 @@ function SucessoContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Parâmetros enviados pela InfinitePay na URL
+  // Captura parâmetros
   const transactionId = searchParams.get('transaction_id');
   const receiptUrl = searchParams.get('receipt_url');
+  const orderNsu = searchParams.get('order_nsu');
+
+  // Repassa o order_nsu ao navegar
+  const irParaReservas = () => {
+    const destino = orderNsu
+      ? `/client/appointments?status=success&order_nsu=${orderNsu}`
+      : '/client/appointments';
+    router.push(destino);
+  };
 
   return (
     <Card className="w-full max-w-md border-primary/20 shadow-xl">
@@ -29,6 +38,13 @@ function SucessoContent() {
       </CardHeader>
 
       <CardContent className="space-y-4 pt-4">
+        {orderNsu && (
+          <div className="p-3 bg-muted/50 rounded-lg flex flex-col gap-1 text-xs">
+            <span className="text-muted-foreground font-medium">Código da Reserva:</span>
+            <span className="font-mono text-foreground break-all">{orderNsu}</span>
+          </div>
+        )}
+
         {transactionId && (
           <div className="p-3 bg-muted/50 rounded-lg flex flex-col gap-1 text-xs">
             <span className="text-muted-foreground font-medium">ID da Transação:</span>
@@ -43,7 +59,7 @@ function SucessoContent() {
             className="w-full gap-2 border-primary/20 text-primary hover:bg-primary/5"
             onClick={() => window.open(receiptUrl, '_blank')}
           >
-            <ExternalLink className="w-4 h-4" />
+            <Link className="w-4 h-4" />
             Visualizar Comprovante Pix
           </Button>
         )}
@@ -52,7 +68,7 @@ function SucessoContent() {
       <CardFooter className="flex flex-col gap-2 pt-2">
         <Button
           className="w-full gap-2 font-semibold"
-          onClick={() => router.push('/client/appointments')}
+          onClick={irParaReservas}
         >
           <Calendar className="w-4 h-4" />
           Ver Minhas Reservas
