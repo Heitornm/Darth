@@ -4,7 +4,7 @@ import { useEffect, Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFirestore, useUser } from '@/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,7 @@ function AppointmentsContent() {
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<any[]>([]);
 
-  // Confirmação automática de pagamento após retorno do gateway
+  // Confirmação automática de pagamento
   const status = searchParams.get('status');
   const orderNsu = searchParams.get('order_nsu');
 
@@ -37,15 +37,14 @@ function AppointmentsContent() {
             description: "Seu horário foi reservado e confirmado com sucesso.",
           });
         } catch (error) {
-          console.error("Erro ao atualizar status do agendamento no retorno:", error);
+          console.error("Erro ao atualizar status:", error);
         }
       }
     }
-
     confirmPaymentOnReturn();
   }, [status, orderNsu, db, toast]);
 
-  // Carrega lista de agendamentos do cliente logado
+  // Carrega agendamentos do cliente
   useEffect(() => {
     if (!db || !user) return;
 
@@ -65,7 +64,35 @@ function AppointmentsContent() {
     return () => unsubscribe();
   }, [db, user]);
 
-  // Retorna badge colorido conforme o status
+  // ✅ Formatação SEGURA da data — evita "Invalid time value"
+  const formatDateSafe = (apt: any) => {
+    try {
+      // Se vier como objeto Timestamp do Firestore
+      if (apt.dataHora) {
+        const dateObj = apt.dataHora?.toDate ? apt.dataHora.toDate() : new Date(apt.dataHora);
+        if (isValid(dateObj)) {
+          return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+        }
+      }
+
+      // Se vier separado em date + time (formato YYYY-MM-DD e HH:mm)
+      if (apt.date && apt.time) {
+        const dateStr = `${apt.date}T${apt.time}`;
+        const dateObj = parseISO(dateStr);
+        if (isValid(dateObj)) {
+          return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+        }
+        // Fallback seguro se falhar o parse
+        return `${apt.date} às ${apt.time}`;
+      }
+
+      return 'Data indisponível';
+    } catch {
+      return `${apt.date || 'Data'} às ${apt.time || 'Horário'}`;
+    }
+  };
+
+  // Retorna badge colorido conforme status
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmado':
@@ -103,9 +130,7 @@ function AppointmentsContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-1">
-                <p>
-                  📅 {format(new Date(`${apt.date}T${apt.time}`), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                </p>
+                <p>📅 {formatDateSafe(apt)}</p>
                 {apt.price && (
                   <p>
                     💰 Valor: <span className="font-bold text-emerald-500">R$ {Number(apt.price).toFixed(2)}</span>
