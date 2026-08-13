@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Calendar, Link, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Calendar, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -59,7 +59,17 @@ function SucessoContent() {
             className="w-full gap-2 border-primary/20 text-primary hover:bg-primary/5"
             onClick={() => window.open(receiptUrl, '_blank')}
           >
-            <Link className="w-4 h-4" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              className="w-4 h-4"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 3h7v7M10 14L21 3" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21H3V3" />
+            </svg>
             Visualizar Comprovante Pix
           </Button>
         )}
