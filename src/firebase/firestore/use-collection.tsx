@@ -8,9 +8,11 @@ import {
   FirestoreError,
   QuerySnapshot,
   CollectionReference,
+  Timestamp,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+
 
 export type WithId<T> = T & { id: string };
 
@@ -30,8 +32,60 @@ export interface InternalQuery extends Query<DocumentData> {
   path?: string;
 }
 
+// ✅ FUNÇÃO CHAVE: Converte Timestamp do Firestore de forma SEGURA
+function safeConvertTimestamps<T>(obj: any): T {
+  if (!obj || typeof obj !== 'object') return obj;
+
+  const result: any = { ...obj };
+
+  for (const key of Object.keys(result)) {
+    const value = result[key];
+
+    // 🔹 Se for Timestamp do Firestore → converte com VALIDAÇÃO
+    if (value instanceof Timestamp) {
+      try {
+        const date = value.toDate();
+        if (!isNaN(date.getTime())) {
+          result[key] = date; // ✅ Válida → converte
+        } else {
+          console.warn(`⚠️ Timestamp inválido no campo "${key}":`, value);
+          result[key] = null; // ❌ Inválida → define como null
+        }
+      } catch {
+        console.warn(`⚠️ Falha ao converter campo "${key}":`, value);
+        result[key] = null;
+      }
+    }
+    // 🔹 Se vier como objeto { seconds, nanoseconds }
+    else if (value && typeof value === 'object' && 'seconds' in value) {
+      try {
+        const date = new Date(value.seconds * 1000);
+        if (!isNaN(date.getTime())) {
+          result[key] = date;
+        } else {
+          console.warn(`⚠️ Data inválida no campo "${key}":`, value);
+          result[key] = null;
+        }
+      } catch {
+        result[key] = null;
+      }
+    }
+    // 🔹 Se vier como string → valida
+    else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        result[key] = date;
+      }
+    }
+  }
+
+  return result as T;
+}
+
+
 /**
  * Hook para assinar uma coleção ou query do Firestore em tempo real.
+ * ✅ Com conversão SEGURA de Timestamps — NUNCA mais quebra com Invalid Time Value
  */
 export function useCollection<T = any>(
   target: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
@@ -56,16 +110,20 @@ export function useCollection<T = any>(
     const unsubscribe = onSnapshot(
       target,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const results = snapshot.docs.map((doc) => ({
-          ...(doc.data() as T),
-          id: doc.id,
-        }));
-        
+        // ✅ AQUI ESTÁ A CORREÇÃO: Converte TODOS os campos de forma segura
+        const results = snapshot.docs.map((doc) => {
+          const rawData = doc.data() as T;
+          return {
+            ...safeConvertTimestamps<T>(rawData), // 🔑 Validação AQUI
+            id: doc.id,
+          };
+        });
+
         setData(results);
         setIsLoading(false);
         setError(null);
       },
-      async (_err: FirestoreError) => { // 👈 Mudado de 'err' para '_err'
+      async (_err: FirestoreError) => {
         let path = 'collection';
         try {
           if ((target as any).path) {
@@ -76,8 +134,7 @@ export function useCollection<T = any>(
               ? queryPath.canonicalString() 
               : queryPath.toString();
           }
-        } catch (_e) { // 👈 Mudado de 'e' para '_e' para evitar futuros erros de variável não usada
-          // Fallback genérico para evitar crash
+        } catch (_e) {
           path = 'firestore-collection';
         }
 

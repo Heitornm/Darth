@@ -16,13 +16,27 @@ interface BookingCalendarViewProps {
   selectedTime?: string;
 }
 
+// ✅ Função auxiliar segura para criar datas
+function safeDate(value?: string | Date | number | null): string {
+  if (!value) {
+    return new Date().toISOString().split('T')[0];
+  }
+  const date = new Date(value);
+  if (isNaN(date.getTime())) {
+    console.warn('⚠️ Data inválida detectada:', value);
+    return new Date().toISOString().split('T')[0];
+  }
+  return date.toISOString().split('T')[0];
+}
+
 export function BookingCalendarView({
   onSelectTimeSlot,
   selectedDate: initialDate,
   selectedTime: initialTime
 }: BookingCalendarViewProps) {
-  const [date, setDate] = useState<string>(
-    initialDate || new Date().toISOString().split('T')[0]
+  // ✅ Garante que a data inicial SEMPRE seja válida
+  const [date, setDate] = useState<string>(() => 
+    safeDate(initialDate || new Date().toISOString().split('T')[0])
   );
   const [time, setTime] = useState<string>(initialTime || '');
   const [bookedTimes, setBookedTimes] = useState<string[]>([]);
@@ -33,10 +47,13 @@ export function BookingCalendarView({
       if (!date) return;
       setLoading(true);
       try {
-        const booked = await getBookedSlotsByDate(date);
-        setBookedTimes(booked);
+        // ✅ Garante que enviamos uma data válida para o serviço
+        const safeDateValue = safeDate(date);
+        const booked = await getBookedSlotsByDate(safeDateValue);
+        setBookedTimes(booked || []);
       } catch (error) {
         console.error("Erro ao carregar horários:", error);
+        setBookedTimes([]); // ✅ Evita estado inconsistente
       } finally {
         setLoading(false);
       }
@@ -47,9 +64,13 @@ export function BookingCalendarView({
   const handleTimeClick = (selectedTimeSlot: string) => {
     setTime(selectedTimeSlot);
     if (onSelectTimeSlot) {
-      onSelectTimeSlot(date, selectedTimeSlot);
+      // ✅ Garante que a data passada para o pai também é válida
+      onSelectTimeSlot(safeDate(date), selectedTimeSlot);
     }
   };
+
+  // ✅ Data mínima segura no input
+  const minDate = safeDate(new Date().toISOString().split('T')[0]);
 
   return (
     <Card className="border-primary/20 bg-card/60 backdrop-blur-md shadow-xl w-full">
@@ -68,10 +89,11 @@ export function BookingCalendarView({
           </label>
           <input
             type="date"
-            min={new Date().toISOString().split('T')[0]}
+            min={minDate}
             value={date}
             onChange={(e) => {
-              setDate(e.target.value);
+              const newDate = e.target.value;
+              setDate(safeDate(newDate)); // ✅ Valida antes de salvar
               setTime('');
             }}
             className="w-full bg-background border border-border/80 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary font-medium"

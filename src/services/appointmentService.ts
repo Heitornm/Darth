@@ -6,6 +6,7 @@ import {
   getDocs 
 } from 'firebase/firestore';
 
+
 export interface Appointment {
   id?: string;
   clientId: string;
@@ -20,11 +21,23 @@ export interface Appointment {
   createdAt?: any;
 }
 
+// ✅ Função auxiliar segura para validar datas
+function isValidDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const date = new Date(dateStr);
+  return !isNaN(date.getTime());
+}
+
+
 /**
  * Busca os horários ocupados para uma determinada data de forma segura
  */
 export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
-  if (!dateStr) return [];
+  // ✅ Valida a entrada antes de qualquer coisa
+  if (!dateStr || !isValidDateString(dateStr)) {
+    console.warn('⚠️ Data inválida recebida em getBookedSlotsByDate:', dateStr);
+    return [];
+  }
 
   try {
     const q = query(
@@ -35,10 +48,17 @@ export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
 
     const querySnapshot = await getDocs(q);
     
-    // Converte os documentos em lista de horários utilizando map e filter
+    // ✅ Garante que só retornamos valores válidos
     const bookedTimes = querySnapshot.docs
-      .map((doc) => doc.data()?.time)
-      .filter((time): time is string => typeof time === 'string' && time.trim() !== '');
+      .map((doc) => {
+        const data = doc.data();
+        return data?.time;
+      })
+      .filter((time): time is string => {
+        if (typeof time !== 'string') return false;
+        const trimmed = time.trim();
+        return /^\d{2}:\d{2}$/.test(trimmed); // Valida formato HH:mm
+      });
 
     return bookedTimes;
   } catch (error: any) {
@@ -54,10 +74,19 @@ export async function getBookedSlotsByDate(dateStr: string): Promise<string[]> {
   }
 }
 
+
 /**
  * Cria um novo agendamento via API Route
  */
 export async function createNewAppointment(data: Omit<Appointment, 'id' | 'createdAt' | 'status'>) {
+  // ✅ Valida dados antes de enviar
+  if (!isValidDateString(data.date)) {
+    throw new Error('Formato de data inválido. Use YYYY-MM-DD.');
+  }
+  if (!/^\d{2}:\d{2}$/.test(data.time)) {
+    throw new Error('Formato de horário inválido. Use HH:mm.');
+  }
+
   const response = await fetch('/api/appointments', {
     method: 'POST',
     headers: {
@@ -74,6 +103,7 @@ export async function createNewAppointment(data: Omit<Appointment, 'id' | 'creat
 
   return result;
 }
+
 
 export const appointmentService = {
   getBookedSlotsByDate,

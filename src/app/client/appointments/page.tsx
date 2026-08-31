@@ -9,6 +9,33 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+
+// ✅ FUNÇÃO AUXILIAR: Conversão SEGURA de Timestamp → Date
+function safeTimestampToDate(value: any): Date | null {
+  if (!value) return null;
+  try {
+    // Timestamp padrão do Firestore
+    if (typeof value.toDate === 'function') {
+      const date = value.toDate();
+      return !isNaN(date.getTime()) ? date : null;
+    }
+    // Objeto { seconds, nanoseconds }
+    if (value && typeof value === 'object' && typeof value.seconds === 'number') {
+      const date = new Date(value.seconds * 1000);
+      return !isNaN(date.getTime()) ? date : null;
+    }
+    // String ISO
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      return !isNaN(date.getTime()) ? date : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+
 function AppointmentsContent() {
   const searchParams = useSearchParams();
   const db = useFirestore();
@@ -18,12 +45,14 @@ function AppointmentsContent() {
   const [showAll, setShowAll] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState<'all' | '30d' | '90d'>('all');
 
+
   // ======================================
   // ✅ ATUALIZAÇÃO DE STATUS APÓS PAGAMENTO
   // ======================================
   const status = searchParams.get('status');
   const orderNsu = searchParams.get('order_nsu');
   const sessionId = searchParams.get('session_id');
+
 
   useEffect(() => {
     async function confirmPaymentOnReturn() {
@@ -58,8 +87,9 @@ function AppointmentsContent() {
     confirmPaymentOnReturn();
   }, [status, orderNsu, sessionId, db, user, toast]);
 
+
   // ======================================
-  // ✅ CARREGA AGENDAMENTOS + ORDENAÇÃO
+  // ✅ CARREGA + CONVERTE TIMESTAMPS DE FORMA SEGURA
   // ======================================
   useEffect(() => {
     if (!db || !user) return;
@@ -71,18 +101,28 @@ function AppointmentsContent() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
+      // ✅ AQUI: Converte Timestamps ANTES de guardar no estado
+      const list = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          // 🔑 Converte campos de data de forma SEGURA na RAIZ
+          createdAt: safeTimestampToDate(data.createdAt),
+          dataHora: safeTimestampToDate(data.dataHora),
+          paidAt: safeTimestampToDate(data.paidAt),
+          updatedAt: safeTimestampToDate(data.updatedAt),
+        };
+      });
       setAppointments(list);
     });
 
     return () => unsubscribe();
   }, [db, user]);
 
+
   // ======================================
-  // ✅ FILTRO POR PERÍODO + LIMITE DE 5
+  // ✅ FILTRO POR PERÍODO — 100% SEGURO
   // ======================================
   const filteredAppointments = useMemo(() => {
     let list = [...appointments];
@@ -102,10 +142,13 @@ function AppointmentsContent() {
     return list;
   }, [appointments, filterPeriod, showAll]);
 
+
+  // ✅ Agora recebe Date já convertido ou null → NUNCA mais quebra
   function getTimeFromApt(apt: any): number {
     try {
-      if (apt.createdAt?.toDate) return apt.createdAt.toDate().getTime();
-      if (apt.dataHora?.toDate) return apt.dataHora.toDate().getTime();
+      // createdAt e dataHora JÁ são Date (ou null) desde o carregamento
+      if (apt.createdAt instanceof Date) return apt.createdAt.getTime();
+      if (apt.dataHora instanceof Date) return apt.dataHora.getTime();
       if (apt.date && apt.time) {
         const d = new Date(`${apt.date}T${apt.time}`);
         return isNaN(d.getTime()) ? 0 : d.getTime();
@@ -114,21 +157,22 @@ function AppointmentsContent() {
     } catch { return 0; }
   }
 
+
   // ======================================
-  // ✅ FORMATAÇÃO DE DATA 100% SEGURA
+  // ✅ FORMATAÇÃO DE DATA — AGORA RECEBE Date | null
   // ======================================
   const formatDateSafe = (apt: any) => {
     try {
       let dateObj: Date | null = null;
 
-      if (apt.dataHora?.toDate) dateObj = apt.dataHora.toDate();
+      // Campos JÁ convertidos em Date
+      if (apt.dataHora instanceof Date) dateObj = apt.dataHora;
+      else if (apt.createdAt instanceof Date) dateObj = apt.createdAt;
       else if (apt.date && apt.time) {
         let dateStr = apt.date.includes('-')
           ? `${apt.date}T${apt.time}`
           : `${apt.date.replace(/\//g, '-').split('-').reverse().join('-')}T${apt.time}`;
         dateObj = new Date(dateStr);
-      } else if (apt.createdAt?.toDate) {
-        dateObj = apt.createdAt.toDate();
       }
 
       if (!dateObj || isNaN(dateObj.getTime())) {
@@ -146,6 +190,7 @@ function AppointmentsContent() {
       return apt.date && apt.time ? `${apt.date} às ${apt.time}` : apt.date || 'Data indisponível';
     }
   };
+
 
   // ======================================
   // ✅ BADGE DE STATUS
@@ -171,8 +216,9 @@ function AppointmentsContent() {
     }
   };
 
+
   // ======================================
-  // ✅ RENDER — SEM ÍCONES
+  // ✅ RENDER
   // ======================================
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -245,6 +291,7 @@ function AppointmentsContent() {
     </div>
   );
 }
+
 
 export default function ClientAppointmentsPage() {
   return (
