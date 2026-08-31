@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 
 import { SERVICES } from '@/data/services';
 
+
 const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
@@ -30,6 +31,30 @@ const TIME_SLOTS = [
 const WORK_START = 8;
 const WORK_END = 21;
 const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
+
+
+// ✅ FUNÇÃO AUXILIAR: Conversão SEGURA de datas
+function safeToDate(value: any): Date | null {
+  if (!value) return null;
+  try {
+    // Timestamp do Firestore
+    if (value instanceof Timestamp) {
+      const date = value.toDate();
+      return !isNaN(date.getTime()) ? date : null;
+    }
+    // Objeto { seconds, nanoseconds }
+    if (value && typeof value === 'object' && typeof value.seconds === 'number') {
+      const date = new Date(value.seconds * 1000);
+      return !isNaN(date.getTime()) ? date : null;
+    }
+    // String ou número
+    const date = new Date(value);
+    return !isNaN(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
+}
+
 
 function NewAppointmentContent() {
   const router = useRouter();
@@ -53,12 +78,17 @@ function NewAppointmentContent() {
     return SERVICES.find(s => s.id === serviceId);
   }, [serviceId]);
 
+  // ✅ SEGURO: Converte datas ANTES de usar
   const availabilityData = useMemo(() => {
     if (!appointments) return {};
     const stats: Record<string, number> = {};
     appointments.forEach(apt => {
       if (apt.status === 'cancelado' || apt.status === 'canceled') return;
-      const aptDate = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+
+      // 🔑 Usa função SEGURA — nunca mais crasha!
+      const aptDate = safeToDate(apt.dataHora);
+      if (!aptDate) return; // Ignora datas inválidas silenciosamente
+
       const dayKey = format(aptDate, 'yyyy-MM-dd');
       stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
     });
@@ -71,7 +101,7 @@ function NewAppointmentContent() {
     return occupied >= TOTAL_MINUTES_PER_DAY;
   };
 
-  // Helper que verifica com precisão se o slot selecionado já passou no dia de hoje
+  // Verifica se o horário já passou
   const isTimeSlotPast = (timeSlot: string): boolean => {
     if (!date) return false;
 
@@ -79,36 +109,23 @@ function NewAppointmentContent() {
     const selectedDayKey = format(date, 'yyyy-MM-dd');
     const todayKey = format(now, 'yyyy-MM-dd');
 
-    // Se o dia for anterior ao dia de hoje
     if (selectedDayKey < todayKey) return true;
-
-    // Se for um dia futuro
     if (selectedDayKey > todayKey) return false;
 
-    // Se for EXATAMENTE O DIA DE HOJE: compara horas e minutos
     const [slotHours, slotMinutes] = timeSlot.split(':').map(Number);
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
 
-    if (slotHours < currentHours) {
-      return true;
-    }
-
-    if (slotHours === currentHours && slotMinutes <= currentMinutes) {
-      return true;
-    }
+    if (slotHours < currentHours) return true;
+    if (slotHours === currentHours && slotMinutes <= currentMinutes) return true;
 
     return false;
   };
 
+  // ✅ SEGURO: Verifica disponibilidade com datas validadas
   const isTimeSlotAvailable = (timeSlot: string) => {
     if (!date || !selectedService) return true;
-
-    // 1. Bloqueia imediatamente se o horário já tiver passado hoje
-    if (isTimeSlotPast(timeSlot)) {
-      return false;
-    }
-
+    if (isTimeSlotPast(timeSlot)) return false;
     if (!appointments) return true;
 
     const [hours, minutes] = timeSlot.split(':').map(Number);
@@ -117,23 +134,23 @@ function NewAppointmentContent() {
 
     const duration = Number(selectedService.duration) || (selectedService as any).durationMinutes || 30;
     const slotEnd = addMinutes(slotStart, duration);
-
     const now = new Date();
 
-    // 2. Bloqueia se houver choque com agendamento ativo ou pendente não expirado
     return !appointments.filter(a => {
       if (a.status === 'cancelado' || a.status === 'canceled') return false;
 
+      // ✅ Converte createdAt de forma SEGURA
+      const createdAt = safeToDate(a.createdAt) || now;
       if (a.status === 'pendente' || a.status === 'pending') {
-        const createdAt = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || Date.now());
         const expiresAt = new Date(createdAt.getTime() + 10 * 60 * 1000);
-        if (isAfter(now, expiresAt)) {
-          return false;
-        }
+        if (isAfter(now, expiresAt)) return false;
       }
       return true;
     }).some(apt => {
-      const aptStart = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date(apt.dataHora);
+      // ✅ Converte dataHora de forma SEGURA
+      const aptStart = safeToDate(apt.dataHora);
+      if (!aptStart) return false; // Ignora datas inválidas
+
       const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
       return isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
     });
@@ -158,6 +175,7 @@ function NewAppointmentContent() {
     const dateStr = format(date, 'yyyy-MM-dd');
     router.push(`/client/checkout?serviceId=${serviceId}&date=${dateStr}&time=${time}`);
   };
+
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -275,7 +293,8 @@ function NewAppointmentContent() {
   );
 }
 
-export default function ClientAppointmentsPage() {
+
+export default function NewAppointmentPage() {
   return (
     <Suspense fallback={
       <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
