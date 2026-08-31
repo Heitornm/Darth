@@ -96,8 +96,8 @@ function AppointmentsContent() {
 
     const q = query(
       collection(db, 'appointments'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('clientId', '==', user.uid),
+      orderBy('dataHora', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
