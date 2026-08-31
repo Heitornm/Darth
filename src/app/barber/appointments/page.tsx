@@ -29,8 +29,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
-const BARBER_EMAIL = "darthbarber@darth.com.br";
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
+const BARBER_EMAIL = "heitornmartins@gmail.com";
+const MASTER_BARBER_ID = '2cAVs3U9ciV3NiqApJuOlYGEJS32';
 
 interface Appointment {
   id: string;
