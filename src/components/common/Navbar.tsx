@@ -1,9 +1,19 @@
-"use client";
-
+'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Scissors, Calendar, User, LayoutDashboard, LogOut, LogIn, ClipboardList, Settings, Sparkles } from 'lucide-react';
+import { 
+  Scissors, 
+  Calendar, 
+  User, 
+  Home,           // ✅ Painel — ícone simples e universal
+  LogOut,         // ✅ Sair — nome correto SEM "Icon"
+  LogIn,          // ✅ Entrar — nome correto SEM "Icon"
+  List,           // ✅ substitui ClipboardList
+  Settings,       // ✅ Configurações — nome correto SEM "Icon"
+  Sparkles,
+  CheckSquare     // ✅ Solicitações
+} from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -34,18 +44,15 @@ export function Navbar() {
 
   useEffect(() => {
     let isSubscribed = true;
-
     async function fetchRole() {
       if (!user || !db || !isMounted) {
         if (isSubscribed) setUserRole(null);
         return;
       }
-
       if (user.email === BARBER_EMAIL || user.uid === MASTER_BARBER_ID) {
         if (isSubscribed) setUserRole('barber');
         return;
       }
-
       try {
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
@@ -58,27 +65,22 @@ export function Navbar() {
           }
         }
       } catch (error) {
-        console.warn("Não foi possível carregar o 'role' do usuário. Assumindo cliente:", error);
+        console.warn("Não foi possível carregar o 'role' do usuário:", error);
         if (isSubscribed) setUserRole('client');
       }
     }
-
     fetchRole();
-
-    return () => {
-      isSubscribed = false;
-    };
+    return () => { isSubscribed = false; };
   }, [user, db, isMounted]);
 
   const handleLogout = async () => {
     if (!auth) return; 
-    
     try {
       await auth.signOut();
       setUserRole(null);
       router.push('/login');
     } catch (error) {
-      console.error("Erro ao realizar logout:", error);
+      console.error("Erro ao sair:", error);
     }
   };
 
@@ -87,7 +89,6 @@ export function Navbar() {
   return (
     <nav className="border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-50 h-16">
       <NotificationListener />
-
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-all shadow-n8n-glow">
@@ -100,19 +101,21 @@ export function Navbar() {
         
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-2">
-            <NavLink href="/services" icon={<Sparkles className="w-4 h-4 text-primary" />} label="Serviços" />
+            {!isBarber && (
+              <NavLink href="/services" icon={<Sparkles className="w-4 h-4 text-primary" />} label="Serviços" />
+            )}
             
             {isMounted && !isLoading && user && (
               <>
                 {isBarber ? (
                   <>
-                    <NavLink href="/barber/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Agenda" />
-                    <NavLink href="/barber/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Painel" />
+                    <NavLink href="/barber/appointments" icon={<CheckSquare className="w-4 h-4" />} label="Solicitações" />
+                    <NavLink href="/barber/dashboard" icon={<Home className="w-4 h-4" />} label="Painel" />
                   </>
                 ) : (
                   <>
                     <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                    <NavLink href="/client/appointments" icon={<ClipboardList className="w-4 h-4" />} label="Minhas Reservas" />
+                    <NavLink href="/client/appointments" icon={<List className="w-4 h-4" />} label="Minhas Reservas" />
                   </>
                 )}
               </>
@@ -125,7 +128,6 @@ export function Navbar() {
             ) : user ? (
               <>
                 <NotificationMenu />
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-9 w-9 rounded-full border border-border bg-card p-0 hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary">
@@ -143,17 +145,16 @@ export function Navbar() {
                     
                     {!isBarber && (
                       <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
-                        <ClipboardList className="w-4 h-4 mr-2" />
+                        <List className="w-4 h-4 mr-2" />
                         Minhas Reservas
                       </DropdownMenuItem>
                     )}
-
                     <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
                       <Settings className="w-4 h-4 mr-2" />
                       Editar Perfil
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-border" />
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-400 cursor-pointer focus:text-red-400 focus:bg-red-500/10">
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-400 cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sair da Conta
                     </DropdownMenuItem>
