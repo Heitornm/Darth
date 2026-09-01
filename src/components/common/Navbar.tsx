@@ -6,13 +6,12 @@ import {
   Scissors, 
   Calendar, 
   User, 
-  Home,           // ✅ Painel — ícone simples e universal
-  LogOut,         // ✅ Sair — nome correto SEM "Icon"
-  LogIn,          // ✅ Entrar — nome correto SEM "Icon"
-  List,           // ✅ substitui ClipboardList
-  Settings,       // ✅ Configurações — nome correto SEM "Icon"
   Sparkles,
-  CheckSquare     // ✅ Solicitações
+  TrendingUp,       // ✅ Painel — você já tem esse funcionando!
+  DollarSign,       // ✅ Sair — reaproveitando ícone seguro
+  Clock,            // ✅ Entrar — reaproveitando ícone seguro
+  Users,            // ✅ Minhas Reservas — você já tem esse funcionando!
+  AlertCircle       // ✅ Configurações — você já tem esse funcionando!
 } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -27,8 +26,8 @@ import {
 import { NotificationMenu } from '@/components/common/NotificationMenu';
 import { NotificationListener } from '@/components/common/NotificationListener';
 
-const BARBER_EMAIL = "darthbarber@darth.com.br";
-const MASTER_BARBER_ID = 'eUCAkXknM1N0mcC04hCIfF3HcMk1';
+const BARBER_EMAIL = "heitornmartins@gmail.com";
+const MASTER_BARBER_ID = '2cAVs3U9ciV3NiqApJuOlYGEJS32';
 
 export function Navbar() {
   const { user, isLoading } = useUser();
@@ -65,7 +64,7 @@ export function Navbar() {
           }
         }
       } catch (error) {
-        console.warn("Não foi possível carregar o 'role' do usuário:", error);
+        console.warn("Não foi possível carregar o 'role':", error);
         if (isSubscribed) setUserRole('client');
       }
     }
@@ -109,13 +108,13 @@ export function Navbar() {
               <>
                 {isBarber ? (
                   <>
-                    <NavLink href="/barber/appointments" icon={<CheckSquare className="w-4 h-4" />} label="Solicitações" />
-                    <NavLink href="/barber/dashboard" icon={<Home className="w-4 h-4" />} label="Painel" />
+                    <NavLink href="/barber/appointments" icon={<Calendar className="w-4 h-4" />} label="Solicitações" />
+                    <NavLink href="/barber/dashboard" icon={<TrendingUp className="w-4 h-4" />} label="Painel" />
                   </>
                 ) : (
                   <>
                     <NavLink href="/client/appointments/new" icon={<Calendar className="w-4 h-4" />} label="Agendar" />
-                    <NavLink href="/client/appointments" icon={<List className="w-4 h-4" />} label="Minhas Reservas" />
+                    <NavLink href="/client/appointments" icon={<Users className="w-4 h-4" />} label="Minhas Reservas" />
                   </>
                 )}
               </>
@@ -130,7 +129,7 @@ export function Navbar() {
                 <NotificationMenu />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-9 w-9 rounded-full border border-border bg-card p-0 hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary">
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full border border-border bg-card p-0 hover:border-primary/50">
                       <User className="w-4 h-4 text-primary" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -145,26 +144,26 @@ export function Navbar() {
                     
                     {!isBarber && (
                       <DropdownMenuItem onClick={() => router.push('/client/appointments')} className="cursor-pointer">
-                        <List className="w-4 h-4 mr-2" />
+                        <Users className="w-4 h-4 mr-2" />
                         Minhas Reservas
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => router.push('/profile')} className="cursor-pointer">
-                      <Settings className="w-4 h-4 mr-2" />
+                      <AlertCircle className="w-4 h-4 mr-2" />
                       Editar Perfil
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-border" />
                     <DropdownMenuItem onClick={handleLogout} className="text-red-400 cursor-pointer">
-                      <LogOut className="w-4 h-4 mr-2" />
+                      <DollarSign className="w-4 h-4 mr-2" />
                       Sair da Conta
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
-              <Button asChild size="sm" className="rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-n8n-glow">
+              <Button asChild size="sm" className="rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
                 <Link href="/login" className="flex items-center gap-2">
-                  <LogIn className="w-4 h-4" />
+                  <Clock className="w-4 h-4" />
                   <span className="hidden xs:inline">Entrar</span>
                 </Link>
               </Button>
