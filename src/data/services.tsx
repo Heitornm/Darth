@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
 const SERVICES: ServiceItem[] = [
-  { id: 'corte-classico', name: 'Corte Clássico', price: 45, duration: 30, description: 'Corte tradicional com acabamento.' },
-  { id: 'barba', name: 'Barba', price: 35, duration: 20, description: 'Barba com navalha e acabamento.' },
-  { id: 'corte-barba', name: 'Corte + Barba', price: 70, duration: 50, description: 'Combo completo para um visual renovado.' },
+  { id: 'corte-classico', name: 'Corte Clássico', price: 1, duration: 30, description: 'Corte tradicional com acabamento.' },
+  { id: 'barba', name: 'Barba', price: 1, duration: 20, description: 'Barba com navalha e acabamento.' },
+  { id: 'corte-barba', name: 'Corte + Barba', price: 1, duration: 50, description: 'Combo completo para um visual renovado.' },
 ];
 
 type ServiceItem = {

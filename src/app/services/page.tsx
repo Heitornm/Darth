@@ -3,9 +3,18 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { SERVICES, ServiceItem } from "@/data/services";
+import SERVICES from "@/data/services";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+
+type ServiceItem = {
+  id: string | number;
+  name: string;
+  description?: string;
+  price: number | string;
+  duration?: number;
+  imageUrl?: string;
+};
 
 export default function ServicesPage() {
   const router = useRouter();
@@ -13,7 +22,7 @@ export default function ServicesPage() {
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
   // Garantia absoluta contra o erro de 'undefined.map()' durante o build no Render
-  const serviceList = SERVICES ?? [];
+  const serviceList: ServiceItem[] = Array.isArray(SERVICES) ? SERVICES : [];
 
   const scroll = (direction: "left" | "right") => {
     if (carouselRef.current) {
@@ -62,7 +71,7 @@ export default function ServicesPage() {
             className="flex gap-6 overflow-x-auto scrollbar-none scroll-smooth p-2"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {serviceList.map((service) => {
+            {serviceList.map((service: ServiceItem) => {
               const isSelected = selectedService?.id === service.id;
               const imageUrl =
                 service.imageUrl ||
