@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
 // ✅ AJUSTADO: SERVICES + tipo ServiceItem
-import SERVICES from '@/data/services';
+import { SERVICES } from '@/data/services';
 
 // ✅ Definindo o tipo corretamente conforme o arquivo
 type ServiceItem = {
@@ -43,7 +43,7 @@ const SERVICE_LIST: ServiceItem[] = (() => {
   const resolved = Array.isArray(SERVICES)
     ? SERVICES
     : typeof SERVICES === 'function'
-      ? SERVICES()
+      ? (SERVICES as () => ServiceItem[])()
       : [];
 
   return Array.isArray(resolved) ? resolved : [];
