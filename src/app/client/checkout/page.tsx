@@ -7,8 +7,8 @@ import {
   Scissors, 
   Clock, 
   CheckCircle2, 
-  ChevronLeft,       // ✅ Antes: ArrowLeft
-  CreditCardIcon,    // ✅ Antes: CreditCard
+  ArrowLeftCircle,    // ✅ existe na sua versão
+  CreditCard,         // ✅ existe na sua versão
   AlertCircle,
   Sparkles,
   Calendar
@@ -64,10 +64,8 @@ function CheckoutContent() {
       const appointmentDate = new Date(dateStr);
       appointmentDate.setHours(hours, minutes, 0, 0);
 
-      // Tratamento para ler duração independente do nome do tipo em ServiceItem
       const durationVal = (service as any).durationMinutes || Number(service.duration) || 30;
 
-      // 1. Cria o registro do agendamento no Firestore
       const appointmentRef = await addDoc(collection(db, "appointments"), {
         userId: user.uid,
         clientId: user.uid,
@@ -85,7 +83,6 @@ function CheckoutContent() {
         createdAt: serverTimestamp(),
       });
 
-      // 1.5. Dispara a notificação para o Master Barber
       const formattedDate = dateStr.split('-').reverse().join('/');
       await addDoc(collection(db, "notifications"), {
         toId: MASTER_BARBER_ID,
@@ -98,7 +95,6 @@ function CheckoutContent() {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Chama a API para gerar o link do checkout do gateway
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,7 +144,7 @@ function CheckoutContent() {
           <CardFooter className="justify-center">
             <Button asChild variant="outline">
               <Link href="/client/appointments/new">
-                <ChevronLeft className="w-4 h-4 mr-2" /> {/* ✅ Atualizado */}
+                <ArrowLeftCircle className="w-4 h-4 mr-2" />
                 Voltar para Agendamento
               </Link>
             </Button>
@@ -174,7 +170,7 @@ function CheckoutContent() {
       <div className="mb-6 flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild className="rounded-full">
           <Link href="/client/appointments/new">
-            <ChevronLeft className="w-4 h-4 mr-1" /> {/* ✅ Atualizado */}
+            <ArrowLeftCircle className="w-4 h-4 mr-1" />
             Voltar
           </Link>
         </Button>
@@ -256,7 +252,7 @@ function CheckoutContent() {
               "Processando..."
             ) : (
               <>
-                <CreditCardIcon className="w-5 h-5" /> {/* ✅ Atualizado */}
+                <CreditCard className="w-5 h-5" />
                 Ir para o Pagamento
               </>
             )}
