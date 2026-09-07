@@ -20,8 +20,8 @@ import {
 } from 'recharts';
 
 // ==================== CONSTANTES ====================
-const BARBER_EMAIL = "darthbarbers@gmail.com";
-const MASTER_BARBER_ID = 'dGlesKYTwHT80Z7NBL2eWNZunqN2';
+const BARBER_EMAIL = "heitornmartins@gmail.com";
+const MASTER_BARBER_ID = '2cAVs3U9ciV3NiqApJuOlYGEJS32';
 const COLORS = [
   'hsl(var(--primary))', '#22c55e', '#f59e0b', '#3b82f6',
   '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'
