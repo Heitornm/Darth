@@ -1,7 +1,5 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import { Bell, Check, Trash2 } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { 
   collection, 
@@ -37,45 +35,43 @@ export function NotificationMenu() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!user || !db) return;
-
-    try {
-      const q = query(
-        collection(db, 'notifications'),
-        where('toId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: NotificationItem[] = [];
-          let unread = 0;
-
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            if (!data.read) unread++;
-            list.push({
-              id: docSnap.id,
-              title: data.title || 'Notificação',
-              message: data.message || '',
-              read: !!data.read,
-              createdAt: data.createdAt,
-            });
-          });
-
-          setNotifications(list);
-          setUnreadCount(unread);
-        },
-        (err) => {
-          console.warn('Aguardando criação do índice de notificações:', err.message);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err) {
-      console.error('Erro ao buscar notificações:', err);
+    if (!user || !db) {
+      return undefined;
     }
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('toId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: NotificationItem[] = [];
+        let unread = 0;
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (!data.read) unread++;
+          list.push({
+            id: docSnap.id,
+            title: data.title || 'Notificação',
+            message: data.message || '',
+            read: !!data.read,
+            createdAt: data.createdAt,
+          });
+        });
+        setNotifications(list);
+        setUnreadCount(unread);
+      },
+      (err) => {
+        console.warn('Aguardando criação do índice de notificações:', err.message);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, [user, db]);
 
   const markAsRead = async (id: string) => {
@@ -96,7 +92,6 @@ export function NotificationMenu() {
     }
   };
 
-  // Helper seguro para formatação de data
   const formatDateSafe = (dateVal: any): string => {
     if (!dateVal) return 'Recente';
     try {
@@ -117,8 +112,8 @@ export function NotificationMenu() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card">
-          <Bell className="w-4 h-4 text-primary" />
+        <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card text-lg">
+          🔔
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-n8n-glow">
               {unreadCount > 9 ? '9+' : unreadCount}
@@ -159,19 +154,19 @@ export function NotificationMenu() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                        className="h-6 w-6 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10 text-xs"
                         onClick={() => markAsRead(item.id)}
                       >
-                        <Check className="w-3.5 h-3.5" />
+                        ✓
                       </Button>
                     )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                      className="h-6 w-6 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 text-xs"
                       onClick={() => removeNotification(item.id)}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      ✕
                     </Button>
                   </div>
                 </div>
