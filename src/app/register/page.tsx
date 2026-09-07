@@ -213,12 +213,12 @@ export default function RegisterPage() {
         Cadastrar com Google
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground pt-2">
+      <div className="text-center text-sm text-muted-foreground pt-2">
         Já tem uma conta?{" "}
         <Link href="/login" className="text-primary underline font-medium">
           Entrar aqui
         </Link>
-      </p>
+      </div>
     </div>
   );
 }
