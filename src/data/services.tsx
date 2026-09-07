@@ -4,7 +4,8 @@ export type ServiceItem = {
   name: string;
   price: number;
   duration: number;
-  image?: string;
+  image?: string;     // ← Mantido
+  imageUrl?: string;  // ✅ Adicionado para corrigir o erro
   description?: string;
 };
 
