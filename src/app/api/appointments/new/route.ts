@@ -1,12 +1,13 @@
-// src/app/api/appointments/new/route.ts
 import { NextResponse } from 'next/server';
-import { db } from '@/firebase/firebase'; // ✅ Caminho correto da árvore!
+// ⚠️ ATENÇÃO: @/firebase/firebase — caminho COMPLETO!
+import { db } from '@/firebase/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+    console.log("[AGENDAMENTO] Dados recebidos:", body);
+
     const agendamento = {
       ...body,
       createdAt: serverTimestamp(),
@@ -14,18 +15,18 @@ export async function POST(request: Request) {
     };
 
     const docRef = await addDoc(collection(db, 'appointments'), agendamento);
+    console.log("[AGENDAMENTO] ✅ CRIADO! ID:", docRef.id);
 
     return NextResponse.json({
       success: true,
       appointmentId: docRef.id
     });
-  } catch (error) {
-    console.error('❌ Erro ao criar agendamento:', error);
-    // Retorna detalhes do erro para ajudar na depuração
+  } catch (error: any) {
+    console.error("[AGENDAMENTO] ❌ ERRO:", error.message);
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Erro interno do servidor' 
+        error: error.message || 'Erro ao salvar agendamento'
       },
       { status: 500 }
     );
