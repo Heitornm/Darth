@@ -30,8 +30,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     }
 
-    // Cria os objetos de data/hora para comparação precisa
+    // ✅ VALIDAÇÃO CRÍTICA: Bloquear horários que JÁ PASSARAM
     const appointmentDate = new Date(`${date}T${time}:00`);
+    const agora = new Date();
+    
+    // Compara considerando o horário do servidor (UTC-3 / São Paulo)
+    if (appointmentDate <= agora) {
+      return NextResponse.json(
+        { error: 'Não é possível agendar para um horário que já passou. Escolha um horário futuro.' }, 
+        { status: 400 }
+      );
+    }
+
     const appointmentTimestamp = Timestamp.fromDate(appointmentDate);
     let createdAppointmentId = '';
 
@@ -46,7 +56,6 @@ export async function POST(request: NextRequest) {
           .where('barberId', '==', barberId)
       );
 
-      const now = new Date();
       const TEN_MINUTES_MS = 10 * 60 * 1000;
 
       // Verifica se existe algum agendamento conflitante no mesmo horário
@@ -65,7 +74,7 @@ export async function POST(request: NextRequest) {
             ? data.createdAt.toDate() 
             : new Date(data.createdAt || Date.now());
           
-          if (now.getTime() - createdAt.getTime() > TEN_MINUTES_MS) {
+          if (agora.getTime() - createdAt.getTime() > TEN_MINUTES_MS) {
             return false; // Expirou, horário está livre!
           }
         }
@@ -93,8 +102,8 @@ export async function POST(request: NextRequest) {
         dataHora: appointmentTimestamp,
         durationMinutes: Number(durationMinutes),
         barberId,
-        status: 'aguardando_pagamento', // ✅ STATUS INICIAL CORRETO
-        createdAt: Timestamp.fromDate(now),
+        status: 'aguardando_pagamento',
+        createdAt: Timestamp.fromDate(agora),
       });
     });
 

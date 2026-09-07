@@ -1,307 +1,336 @@
-'use client';
+"use client";
 
-export const dynamic = 'force-dynamic';
-
-import { useState, useMemo, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Calendar as CalendarIcon, Clock, Scissors } from 'lucide-react';
-import { format, addMinutes, isAfter, isBefore, startOfDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-
-import { Calendar } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { Timestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import { format, parseISO, isToday } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
-import { SERVICES } from '@/data/services';
+// ==================== TIPOS ====================
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+  durationMinutes: number;
+}
 
+interface Barber {
+  id: string;
+  name: string;
+}
 
-const TIME_SLOTS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
+// ==================== CONFIGURAÇÕES ====================
+const HORARIOS_DISPONIVEIS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+  '17:00', '17:30', '18:00', '18:30', '19:00'
 ];
 
-const WORK_START = 8;
-const WORK_END = 21;
-const TOTAL_MINUTES_PER_DAY = (WORK_END - WORK_START) * 60;
+const SERVICOS: Service[] = [
+  { id: 'corte', name: 'Corte de Cabelo', price: 35, durationMinutes: 30 },
+  { id: 'barba', name: 'Barba', price: 25, durationMinutes: 20 },
+  { id: 'corte-barba', name: 'Corte + Barba', price: 55, durationMinutes: 45 },
+  { id: 'sobrancelha', name: 'Sobrancelha', price: 15, durationMinutes: 15 },
+  { id: 'completo', name: 'Pacote Completo', price: 70, durationMinutes: 60 },
+];
 
+const BARBEIROS: Barber[] = [
+  { id: 'barbeiro1', name: 'Heitor Martins' },
+];
 
-// ✅ FUNÇÃO AUXILIAR: Conversão SEGURA de datas
-function safeToDate(value: any): Date | null {
-  if (!value) return null;
-  try {
-    // Timestamp do Firestore
-    if (value instanceof Timestamp) {
-      const date = value.toDate();
-      return !isNaN(date.getTime()) ? date : null;
-    }
-    // Objeto { seconds, nanoseconds }
-    if (value && typeof value === 'object' && typeof value.seconds === 'number') {
-      const date = new Date(value.seconds * 1000);
-      return !isNaN(date.getTime()) ? date : null;
-    }
-    // String ou número
-    const date = new Date(value);
-    return !isNaN(date.getTime()) ? date : null;
-  } catch {
-    return null;
-  }
-}
-
-
-function NewAppointmentContent() {
+// ==================== COMPONENTE PRINCIPAL ====================
+export default function NewAppointmentPage() {
+  const { user, userProfile } = useFirebase();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
-  const { user, appointments } = useFirebase();
 
-  const urlServiceId = searchParams.get('serviceId');
+  const [dataSelecionada, setDataSelecionada] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [horarioSelecionado, setHorarioSelecionado] = useState<string>('');
+  const [servicoSelecionado, setServicoSelecionado] = useState<string>('');
+  const [barbeiroSelecionado, setBarbeiroSelecionado] = useState<string>('barbeiro1');
+  const [horariosOcupados, setHorariosOcupados] = useState<string[]>([]);
+  const [carregando, setCarregando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string>('');
+  const [sucesso, setSucesso] = useState(false);
 
-  const [date, setDate] = useState<Date>();
-  const [serviceId, setServiceId] = useState<string>("");
-  const [time, setTime] = useState<string>("");
+  const agora = new Date();
 
+  // ✅ REGRA: Verifica se o horário JÁ PASSOU
+  const horarioJaPassou = useMemo(() => {
+    return (horario: string): boolean => {
+      if (!dataSelecionada || !horario) return false;
+      const dataHoraEscolhida = new Date(`${dataSelecionada}T${horario}:00`);
+      return dataHoraEscolhida <= agora;
+    };
+  }, [dataSelecionada, agora]);
+
+  // ✅ Desabilita datas anteriores a hoje
+  const dataMinima = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+
+  // Carrega horários ocupados quando muda a data
   useEffect(() => {
-    if (urlServiceId) {
-      setServiceId(urlServiceId);
-    }
-  }, [urlServiceId]);
+    if (!dataSelecionada || !barbeiroSelecionado) return;
 
-  const selectedService = useMemo(() => {
-    return SERVICES.find(s => s.id === serviceId);
-  }, [serviceId]);
-
-  // ✅ SEGURO: Converte datas ANTES de usar
-  const availabilityData = useMemo(() => {
-    if (!appointments) return {};
-    const stats: Record<string, number> = {};
-    appointments.forEach(apt => {
-      if (apt.status === 'cancelado' || apt.status === 'canceled') return;
-
-      // 🔑 Usa função SEGURA — nunca mais crasha!
-      const aptDate = safeToDate(apt.dataHora);
-      if (!aptDate) return; // Ignora datas inválidas silenciosamente
-
-      const dayKey = format(aptDate, 'yyyy-MM-dd');
-      stats[dayKey] = (stats[dayKey] || 0) + (apt.durationMinutes || 30);
-    });
-    return stats;
-  }, [appointments]);
-
-  const isDayFull = (d: Date) => {
-    const dayKey = format(d, 'yyyy-MM-dd');
-    const occupied = availabilityData[dayKey] || 0;
-    return occupied >= TOTAL_MINUTES_PER_DAY;
-  };
-
-  // Verifica se o horário já passou
-  const isTimeSlotPast = (timeSlot: string): boolean => {
-    if (!date) return false;
-
-    const now = new Date();
-    const selectedDayKey = format(date, 'yyyy-MM-dd');
-    const todayKey = format(now, 'yyyy-MM-dd');
-
-    if (selectedDayKey < todayKey) return true;
-    if (selectedDayKey > todayKey) return false;
-
-    const [slotHours, slotMinutes] = timeSlot.split(':').map(Number);
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-
-    if (slotHours < currentHours) return true;
-    if (slotHours === currentHours && slotMinutes <= currentMinutes) return true;
-
-    return false;
-  };
-
-  // ✅ SEGURO: Verifica disponibilidade com datas validadas
-  const isTimeSlotAvailable = (timeSlot: string) => {
-    if (!date || !selectedService) return true;
-    if (isTimeSlotPast(timeSlot)) return false;
-    if (!appointments) return true;
-
-    const [hours, minutes] = timeSlot.split(':').map(Number);
-    const slotStart = new Date(date);
-    slotStart.setHours(hours, minutes, 0, 0);
-
-    const duration = Number(selectedService.duration) || (selectedService as any).durationMinutes || 30;
-    const slotEnd = addMinutes(slotStart, duration);
-    const now = new Date();
-
-    return !appointments.filter(a => {
-      if (a.status === 'cancelado' || a.status === 'canceled') return false;
-
-      // ✅ Converte createdAt de forma SEGURA
-      const createdAt = safeToDate(a.createdAt) || now;
-      if (a.status === 'pendente' || a.status === 'pending') {
-        const expiresAt = new Date(createdAt.getTime() + 10 * 60 * 1000);
-        if (isAfter(now, expiresAt)) return false;
+    const buscarHorarios = async () => {
+      setCarregando(true);
+      try {
+        const res = await fetch(
+          `/api/appointments/slots?date=${dataSelecionada}&barberId=${barbeiroSelecionado}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setHorariosOcupados(data.occupiedSlots || []);
+        }
+      } catch (e) {
+        console.warn('Não foi possível carregar horários ocupados');
+      } finally {
+        setCarregando(false);
       }
-      return true;
-    }).some(apt => {
-      // ✅ Converte dataHora de forma SEGURA
-      const aptStart = safeToDate(apt.dataHora);
-      if (!aptStart) return false; // Ignora datas inválidas
+    };
 
-      const aptEnd = addMinutes(aptStart, apt.durationMinutes || 30);
-      return isBefore(slotStart, aptEnd) && isAfter(slotEnd, aptStart);
-    });
-  };
+    buscarHorarios();
+  }, [dataSelecionada, barbeiroSelecionado]);
 
-  const handleBooking = () => {
-    if (!user) {
-      toast({ title: "Login necessário", description: "Faça login para continuar com o agendamento." });
-      router.push('/login');
+  // Envia o agendamento
+  const agendar = async () => {
+    setErro('');
+    setSucesso(false);
+
+    // Validações de segurança
+    if (!dataSelecionada || !horarioSelecionado || !servicoSelecionado) {
+      setErro('Preencha todos os campos.');
       return;
     }
 
-    if (!date || !serviceId || !time) {
-      toast({ 
-        title: "Campos obrigatórios", 
-        description: "Por favor, selecione serviço, data e horário.", 
-        variant: "destructive" 
+    // ✅ Validação extra: Bloqueia envio de horário passado
+    if (horarioJaPassou(horarioSelecionado)) {
+      setErro('⚠️ Este horário já passou. Escolha um horário futuro.');
+      return;
+    }
+
+    const servico = SERVICOS.find(s => s.id === servicoSelecionado);
+    if (!servico) {
+      setErro('Serviço não encontrado.');
+      return;
+    }
+
+    setEnviando(true);
+
+    try {
+      const res = await fetch('/api/appointments/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: user?.uid || userProfile?.uid,
+          userName: userProfile?.name || user?.displayName || 'Cliente',
+          userEmail: userProfile?.email || user?.email,
+          serviceId: servico.id,
+          serviceName: servico.name,
+          price: servico.price,
+          date: dataSelecionada,
+          time: horarioSelecionado,
+          durationMinutes: servico.durationMinutes,
+          barberId: barbeiroSelecionado,
+        }),
       });
-      return;
-    }
 
-    const dateStr = format(date, 'yyyy-MM-dd');
-    router.push(`/client/checkout?serviceId=${serviceId}&date=${dateStr}&time=${time}`);
+      const resposta = await res.json();
+
+      if (res.ok && resposta.success) {
+        setSucesso(true);
+        // Redireciona para pagamento ou confirmação
+        setTimeout(() => {
+          router.push(`/client/appointments/${resposta.appointmentId}`);
+        }, 1500);
+      } else {
+        setErro(resposta.error || 'Erro ao criar agendamento.');
+      }
+    } catch (err) {
+      setErro('Erro de conexão. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
+  const servico = SERVICOS.find(s => s.id === servicoSelecionado);
 
+  // ==================== RENDER ====================
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-headline font-bold text-primary">Agende seu Estilo</h1>
-      </div>
+    <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+        <Calendar className="w-6 h-6" /> Agendar Horário
+      </h1>
 
-      <div className="flex justify-center w-full">
-        <Card className="w-full max-w-2xl border-primary/20 shadow-md">
-          <CardHeader className="bg-primary/5">
-            <CardTitle className="font-headline flex items-center gap-3 text-primary">
-              <Scissors className="w-5 h-5" /> Reserva de Horário
-            </CardTitle>
+      {sucesso && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+          <p className="text-green-800 font-medium">Agendamento criado! Redirecionando...</p>
+        </div>
+      )}
+
+      {erro && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-red-800">{erro}</p>
+        </div>
+      )}
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scissors className="w-5 h-5" /> Passo 1 — Escolha o Serviço
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={servicoSelecionado} onValueChange={setServicoSelecionado}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o serviço desejado" />
+            </SelectTrigger>
+            <SelectContent>
+              {SERVICOS.map(s => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name} — R$ {s.price.toFixed(2)} ({s.durationMinutes} min)
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" /> Passo 2 — Profissional
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={barbeiroSelecionado} onValueChange={setBarbeiroSelecionado}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o barbeiro" />
+            </SelectTrigger>
+            <SelectContent>
+              {BARBEIROS.map(b => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" /> Passo 3 — Data
+          </CardTitle>
+          <CardDescription>
+            Hoje é {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Input
+            type="date"
+            value={dataSelecionada}
+            min={dataMinima}
+            onChange={(e) => {
+              setDataSelecionada(e.target.value);
+              setHorarioSelecionado('');
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" /> Passo 4 — Horário
+          </CardTitle>
+          <CardDescription>
+            {isToday(parseISO(dataSelecionada)) ? (
+              <span className="text-amber-600">⚠️ Hoje — horários já passados estão bloqueados</span>
+            ) : (
+              <span>Selecione o horário desejado</span>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {carregando ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" /> Carregando horários...
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {HORARIOS_DISPONIVEIS.map(horario => {
+                const estaOcupado = horariosOcupados.includes(horario);
+                const jaPassou = horarioJaPassou(horario);
+                const estaSelecionado = horarioSelecionado === horario;
+                const desabilitado = estaOcupado || jaPassou;
+
+                return (
+                  <Button
+                    key={horario}
+                    variant={estaSelecionado ? 'default' : 'outline'}
+                    size="sm"
+                    disabled={desabilitado}
+                    onClick={() => {
+                      setHorarioSelecionado(horario);
+                      setErro('');
+                    }}
+                    className={`
+                      ${desabilitado ? 'opacity-40 cursor-not-allowed line-through' : ''}
+                      ${estaSelecionado ? 'bg-primary text-white' : ''}
+                      ${jaPassou ? 'border-gray-300 text-gray-400' : ''}
+                      ${estaOcupado && !jaPassou ? 'border-red-200 bg-red-50 text-red-600' : ''}
+                    `}
+                  >
+                    {horario}
+                    {jaPassou && ' ✗'}
+                    {estaOcupado && !jaPassou && ' ⚠'}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {servico && horarioSelecionado && (
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Resumo do Agendamento</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 md:p-8 space-y-8">
-            <div className="space-y-3">
-              <Label>1. Serviço</Label>
-              <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setTime(""); }}>
-                <SelectTrigger className="w-full h-12">
-                  <SelectValue placeholder="Escolha um serviço" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SERVICES.map(srv => (
-                    <SelectItem key={srv.id} value={srv.id}>
-                      {srv.name} — R$ {Number(srv.price).toFixed(2)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label>2. Dia</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full h-12 justify-start", !date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                      {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "Escolha a data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(d) => {
-                        if (d) {
-                          if (isDayFull(d)) {
-                            toast({ title: "Dia lotado", description: "Infelizmente não há horários disponíveis.", variant: "destructive" });
-                            return;
-                          }
-                          setDate(d);
-                          setTime("");
-                        }
-                      }}
-                      locale={ptBR}
-                      disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date())) || isDayFull(d)}
-                      modifiers={{
-                        full: (d) => isDayFull(d) && !isBefore(startOfDay(d), startOfDay(new Date())),
-                      }}
-                      modifiersStyles={{
-                        full: {
-                          backgroundColor: '#ef4444',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          opacity: 1
-                        }
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-3">
-                <Label>3. Hora</Label>
-                <Select value={time} onValueChange={setTime} disabled={!date || !serviceId}>
-                  <SelectTrigger className="w-full h-12">
-                    <Clock className="w-4 h-4 mr-3 text-primary" />
-                    <SelectValue placeholder="Escolha a hora" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map(slot => {
-                      const past = isTimeSlotPast(slot);
-                      const available = isTimeSlotAvailable(slot);
-
-                      let labelStatus = "";
-                      if (past) {
-                        labelStatus = "(Indisponível)";
-                      } else if (!available) {
-                        labelStatus = "(Ocupado)";
-                      }
-
-                      return (
-                        <SelectItem key={slot} value={slot} disabled={!available}>
-                          {slot} {labelStatus}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Button
-              className="w-full h-14 text-xl font-headline"
-              onClick={handleBooking}
-              disabled={!date || !serviceId || !time}
-            >
-              Prosseguir para o Pagamento
-            </Button>
+          <CardContent className="space-y-2">
+            <p><strong>Serviço:</strong> {servico.name}</p>
+            <p><strong>Data:</strong> {format(parseISO(dataSelecionada), "dd/MM/yyyy")}</p>
+            <p><strong>Horário:</strong> {horarioSelecionado}</p>
+            <p><strong>Valor:</strong> R$ {servico.price.toFixed(2)}</p>
+            <p><strong>Duração:</strong> {servico.durationMinutes} minutos</p>
           </CardContent>
         </Card>
-      </div>
+      )}
+
+      <Button
+        size="lg"
+        className="w-full text-lg"
+        disabled={!servicoSelecionado || !horarioSelecionado || enviando}
+        onClick={agendar}
+      >
+        {enviando ? (
+          <>
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Processando...
+          </>
+        ) : (
+          <>✅ Confirmar Agendamento</>
+        )}
+      </Button>
     </div>
-  );
-}
-
-
-export default function NewAppointmentPage() {
-  return (
-    <Suspense fallback={
-      <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
-        Carregando formulário de agendamento...
-      </div>
-    }>
-      <NewAppointmentContent />
-    </Suspense>
   );
 }
