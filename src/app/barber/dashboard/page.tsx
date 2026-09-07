@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
@@ -9,9 +8,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-// ✅ APENAS ícones CONFIRMADOS — Activity REMOVIDO → Sparkles
 import {
-  TrendingUp, DollarSign, Clock, Scissors, Users, AlertCircle,
+  TrendingUp, DollarSign, Clock, Scissors,
   Calendar, CheckCircle2, Sparkles, ArrowRight, XCircle
 } from 'lucide-react';
 import {
@@ -41,6 +39,7 @@ interface Appointment {
   price?: number;
   durationMinutes?: number;
   serviceName?: string;
+  userName?: string;
 }
 
 interface KPIProps {
@@ -57,6 +56,7 @@ export default function BarberDashboardPage() {
   const [periodMode, setPeriodMode] = useState<PeriodMode>('day');
   const [referenceDate, setReferenceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [mounted, setMounted] = useState(false);
+  const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -65,10 +65,7 @@ export default function BarberDashboardPage() {
   const safeAppointments = appointments || [];
   const isBarberEmail = user?.email ? BARBER_EMAIL.includes(user.email) : false;
   const isMasterBarber = user?.uid ? MASTER_BARBER_ID.includes(user.uid) : false;
-
-  const isAuthorized = userProfile?.role === 'barber' ||
-    isBarberEmail ||
-    isMasterBarber;
+  const isAuthorized = userProfile?.role === 'barber' || isBarberEmail || isMasterBarber;
 
   const changePeriod = useCallback((direction: number) => {
     const base = new Date(`${referenceDate}T00:00:00`);
@@ -115,25 +112,20 @@ export default function BarberDashboardPage() {
     });
   }, [safeAppointments, range, user?.uid, isBarberEmail, parseAppointmentDate]);
 
-  // ==================== MÉTRICAS ====================
+  // ==================== MÉTRICAS — NOVOS STATUS ====================
+  const aguardandoPagamento = filteredApts.filter(a => a.status === 'aguardando_pagamento').length;
+  const pagamentoConfirmado = filteredApts.filter(a => a.status === 'pagamento_confirmado').length;
+  const aguardandoBarbeiro = filteredApts.filter(a => a.status === 'aguardando_barbeiro').length;
+  const confirmados = filteredApts.filter(a => a.status === 'confirmado').length;
+  const concluidos = filteredApts.filter(a => a.status === 'concluido').length;
+  const cancelados = filteredApts.filter(a => a.status === 'cancelado' || a.status === 'canceled').length;
   const totalAppointments = filteredApts.length;
-  const completedServices = filteredApts.filter(a => a.status === 'concluido').length;
-  const confirmedServices = filteredApts.filter(a => a.status === 'confirmado').length;
-  const pendingServices = filteredApts.filter(a => a.status === 'pendente').length;
-  const cancelledServices = filteredApts.filter(
-    a => a.status === 'cancelado' || a.status === 'solicitado_cancelamento'
-  ).length;
 
   const totalEarnings = filteredApts
     .filter(a => a.status === 'concluido')
     .reduce((sum, apt) => sum + (apt.price || 0), 0);
-
   const totalScheduledValue = filteredApts.reduce((sum, apt) => sum + (apt.price || 0), 0);
-  const totalMinutes = filteredApts.reduce((sum, apt) => sum + (apt.durationMinutes || 30), 0);
-  const totalHours = totalMinutes / 60;
-  const uniqueClients = new Set(filteredApts.map(a => a.clientId || a.userId)).size;
-  const avgPrice = completedServices > 0 ? totalEarnings / completedServices : 0;
-  const cancellationRate = totalAppointments > 0 ? (cancelledServices / totalAppointments) * 100 : 0;
+  const cancellationRate = totalAppointments > 0 ? (cancelados / totalAppointments) * 100 : 0;
 
   const chartData = useMemo(() => {
     const grouped: Record<string, { label: string; count: number; revenue: number }> = {};
@@ -168,10 +160,11 @@ export default function BarberDashboardPage() {
   }, [filteredApts]);
 
   const statusData = [
-    { name: 'Concluídos', value: completedServices, fill: '#3b82f6' },
-    { name: 'Confirmados', value: confirmedServices, fill: '#22c55e' },
-    { name: 'Pendentes', value: pendingServices, fill: '#f59e0b' },
-    { name: 'Cancelados', value: cancelledServices, fill: '#ef4444' },
+    { name: 'Aguardando Pagamento', value: aguardandoPagamento, fill: '#f59e0b' },
+    { name: 'Pagamento Confirmado', value: pagamentoConfirmado, fill: '#3b82f6' },
+    { name: 'Aguardando Barbeiro', value: aguardandoBarbeiro, fill: '#8b5cf6' },
+    { name: 'Agendados', value: confirmados, fill: '#22c55e' },
+    { name: 'Concluídos', value: concluidos, fill: '#10b981' },
   ].filter(d => d.value > 0);
 
   const prevRange = useMemo(() => {
@@ -204,7 +197,36 @@ export default function BarberDashboardPage() {
     ? ((totalEarnings - prevEarnings) / prevEarnings) * 100
     : 0;
 
-  // ==================== TELAS ====================
+  // ✅ FUNÇÃO: Confirmar Agendamento
+  const confirmarAgendamento = async (appointmentId: string) => {
+    if (!confirm("Confirma este agendamento? Ele será marcado como Agendado oficialmente.")) return;
+    
+    setConfirmandoId(appointmentId);
+    try {
+      const res = await fetch('/api/barber/confirm-appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId })
+      });
+      
+      if (res.ok) {
+        alert("✅ Agendamento confirmado! O cliente será notificado.");
+      } else {
+        const err = await res.json();
+        alert(`Erro: ${err.error || 'Tente novamente'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro de conexão. Tente novamente.");
+    } finally {
+      setConfirmandoId(null);
+    }
+  };
+
+  // Lista de aguardando confirmação
+  const aguardandoConfirmacao = filteredApts.filter(a => a.status === 'aguardando_barbeiro');
+
+  // ==================== TELAS DE CARREGAMENTO / ACESSO ====================
   if (!mounted || isUserLoading || isAppointmentsLoading) {
     return <div className="p-20 text-center animate-pulse text-primary font-headline">Calculando métricas...</div>;
   }
@@ -214,7 +236,7 @@ export default function BarberDashboardPage() {
       <div className="container mx-auto p-20 text-center">
         <Card className="border-destructive/20 bg-destructive/5 max-w-md mx-auto">
           <CardContent className="pt-6 space-y-4">
-            <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+            <XCircle className="w-12 h-12 text-destructive mx-auto" />
             <h2 className="text-2xl font-headline font-bold">Acesso Restrito</h2>
             <p className="text-muted-foreground">Painel exclusivo para o administrador.</p>
           </CardContent>
@@ -223,7 +245,7 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // ==================== RENDER ====================
+  // ==================== RENDER PRINCIPAL ====================
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       {/* CABEÇALHO */}
@@ -234,7 +256,6 @@ export default function BarberDashboardPage() {
             <Calendar className="w-4 h-4" /> {periodLabel}
           </p>
         </div>
-
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>
             <TabsList className="bg-card border border-border/50">
@@ -243,7 +264,6 @@ export default function BarberDashboardPage() {
               <TabsTrigger value="month">Mês</TabsTrigger>
             </TabsList>
           </Tabs>
-
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" onClick={() => changePeriod(-1)}>
               <ArrowRight className="w-4 h-4 rotate-180" />
@@ -261,18 +281,14 @@ export default function BarberDashboardPage() {
         </div>
       </div>
 
-      {/* 📈 KPIs — Sparkles no lugar de Activity */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      {/* 📈 KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPIItem icon={<DollarSign className="text-emerald-500" />} label="Receita" value={`R$ ${totalEarnings.toFixed(2)}`} sub={`Agendado: R$ ${totalScheduledValue.toFixed(2)}`} color="bg-emerald-500/10" />
-        <KPIItem icon={<Scissors className="text-blue-500" />} label="Atendimentos" value={`${completedServices}`} sub={`De ${totalAppointments} agendados`} color="bg-blue-500/10" />
-        <KPIItem icon={<Sparkles className="text-violet-500" />} label="Ticket Médio" value={`R$ ${avgPrice.toFixed(2)}`} sub="por atendimento" color="bg-violet-500/10" />
-        <KPIItem icon={<Clock className="text-orange-500" />} label="Horas" value={`${totalHours.toFixed(1)}h`} sub={`${totalMinutes} min`} color="bg-orange-500/10" />
-        <KPIItem icon={<Users className="text-pink-500" />} label="Clientes Únicos" value={`${uniqueClients}`} sub="neste período" color="bg-pink-500/10" />
-        <KPIItem
-          icon={cancellationRate > 20 ? <XCircle className="text-rose-500" /> : <CheckCircle2 className="text-emerald-500" />}
-          label="Cancelamentos" value={`${cancellationRate.toFixed(0)}%`} sub={`${cancelledServices} de ${totalAppointments}`}
-          color={cancellationRate > 20 ? "bg-rose-500/10" : "bg-emerald-500/10"}
-        />
+        <KPIItem icon={<Clock className="text-orange-500" />} label="Aguardando Pag." value={`${aguardandoPagamento}`} sub="pagamento pendente" color="bg-orange-500/10" />
+        <KPIItem icon={<CheckCircle2 className="text-blue-500" />} label="Pag. Confirmado" value={`${pagamentoConfirmado}`} sub="aguardando barbeiro" color="bg-blue-500/10" />
+        <KPIItem icon={<Sparkles className="text-violet-500" />} label="Aguardando Você" value={`${aguardandoBarbeiro}`} sub="precisa confirmar" color="bg-violet-500/10" />
+        <KPIItem icon={<Scissors className="text-green-500" />} label="Agendados" value={`${confirmados}`} sub="confirmados" color="bg-green-500/10" />
+        <KPIItem icon={<XCircle className="text-rose-500" />} label="Cancelados" value={`${cancelados}`} sub={`${cancellationRate.toFixed(0)}%`} color="bg-rose-500/10" />
       </div>
 
       {periodMode !== 'day' && (
@@ -287,6 +303,46 @@ export default function BarberDashboardPage() {
               <span className="text-muted-foreground">{earningsChange >= 0 ? 'aumento' : 'queda'} na receita</span>
               <span className="text-sm text-muted-foreground ml-auto">Anterior: R$ {prevEarnings.toFixed(2)}</span>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ✅ CARD: AGUARDANDO CONFIRMAÇÃO DO BARBEIRO */}
+      {aguardandoConfirmacao.length > 0 && (
+        <Card className="border-violet-300 bg-violet-50/50 dark:bg-violet-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-violet-500" />
+              Aguardando Sua Confirmação ({aguardandoConfirmacao.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {aguardandoConfirmacao.map(apt => (
+              <div key={apt.id} className="flex items-center justify-between p-3 bg-card rounded-lg border border-violet-200">
+                <div>
+                  <p className="font-semibold">{apt.serviceName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {apt.date?.split('-').reverse().join('/')} às {apt.time}
+                    {apt.userName && ` • ${apt.userName}`}
+                  </p>
+                </div>
+                <Button 
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => confirmarAgendamento(apt.id!)}
+                  disabled={confirmandoId === apt.id}
+                >
+                  {confirmandoId === apt.id ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+                      Confirmando...
+                    </>
+                  ) : (
+                    <>✅ Confirmar</>
+                  )}
+                </Button>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

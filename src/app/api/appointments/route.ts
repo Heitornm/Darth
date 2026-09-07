@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
     }
 
     const db = adminDb;
-
     const body = await request.json();
     const { 
       clientId, 
@@ -20,8 +19,8 @@ export async function POST(request: NextRequest) {
       serviceId, 
       serviceName, 
       price, 
-      date, // Formato "YYYY-MM-DD"
-      time, // Formato "HH:mm"
+      date,
+      time,
       durationMinutes = 30,
       barberId = 'barbeiro1'
     } = body;
@@ -34,7 +33,6 @@ export async function POST(request: NextRequest) {
     // Cria os objetos de data/hora para comparação precisa
     const appointmentDate = new Date(`${date}T${time}:00`);
     const appointmentTimestamp = Timestamp.fromDate(appointmentDate);
-
     let createdAppointmentId = '';
 
     // 2. Transação Atômica: Garante que NINGUÉM ocupe o horário ao mesmo tempo
@@ -61,12 +59,12 @@ export async function POST(request: NextRequest) {
           return false;
         }
 
-        // Se for pendente, checa se caducou (mais de 10 min atrás)
-        if (status === 'pending' || status === 'pendente') {
+        // Se for aguardando_pagamento, checa se caducou (mais de 10 min atrás)
+        if (status === 'aguardando_pagamento' || status === 'pending' || status === 'pendente') {
           const createdAt = data.createdAt?.toDate 
             ? data.createdAt.toDate() 
             : new Date(data.createdAt || Date.now());
-
+          
           if (now.getTime() - createdAt.getTime() > TEN_MINUTES_MS) {
             return false; // Expirou, horário está livre!
           }
@@ -83,7 +81,6 @@ export async function POST(request: NextRequest) {
       // 3. Gravação segura dentro da transação
       const newDocRef = appointmentsRef.doc();
       createdAppointmentId = newDocRef.id;
-
       transaction.set(newDocRef, {
         clientId,
         userName,
@@ -93,10 +90,10 @@ export async function POST(request: NextRequest) {
         price: Number(price),
         date,
         time,
-        dataHora: appointmentTimestamp, // Mantém compatibilidade com o frontend
+        dataHora: appointmentTimestamp,
         durationMinutes: Number(durationMinutes),
         barberId,
-        status: 'pending',
+        status: 'aguardando_pagamento', // ✅ STATUS INICIAL CORRETO
         createdAt: Timestamp.fromDate(now),
       });
     });
@@ -105,7 +102,6 @@ export async function POST(request: NextRequest) {
       { success: true, appointmentId: createdAppointmentId }, 
       { status: 201 }
     );
-
   } catch (error: any) {
     if (error.message === 'SLOT_OCCUPIED') {
       return NextResponse.json(
@@ -113,7 +109,6 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-
     console.error('Erro na API de Agendamentos:', error);
     return NextResponse.json({ error: 'Erro interno ao processar o agendamento.' }, { status: 500 });
   }

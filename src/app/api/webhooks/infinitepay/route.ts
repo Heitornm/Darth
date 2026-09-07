@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erro de infraestrutura interna' }, { status: 503 });
       }
 
-      console.log(`[WEBHOOK SUCCESS] Atualizando agendamento ID: ${appointmentId} para status "confirmado".`);
+      console.log(`[WEBHOOK SUCCESS] Processando pagamento do agendamento ID: ${appointmentId}`);
 
       const appointmentRef = adminDb.collection('appointments').doc(appointmentId);
       const appointmentSnap = await appointmentRef.get();
@@ -49,15 +49,25 @@ export async function POST(request: Request) {
 
       const appointmentData = appointmentSnap.data();
 
-      // 1. Atualiza o status do agendamento para "confirmado"
+      // ✅ ETAPA 1: Pagamento Confirmado
       await appointmentRef.update({
-        status: 'confirmado',
+        status: 'pagamento_confirmado',
         paid: true,
         paidAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
 
-      // 2. Formata informações para a notificação
+      // ✅ ETAPA 2: Automaticamente → Aguardando Confirmação do Barbeiro
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      await appointmentRef.update({
+        status: 'aguardando_barbeiro',
+        updatedAt: Timestamp.now()
+      });
+
+      console.log(`✅ Pagamento confirmado → Aguardando barbeiro confirmar: ${appointmentId}`);
+
+      // Formata informações para a notificação
       const clientName = appointmentData?.userName || appointmentData?.clientName || 'Cliente';
       const serviceName = appointmentData?.serviceName || 'Serviço';
       const timeStr = appointmentData?.time || '';
@@ -67,23 +77,25 @@ export async function POST(request: Request) {
         dateStr = appointmentData.date.split('-').reverse().join('/');
       }
 
-      // 3. Notifica o Master Barber
+      // Notifica o Master Barber
       await adminDb.collection('notifications').add({
         toId: MASTER_BARBER_ID,
         fromId: appointmentData?.clientId || appointmentData?.userId || 'system',
         title: '💰 Pagamento Confirmado!',
-        message: `${clientName} pagou o agendamento de ${serviceName}${dateStr ? ` (${dateStr}${timeStr ? ` às ${timeStr}` : ''})` : ''}.`,
+        message: `${clientName} pagou o agendamento de ${serviceName}${dateStr ? ` (${dateStr}${timeStr ? ` às ${timeStr}` : ''})` : ''}. Agora está aguardando sua confirmação.`,
         type: 'payment_confirmed',
         appointmentId: appointmentId,
         read: false,
         createdAt: Timestamp.now(),
       });
 
-      return NextResponse.json({ success: true, message: 'Agendamento confirmado com sucesso!' }, { status: 200 });
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Pagamento confirmado! Agendamento aguardando confirmação do barbeiro.' 
+      }, { status: 200 });
     }
 
     return NextResponse.json({ received: true, message: 'Evento recebido sem alteração de status.' }, { status: 200 });
-
   } catch (error: any) {
     console.error('[WEBHOOK EXCEPTION]:', error);
     return NextResponse.json({ error: 'Erro interno no webhook.', details: error.message }, { status: 500 });
