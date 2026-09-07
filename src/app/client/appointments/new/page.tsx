@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
@@ -11,14 +10,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
-// ==================== TIPOS ====================
-interface Service {
+// ✅ AJUSTADO: SERVICES + tipo ServiceItem
+import { SERVICES } from '@/data/services';
+
+// ✅ Definindo o tipo corretamente conforme o arquivo
+type ServiceItem = {
   id: string;
   name: string;
   price: number;
-  durationMinutes: number;
-}
+  duration: number; // ✅ O campo se chama "duration", não "durationMinutes"
+};
 
+// ==================== TIPOS ====================
 interface Barber {
   id: string;
   name: string;
@@ -32,14 +35,6 @@ const HORARIOS_DISPONIVEIS = [
   '17:00', '17:30', '18:00', '18:30', '19:00'
 ];
 
-const SERVICOS: Service[] = [
-  { id: 'corte', name: 'Corte de Cabelo', price: 35, durationMinutes: 30 },
-  { id: 'barba', name: 'Barba', price: 25, durationMinutes: 20 },
-  { id: 'corte-barba', name: 'Corte + Barba', price: 55, durationMinutes: 45 },
-  { id: 'sobrancelha', name: 'Sobrancelha', price: 15, durationMinutes: 15 },
-  { id: 'completo', name: 'Pacote Completo', price: 70, durationMinutes: 60 },
-];
-
 const BARBEIROS: Barber[] = [
   { id: 'barbeiro1', name: 'Heitor Martins' },
 ];
@@ -48,7 +43,6 @@ const BARBEIROS: Barber[] = [
 export default function NewAppointmentPage() {
   const { user, userProfile } = useFirebase();
   const router = useRouter();
-
   const [dataSelecionada, setDataSelecionada] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [horarioSelecionado, setHorarioSelecionado] = useState<string>('');
   const [servicoSelecionado, setServicoSelecionado] = useState<string>('');
@@ -58,7 +52,6 @@ export default function NewAppointmentPage() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string>('');
   const [sucesso, setSucesso] = useState(false);
-
   const agora = new Date();
 
   // ✅ REGRA: Verifica se o horário JÁ PASSOU
@@ -76,7 +69,6 @@ export default function NewAppointmentPage() {
   // Carrega horários ocupados quando muda a data
   useEffect(() => {
     if (!dataSelecionada || !barbeiroSelecionado) return;
-
     const buscarHorarios = async () => {
       setCarregando(true);
       try {
@@ -93,7 +85,6 @@ export default function NewAppointmentPage() {
         setCarregando(false);
       }
     };
-
     buscarHorarios();
   }, [dataSelecionada, barbeiroSelecionado]);
 
@@ -114,14 +105,14 @@ export default function NewAppointmentPage() {
       return;
     }
 
-    const servico = SERVICOS.find(s => s.id === servicoSelecionado);
+    // ✅ PEGA DADOS DO ARQUIVO CENTRALIZADO
+    const servico = SERVICES.find((s: ServiceItem) => s.id === servicoSelecionado);
     if (!servico) {
       setErro('Serviço não encontrado.');
       return;
     }
 
     setEnviando(true);
-
     try {
       const res = await fetch('/api/appointments/new', {
         method: 'POST',
@@ -132,19 +123,16 @@ export default function NewAppointmentPage() {
           userEmail: userProfile?.email || user?.email,
           serviceId: servico.id,
           serviceName: servico.name,
-          price: servico.price,
+          price: servico.price,               // ✅ Preço do arquivo central!
           date: dataSelecionada,
           time: horarioSelecionado,
-          durationMinutes: servico.durationMinutes,
+          durationMinutes: servico.duration,   // ✅ CAMPO CORRETO: "duration"
           barberId: barbeiroSelecionado,
         }),
       });
-
       const resposta = await res.json();
-
       if (res.ok && resposta.success) {
         setSucesso(true);
-        // Redireciona para pagamento ou confirmação
         setTimeout(() => {
           router.push(`/client/appointments/${resposta.appointmentId}`);
         }, 1500);
@@ -158,7 +146,7 @@ export default function NewAppointmentPage() {
     }
   };
 
-  const servico = SERVICOS.find(s => s.id === servicoSelecionado);
+  const servico = SERVICES.find((s: ServiceItem) => s.id === servicoSelecionado);
 
   // ==================== RENDER ====================
   return (
@@ -193,9 +181,9 @@ export default function NewAppointmentPage() {
               <SelectValue placeholder="Selecione o serviço desejado" />
             </SelectTrigger>
             <SelectContent>
-              {SERVICOS.map(s => (
+              {SERVICES.map((s: ServiceItem) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.name} — R$ {s.price.toFixed(2)} ({s.durationMinutes} min)
+                  {s.name} — R$ {s.price.toFixed(2)} ({s.duration} min)
                 </SelectItem>
               ))}
             </SelectContent>
@@ -272,7 +260,6 @@ export default function NewAppointmentPage() {
                 const jaPassou = horarioJaPassou(horario);
                 const estaSelecionado = horarioSelecionado === horario;
                 const desabilitado = estaOcupado || jaPassou;
-
                 return (
                   <Button
                     key={horario}
@@ -311,7 +298,7 @@ export default function NewAppointmentPage() {
             <p><strong>Data:</strong> {format(parseISO(dataSelecionada), "dd/MM/yyyy")}</p>
             <p><strong>Horário:</strong> {horarioSelecionado}</p>
             <p><strong>Valor:</strong> R$ {servico.price.toFixed(2)}</p>
-            <p><strong>Duração:</strong> {servico.durationMinutes} minutos</p>
+            <p><strong>Duração:</strong> {servico.duration} minutos</p>
           </CardContent>
         </Card>
       )}
