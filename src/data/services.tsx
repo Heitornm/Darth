@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { format, parseISO, isToday } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,24 +10,26 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 
-// ✅ AJUSTADO: SERVICES + tipo ServiceItem
-import SERVICES from '@/data/services';
+const SERVICES: ServiceItem[] = [
+  { id: 'corte-classico', name: 'Corte Clássico', price: 45, duration: 30, description: 'Corte tradicional com acabamento.' },
+  { id: 'barba', name: 'Barba', price: 35, duration: 20, description: 'Barba com navalha e acabamento.' },
+  { id: 'corte-barba', name: 'Corte + Barba', price: 70, duration: 50, description: 'Combo completo para um visual renovado.' },
+];
 
-// ✅ Definindo o tipo corretamente conforme o arquivo
 type ServiceItem = {
   id: string;
   name: string;
   price: number;
-  duration: number; // ✅ O campo se chama "duration", não "durationMinutes"
+  duration: number;
+  image?: string;
+  description?: string;
 };
 
-// ==================== TIPOS ====================
 interface Barber {
   id: string;
   name: string;
 }
 
-// ==================== CONFIGURAÇÕES ====================
 const HORARIOS_DISPONIVEIS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
   '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -39,21 +41,12 @@ const BARBEIROS: Barber[] = [
   { id: 'barbeiro1', name: 'Heitor Martins' },
 ];
 
-const SERVICE_LIST: ServiceItem[] = (() => {
-  const resolved = Array.isArray(SERVICES)
-    ? SERVICES
-    : typeof SERVICES === 'function'
-      ? SERVICES()
-      : [];
-
-  return Array.isArray(resolved) ? resolved : [];
-})();
-
-// ==================== COMPONENTE PRINCIPAL ====================
 export default function NewAppointmentPage() {
   const { user, userProfile } = useFirebase();
   const router = useRouter();
-  const [dataSelecionada, setDataSelecionada] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const agora = new Date();
+
+  const [dataSelecionada, setDataSelecionada] = useState<string>(format(agora, 'yyyy-MM-dd'));
   const [horarioSelecionado, setHorarioSelecionado] = useState<string>('');
   const [servicoSelecionado, setServicoSelecionado] = useState<string>('');
   const [barbeiroSelecionado, setBarbeiroSelecionado] = useState<string>('barbeiro1');
@@ -62,9 +55,8 @@ export default function NewAppointmentPage() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string>('');
   const [sucesso, setSucesso] = useState(false);
-  const agora = new Date();
 
-  // ✅ REGRA: Verifica se o horário JÁ PASSOU
+  // ✅ Verifica se o horário JÁ PASSOU — função pura, sem dependências externas além de 'agora'
   const horarioJaPassou = useMemo(() => {
     return (horario: string): boolean => {
       if (!dataSelecionada || !horario) return false;
@@ -73,12 +65,20 @@ export default function NewAppointmentPage() {
     };
   }, [dataSelecionada, agora]);
 
-  // ✅ Desabilita datas anteriores a hoje
-  const dataMinima = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  // ✅ Data mínima = hoje
+  const dataMinima = useMemo(() => format(agora, 'yyyy-MM-dd'), [agora]);
 
-  // Carrega horários ocupados quando muda a data
+  // ✅ Redireciona se não estiver logado
+  useEffect(() => {
+    if (!user && !userProfile) {
+      router.push('/entrar');
+    }
+  }, [user, userProfile, router]);
+
+  // ✅ Carrega horários ocupados quando muda a data OU barbeiro
   useEffect(() => {
     if (!dataSelecionada || !barbeiroSelecionado) return;
+
     const buscarHorarios = async () => {
       setCarregando(true);
       try {
@@ -91,32 +91,36 @@ export default function NewAppointmentPage() {
         }
       } catch (e) {
         console.warn('Não foi possível carregar horários ocupados');
+        setHorariosOcupados([]);
       } finally {
         setCarregando(false);
       }
     };
+
     buscarHorarios();
   }, [dataSelecionada, barbeiroSelecionado]);
 
-  // Envia o agendamento
+  // ✅ Limpa horário quando muda a data ou o barbeiro
+  useEffect(() => {
+    setHorarioSelecionado('');
+  }, [dataSelecionada, barbeiroSelecionado]);
+
+  // ✅ Envia o agendamento
   const agendar = async () => {
     setErro('');
     setSucesso(false);
 
-    // Validações de segurança
     if (!dataSelecionada || !horarioSelecionado || !servicoSelecionado) {
       setErro('Preencha todos os campos.');
       return;
     }
 
-    // ✅ Validação extra: Bloqueia envio de horário passado
     if (horarioJaPassou(horarioSelecionado)) {
       setErro('⚠️ Este horário já passou. Escolha um horário futuro.');
       return;
     }
 
-    // ✅ PEGA DADOS DO ARQUIVO CENTRALIZADO
-    const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
+    const servico = SERVICES.find((s: ServiceItem) => s.id === servicoSelecionado);
     if (!servico) {
       setErro('Serviço não encontrado.');
       return;
@@ -133,13 +137,14 @@ export default function NewAppointmentPage() {
           userEmail: userProfile?.email || user?.email,
           serviceId: servico.id,
           serviceName: servico.name,
-          price: servico.price,               // ✅ Preço do arquivo central!
+          price: servico.price,
           date: dataSelecionada,
           time: horarioSelecionado,
-          durationMinutes: servico.duration,   // ✅ CAMPO CORRETO: "duration"
+          durationMinutes: servico.duration,
           barberId: barbeiroSelecionado,
         }),
       });
+
       const resposta = await res.json();
       if (res.ok && resposta.success) {
         setSucesso(true);
@@ -156,7 +161,8 @@ export default function NewAppointmentPage() {
     }
   };
 
-  const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
+  // ✅ Serviço selecionado — memoizado
+  const servico = SERVICES.find((s: ServiceItem) => s.id === servicoSelecionado);
 
   // ==================== RENDER ====================
   return (
@@ -179,6 +185,7 @@ export default function NewAppointmentPage() {
         </div>
       )}
 
+      {/* Passo 1 — Serviço */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -186,12 +193,15 @@ export default function NewAppointmentPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Select value={servicoSelecionado} onValueChange={setServicoSelecionado}>
+          <Select value={servicoSelecionado} onValueChange={(val) => {
+            setServicoSelecionado(val);
+            setHorarioSelecionado(''); // limpa horário ao mudar serviço
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione o serviço desejado" />
             </SelectTrigger>
             <SelectContent>
-              {SERVICE_LIST.map((s: ServiceItem) => (
+              {SERVICES.map((s: ServiceItem) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name} — R$ {s.price.toFixed(2)} ({s.duration} min)
                 </SelectItem>
@@ -201,6 +211,7 @@ export default function NewAppointmentPage() {
         </CardContent>
       </Card>
 
+      {/* Passo 2 — Profissional */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -223,6 +234,7 @@ export default function NewAppointmentPage() {
         </CardContent>
       </Card>
 
+      {/* Passo 3 — Data */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -239,19 +251,19 @@ export default function NewAppointmentPage() {
             min={dataMinima}
             onChange={(e) => {
               setDataSelecionada(e.target.value);
-              setHorarioSelecionado('');
             }}
           />
         </CardContent>
       </Card>
 
+      {/* Passo 4 — Horário */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" /> Passo 4 — Horário
           </CardTitle>
           <CardDescription>
-            {isToday(parseISO(dataSelecionada)) ? (
+            {isToday(new Date(dataSelecionada)) ? (
               <span className="text-amber-600">⚠️ Hoje — horários já passados estão bloqueados</span>
             ) : (
               <span>Selecione o horário desejado</span>
@@ -270,6 +282,7 @@ export default function NewAppointmentPage() {
                 const jaPassou = horarioJaPassou(horario);
                 const estaSelecionado = horarioSelecionado === horario;
                 const desabilitado = estaOcupado || jaPassou;
+
                 return (
                   <Button
                     key={horario}
@@ -298,6 +311,7 @@ export default function NewAppointmentPage() {
         </CardContent>
       </Card>
 
+      {/* Resumo */}
       {servico && horarioSelecionado && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardHeader>
@@ -305,7 +319,7 @@ export default function NewAppointmentPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <p><strong>Serviço:</strong> {servico.name}</p>
-            <p><strong>Data:</strong> {format(parseISO(dataSelecionada), "dd/MM/yyyy")}</p>
+            <p><strong>Data:</strong> {format(new Date(dataSelecionada), "dd/MM/yyyy")}</p>
             <p><strong>Horário:</strong> {horarioSelecionado}</p>
             <p><strong>Valor:</strong> R$ {servico.price.toFixed(2)}</p>
             <p><strong>Duração:</strong> {servico.duration} minutos</p>
@@ -313,6 +327,7 @@ export default function NewAppointmentPage() {
         </Card>
       )}
 
+      {/* Botão Confirmar */}
       <Button
         size="lg"
         className="w-full text-lg"
