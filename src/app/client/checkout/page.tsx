@@ -6,9 +6,7 @@ import Link from 'next/link';
 import { 
   Scissors, 
   Clock, 
-  CheckCircle2, 
-  ArrowLeftCircle,    // ✅ existe na sua versão
-  CreditCard,         // ✅ existe na sua versão
+  CheckCircle2,
   AlertCircle,
   Sparkles,
   Calendar
@@ -144,7 +142,6 @@ function CheckoutContent() {
           <CardFooter className="justify-center">
             <Button asChild variant="outline">
               <Link href="/client/appointments/new">
-                <ArrowLeftCircle className="w-4 h-4 mr-2" />
                 Voltar para Agendamento
               </Link>
             </Button>
@@ -170,8 +167,7 @@ function CheckoutContent() {
       <div className="mb-6 flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild className="rounded-full">
           <Link href="/client/appointments/new">
-            <ArrowLeftCircle className="w-4 h-4 mr-1" />
-            Voltar
+            ← Voltar
           </Link>
         </Button>
       </div>
@@ -252,8 +248,7 @@ function CheckoutContent() {
               "Processando..."
             ) : (
               <>
-                <CreditCard className="w-5 h-5" />
-                Ir para o Pagamento
+                💳 Ir para o Pagamento
               </>
             )}
           </Button>
