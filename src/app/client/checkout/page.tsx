@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -8,8 +7,8 @@ import {
   Scissors, 
   Clock, 
   CheckCircle2, 
-  ArrowLeft, 
-  CreditCard, 
+  ChevronLeft,       // ✅ Antes: ArrowLeft
+  CreditCardIcon,    // ✅ Antes: CreditCard
   AlertCircle,
   Sparkles,
   Calendar
@@ -26,7 +25,6 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const { user } = useUser();
   const db = useFirestore();
-
   const serviceId = searchParams.get('serviceId');
   const dateStr = searchParams.get('date');
   const timeStr = searchParams.get('time');
@@ -53,7 +51,6 @@ function CheckoutContent() {
       setError("Sessão inválida ou usuário não autenticado.");
       return;
     }
-
     if (!dateStr || !timeStr) {
       setError("Data ou horário de agendamento ausentes.");
       return;
@@ -117,13 +114,11 @@ function CheckoutContent() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || data.message || "Erro ao processar o pagamento.");
       }
 
       const checkoutUrl = data.checkoutUrl || data.url || data.init_point;
-
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
       } else {
@@ -153,7 +148,7 @@ function CheckoutContent() {
           <CardFooter className="justify-center">
             <Button asChild variant="outline">
               <Link href="/client/appointments/new">
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ChevronLeft className="w-4 h-4 mr-2" /> {/* ✅ Atualizado */}
                 Voltar para Agendamento
               </Link>
             </Button>
@@ -179,7 +174,7 @@ function CheckoutContent() {
       <div className="mb-6 flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild className="rounded-full">
           <Link href="/client/appointments/new">
-            <ArrowLeft className="w-4 h-4 mr-1" />
+            <ChevronLeft className="w-4 h-4 mr-1" /> {/* ✅ Atualizado */}
             Voltar
           </Link>
         </Button>
@@ -207,7 +202,6 @@ function CheckoutContent() {
                 sizes="(max-width: 640px) 100vw, 112px"
               />
             </div>
-
             <div className="flex-1 w-full text-center sm:text-left space-y-1">
               <h3 className="font-bold text-lg text-foreground">{service.name}</h3>
               <p className="text-xs text-muted-foreground line-clamp-2">
@@ -262,12 +256,11 @@ function CheckoutContent() {
               "Processando..."
             ) : (
               <>
-                <CreditCard className="w-5 h-5" />
+                <CreditCardIcon className="w-5 h-5" /> {/* ✅ Atualizado */}
                 Ir para o Pagamento
               </>
             )}
           </Button>
-
           <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             O horário será reservado por 10 minutos para realização do pagamento.
