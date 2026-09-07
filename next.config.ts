@@ -4,7 +4,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 const nextConfig: NextConfig = {
   typescript: {
-    ignoreBuildErrors: isDev, // Only skip checks locally
+    ignoreBuildErrors: isDev, // ✅ Só ignora erros localmente
   },
 
   async headers() {
