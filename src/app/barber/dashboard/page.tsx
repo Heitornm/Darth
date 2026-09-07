@@ -20,8 +20,8 @@ import {
 } from 'recharts';
 
 // ==================== CONSTANTES ====================
-const BARBER_EMAIL = "heitornmartins@gmail.com";
-const MASTER_BARBER_ID = '2cAVs3U9ciV3NiqApJuOlYGEJS32';
+const BARBER_EMAIL = ["heitornmartins@gmail.com", "darthbarbers@gmail.com"];
+const MASTER_BARBER_ID = ['2cAVs3U9ciV3NiqApJuOlYGEJS32', 'dGlesKYTwHT80Z7NBL2eWNZunqN2'];
 const COLORS = [
   'hsl(var(--primary))', '#22c55e', '#f59e0b', '#3b82f6',
   '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'
@@ -63,10 +63,12 @@ export default function BarberDashboardPage() {
   }, []);
 
   const safeAppointments = appointments || [];
+  const isBarberEmail = user?.email ? BARBER_EMAIL.includes(user.email) : false;
+  const isMasterBarber = user?.uid ? MASTER_BARBER_ID.includes(user.uid) : false;
 
   const isAuthorized = userProfile?.role === 'barber' ||
-    user?.email === BARBER_EMAIL ||
-    user?.uid === MASTER_BARBER_ID;
+    isBarberEmail ||
+    isMasterBarber;
 
   const changePeriod = useCallback((direction: number) => {
     const base = new Date(`${referenceDate}T00:00:00`);
@@ -107,11 +109,11 @@ export default function BarberDashboardPage() {
     return safeAppointments.filter((apt) => {
       const aptDate = parseAppointmentDate(apt);
       if (!aptDate || isNaN(aptDate.getTime())) return false;
-      const belongsToBarber = apt.barberId === user?.uid || user?.email === BARBER_EMAIL;
+      const belongsToBarber = apt.barberId === user?.uid || isBarberEmail;
       const withinRange = aptDate >= range.start && aptDate <= range.end;
       return belongsToBarber && withinRange;
     });
-  }, [safeAppointments, range, user?.uid, parseAppointmentDate]);
+  }, [safeAppointments, range, user?.uid, isBarberEmail, parseAppointmentDate]);
 
   // ==================== MÉTRICAS ====================
   const totalAppointments = filteredApts.length;
@@ -192,11 +194,11 @@ export default function BarberDashboardPage() {
     return safeAppointments.filter((apt) => {
       const aptDate = parseAppointmentDate(apt);
       if (!aptDate || isNaN(aptDate.getTime())) return false;
-      const belongsToBarber = apt.barberId === user?.uid || user?.email === BARBER_EMAIL;
+      const belongsToBarber = apt.barberId === user?.uid || isBarberEmail;
       const withinRange = aptDate >= prevRange.start && aptDate <= prevRange.end;
       return belongsToBarber && withinRange && apt.status === 'concluido';
     }).reduce((sum, apt) => sum + (apt.price || 0), 0);
-  }, [safeAppointments, prevRange, user?.uid, parseAppointmentDate]);
+  }, [safeAppointments, prevRange, user?.uid, isBarberEmail, parseAppointmentDate]);
 
   const earningsChange = prevEarnings > 0
     ? ((totalEarnings - prevEarnings) / prevEarnings) * 100
