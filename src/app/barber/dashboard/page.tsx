@@ -1,29 +1,22 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  TrendingUp, DollarSign, Clock, Scissors,
-  Calendar, CheckCircle2, Sparkles, ArrowRight, XCircle
+  Clock, Scissors, Calendar, CheckCircle2, XCircle,
+  AlertCircle
 } from 'lucide-react';
-import {
-  BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Legend
-} from 'recharts';
 
 // ==================== CONSTANTES ====================
-const BARBER_EMAIL = ["heitornmartins@gmail.com", "darthbarbers@gmail.com"];
-const MASTER_BARBER_ID = ['2cAVs3U9ciV3NiqApJuOlYGEJS32', 'dGlesKYTwHT80Z7NBL2eWNZunqN2'];
-const COLORS = [
-  'hsl(var(--primary))', '#22c55e', '#f59e0b', '#3b82f6',
-  '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'
-];
+// ✅ COLOQUE SEU UID REAL DO FIREBASE ABAIXO
+const BARBER_UIDS = ['2cAVs3U9ciV3NiqApJuOlYGEJS32'];
+const BARBER_EMAIL = ["heitormartins@email.com", "darthbarbers@email.com"];
+const BARBER_ID_ALIASES = ['barbeiro1', 'barbeiro_1', 'main'];
 
 type PeriodMode = 'day' | 'week' | 'month';
 
@@ -31,423 +24,276 @@ interface Appointment {
   id?: string;
   barberId?: string;
   clientId?: string;
-  userId?: string;
-  dataHora?: Timestamp | { seconds: number };
+  userName?: string;
+  serviceName?: string;
   date?: string;
   time?: string;
   status?: string;
   price?: number;
   durationMinutes?: number;
-  serviceName?: string;
-  userName?: string;
-}
-
-interface KPIProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  color: string;
+  createdAt?: Timestamp | { seconds: number };
 }
 
 // ==================== COMPONENTE PRINCIPAL ====================
 export default function BarberDashboardPage() {
-  const { user, userProfile, appointments, isUserLoading, isAppointmentsLoading } = useFirebase();
+  const { user, appointments, isAppointmentsLoading } = useFirebase();
   const [periodMode, setPeriodMode] = useState<PeriodMode>('day');
   const [referenceDate, setReferenceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [mounted, setMounted] = useState(false);
-  const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const safeAppointments = appointments || [];
-  const isBarberEmail = user?.email ? BARBER_EMAIL.includes(user.email) : false;
-  const isMasterBarber = user?.uid ? MASTER_BARBER_ID.includes(user.uid) : false;
-  const isAuthorized = userProfile?.role === 'barber' || isBarberEmail || isMasterBarber;
+  // ✅ Verifica se é o barbeiro
+  const isBarber = useMemo(() => {
+    if (!user) return false;
+    const isUid = BARBER_UIDS.includes(user.uid);
+    const isEmail = BARBER_EMAIL.some(email => user.email?.toLowerCase() === email.toLowerCase());
+    return isUid || isEmail;
+  }, [user]);
 
-  const changePeriod = useCallback((direction: number) => {
-    const base = new Date(`${referenceDate}T00:00:00`);
-    const newDate = new Date(base);
-    if (periodMode === 'day') {
-      newDate.setDate(base.getDate() + direction);
-    } else if (periodMode === 'week') {
-      newDate.setDate(base.getDate() + (7 * direction));
-    } else {
-      newDate.setMonth(base.getMonth() + direction);
-    }
-    setReferenceDate(format(newDate, 'yyyy-MM-dd'));
-  }, [periodMode, referenceDate]);
+  // ✅ Verifica se o agendamento pertence ao barbeiro
+  const belongsToMe = (apt?: Appointment): boolean => {
+    if (!apt) return false;
+    const aptBarberId = apt.barberId || '';
+    if (user && aptBarberId === user.uid) return true;
+    if (BARBER_ID_ALIASES.includes(aptBarberId)) return true;
+    return false;
+  };
 
-  const range = useMemo(() => {
-    const base = new Date(`${referenceDate}T00:00:00`);
+  // ✅ Intervalo de data
+  const periodRange = useMemo(() => {
+    const baseDate = new Date(`${referenceDate}T00:00:00`);
     switch (periodMode) {
-      case 'day': return { start: startOfDay(base), end: endOfDay(base) };
-      case 'week': return { start: startOfWeek(base, { weekStartsOn: 1 }), end: endOfWeek(base, { weekStartsOn: 1 }) };
-      case 'month': return { start: startOfMonth(base), end: endOfMonth(base) };
+      case 'day': return { start: startOfDay(baseDate), end: endOfDay(baseDate) };
+      case 'week': return { start: startOfWeek(baseDate, { weekStartsOn: 1 }), end: endOfWeek(baseDate, { weekStartsOn: 1 }) };
+      case 'month': return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
     }
   }, [periodMode, referenceDate]);
 
-  const periodLabel = useMemo(() => {
-    if (periodMode === 'day') return format(range.start, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-    if (periodMode === 'week') return `${format(range.start, 'dd/MM')} a ${format(range.end, 'dd/MM/yyyy')}`;
-    return format(range.start, "MMMM 'de' yyyy", { locale: ptBR });
-  }, [range, periodMode]);
+  // ✅ Meus agendamentos
+  const myAppointments = useMemo(() => {
+    return (appointments || []).filter(belongsToMe);
+  }, [appointments, user]);
 
-  const parseAppointmentDate = useCallback((apt: Appointment): Date | null => {
-    if (apt.dataHora instanceof Timestamp) return apt.dataHora.toDate();
-    if (apt.dataHora?.seconds) return new Date(apt.dataHora.seconds * 1000);
-    if (apt.date && apt.time) return new Date(`${apt.date}T${apt.time}`);
-    return null;
-  }, []);
-
-  const filteredApts = useMemo(() => {
-    return safeAppointments.filter((apt) => {
-      const aptDate = parseAppointmentDate(apt);
-      if (!aptDate || isNaN(aptDate.getTime())) return false;
-      const belongsToBarber = apt.barberId === user?.uid || isBarberEmail;
-      const withinRange = aptDate >= range.start && aptDate <= range.end;
-      return belongsToBarber && withinRange;
+  // ✅ Agendamentos dentro do período
+  const filteredInPeriod = useMemo(() => {
+    return myAppointments.filter(apt => {
+      if (!apt.date) return false;
+      const aptDate = new Date(`${apt.date}T00:00:00`);
+      return aptDate >= periodRange.start && aptDate <= periodRange.end;
     });
-  }, [safeAppointments, range, user?.uid, isBarberEmail, parseAppointmentDate]);
+  }, [myAppointments, periodRange]);
 
-  // ==================== MÉTRICAS — NOVOS STATUS ====================
-  const aguardandoPagamento = filteredApts.filter(a => a.status === 'aguardando_pagamento').length;
-  const pagamentoConfirmado = filteredApts.filter(a => a.status === 'pagamento_confirmado').length;
-  const aguardandoBarbeiro = filteredApts.filter(a => a.status === 'aguardando_barbeiro').length;
-  const confirmados = filteredApts.filter(a => a.status === 'confirmado').length;
-  const concluidos = filteredApts.filter(a => a.status === 'concluido').length;
-  const cancelados = filteredApts.filter(a => a.status === 'cancelado' || a.status === 'canceled').length;
-  const totalAppointments = filteredApts.length;
-
-  const totalEarnings = filteredApts
-    .filter(a => a.status === 'concluido')
-    .reduce((sum, apt) => sum + (apt.price || 0), 0);
-  const totalScheduledValue = filteredApts.reduce((sum, apt) => sum + (apt.price || 0), 0);
-  const cancellationRate = totalAppointments > 0 ? (cancelados / totalAppointments) * 100 : 0;
-
-  const chartData = useMemo(() => {
-    const grouped: Record<string, { label: string; count: number; revenue: number }> = {};
-    filteredApts.forEach((apt) => {
-      const aptDate = parseAppointmentDate(apt);
-      if (!aptDate || isNaN(aptDate.getTime())) return;
-      const label = periodMode === 'day'
-        ? format(aptDate, 'HH:mm', { locale: ptBR })
-        : periodMode === 'week'
-          ? format(aptDate, 'EEE', { locale: ptBR })
-          : format(aptDate, 'dd', { locale: ptBR });
-      if (!grouped[label]) grouped[label] = { label, count: 0, revenue: 0 };
-      grouped[label].count += 1;
-      grouped[label].revenue += apt.status === 'concluido' ? (apt.price || 0) : 0;
+  // ✅ ⭐ PENDENTES — BUSCA EM TODOS, NÃO SÓ NO PERÍODO
+  const pendingConfirmation = useMemo(() => {
+    return myAppointments.filter(apt =>
+      apt.status === 'aguardando_barbeiro' ||
+      apt.status === 'pagamento_confirmado' ||
+      apt.status === 'pagamento_processando'
+    ).sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.time}`);
+      const dateB = new Date(`${b.date}T${b.time}`);
+      return dateA.getTime() - dateB.getTime();
     });
-    return Object.values(grouped).sort((a, b) => a.label.localeCompare(b.label));
-  }, [filteredApts, periodMode, parseAppointmentDate]);
+  }, [myAppointments]);
 
-  const serviceRanking = useMemo(() => {
-    const counts: Record<string, {
-      name: string; count: number; totalValue: number; avgValue: number;
-    }> = {};
-    filteredApts.filter(a => a.status === 'concluido').forEach((apt) => {
-      const name = apt.serviceName || 'Não informado';
-      if (!counts[name]) counts[name] = { name, count: 0, totalValue: 0, avgValue: 0 };
-      counts[name].count += 1;
-      counts[name].totalValue += apt.price || 0;
-    });
-    return Object.values(counts)
-      .map(s => ({ ...s, avgValue: s.count > 0 ? s.totalValue / s.count : 0 }))
-      .sort((a, b) => b.count - a.count);
-  }, [filteredApts]);
+  // ✅ Métricas
+  const metrics = useMemo(() => {
+    const completed = filteredInPeriod.filter(a => a.status === 'concluido');
+    const totalRevenue = completed.reduce((sum, a) => sum + (a.price || 0), 0);
+    const canceled = filteredInPeriod.filter(a => a.status === 'cancelado').length;
+    const cancellationRate = filteredInPeriod.length > 0
+      ? Math.round((canceled / filteredInPeriod.length) * 100)
+      : 0;
+    return { completedCount: completed.length, totalRevenue, canceled, cancellationRate, totalCount: filteredInPeriod.length };
+  }, [filteredInPeriod]);
 
-  const statusData = [
-    { name: 'Aguardando Pagamento', value: aguardandoPagamento, fill: '#f59e0b' },
-    { name: 'Pagamento Confirmado', value: pagamentoConfirmado, fill: '#3b82f6' },
-    { name: 'Aguardando Barbeiro', value: aguardandoBarbeiro, fill: '#8b5cf6' },
-    { name: 'Agendados', value: confirmados, fill: '#22c55e' },
-    { name: 'Concluídos', value: concluidos, fill: '#10b981' },
-  ].filter(d => d.value > 0);
-
-  const prevRange = useMemo(() => {
+  // ✅ Comparativo com período anterior
+  const prevPeriodRevenue = useMemo(() => {
     const base = new Date(`${referenceDate}T00:00:00`);
+    let prevStart, prevEnd;
     if (periodMode === 'day') {
-      const prev = subMonths(base, 1);
-      return { start: startOfDay(prev), end: endOfDay(prev) };
+      const d = subMonths(base, 1);
+      prevStart = startOfDay(d); prevEnd = endOfDay(d);
     } else if (periodMode === 'week') {
-      const prev = new Date(base);
-      prev.setDate(base.getDate() - 7);
-      return { start: startOfWeek(prev, { weekStartsOn: 1 }), end: endOfWeek(prev, { weekStartsOn: 1 }) };
+      prevStart = startOfWeek(subMonths(base, 1), { weekStartsOn: 1 });
+      prevEnd = endOfWeek(subMonths(base, 1), { weekStartsOn: 1 });
     } else {
-      const prev = new Date(base);
-      prev.setMonth(base.getMonth() - 1);
-      return { start: startOfMonth(prev), end: endOfMonth(prev) };
+      prevStart = startOfMonth(subMonths(base, 1));
+      prevEnd = endOfMonth(subMonths(base, 1));
     }
-  }, [periodMode, referenceDate]);
+    const prevCompleted = myAppointments.filter(a => {
+      if (!a.date) return false;
+      const d = new Date(`${a.date}T00:00:00`);
+      return a.status === 'concluido' && d >= prevStart && d <= prevEnd;
+    });
+    return prevCompleted.reduce((sum, a) => sum + (a.price || 0), 0);
+  }, [myAppointments, periodMode, referenceDate]);
 
-  const prevEarnings = useMemo(() => {
-    return safeAppointments.filter((apt) => {
-      const aptDate = parseAppointmentDate(apt);
-      if (!aptDate || isNaN(aptDate.getTime())) return false;
-      const belongsToBarber = apt.barberId === user?.uid || isBarberEmail;
-      const withinRange = aptDate >= prevRange.start && aptDate <= prevRange.end;
-      return belongsToBarber && withinRange && apt.status === 'concluido';
-    }).reduce((sum, apt) => sum + (apt.price || 0), 0);
-  }, [safeAppointments, prevRange, user?.uid, isBarberEmail, parseAppointmentDate]);
+  const revenueChange = prevPeriodRevenue > 0
+    ? Math.round(((metrics.totalRevenue - prevPeriodRevenue) / prevPeriodRevenue) * 100)
+    : (metrics.totalRevenue > 0 ? 100 : 0);
 
-  const earningsChange = prevEarnings > 0
-    ? ((totalEarnings - prevEarnings) / prevEarnings) * 100
-    : 0;
-
-  // ✅ FUNÇÃO: Confirmar Agendamento
-  const confirmarAgendamento = async (appointmentId: string) => {
-    if (!confirm("Confirma este agendamento? Ele será marcado como Agendado oficialmente.")) return;
-    
-    setConfirmandoId(appointmentId);
+  // ✅ Confirma agendamento
+  const confirmAppointment = async (appointmentId: string) => {
+    setConfirmingId(appointmentId);
     try {
       const res = await fetch('/api/barber/confirm-appointment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appointmentId })
       });
-      
+      const result = await res.json();
       if (res.ok) {
-        alert("✅ Agendamento confirmado! O cliente será notificado.");
+        alert('✅ Agendamento confirmado! Notificação enviada ao cliente.');
       } else {
-        const err = await res.json();
-        alert(`Erro: ${err.error || 'Tente novamente'}`);
+        alert(`Erro: ${result.error || 'Tente novamente'}`);
       }
-    } catch (err) {
-      console.error(err);
-      alert("Erro de conexão. Tente novamente.");
+    } catch {
+      alert('Erro de conexão. Tente novamente.');
     } finally {
-      setConfirmandoId(null);
+      setConfirmingId(null);
     }
   };
 
-  // Lista de aguardando confirmação
-  const aguardandoConfirmacao = filteredApts.filter(a => a.status === 'aguardando_barbeiro');
-
-  // ==================== TELAS DE CARREGAMENTO / ACESSO ====================
-  if (!mounted || isUserLoading || isAppointmentsLoading) {
-    return <div className="p-20 text-center animate-pulse text-primary font-headline">Calculando métricas...</div>;
+  // ==================== TELA DE CARREGAMENTO / ACESSO ====================
+  if (!mounted || isAppointmentsLoading) {
+    return <div className="p-20 text-center animate-pulse text-xl">Carregando painel...</div>;
   }
 
-  if (!user || !isAuthorized) {
+  if (!user || !isBarber) {
     return (
       <div className="container mx-auto p-20 text-center">
-        <Card className="border-destructive/20 bg-destructive/5 max-w-md mx-auto">
-          <CardContent className="pt-6 space-y-4">
-            <XCircle className="w-12 h-12 text-destructive mx-auto" />
-            <h2 className="text-2xl font-headline font-bold">Acesso Restrito</h2>
-            <p className="text-muted-foreground">Painel exclusivo para o administrador.</p>
-          </CardContent>
-        </Card>
+        <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Acesso Restrito</h2>
+        <p className="text-muted-foreground">Esta área é exclusiva para o barbeiro.</p>
       </div>
     );
   }
 
   // ==================== RENDER PRINCIPAL ====================
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
       {/* CABEÇALHO */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">Painel de Gestão</h1>
-          <p className="text-muted-foreground flex items-center gap-2 mt-1">
-            <Calendar className="w-4 h-4" /> {periodLabel}
-          </p>
+          <h1 className="text-2xl font-bold">Painel do Barbeiro</h1>
+          <p className="text-muted-foreground">Gerencie seus agendamentos e acompanhe o faturamento</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="flex gap-2 items-center">
           <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>
-            <TabsList className="bg-card border border-border/50">
-              <TabsTrigger value="day">Dia</TabsTrigger>
+            <TabsList>
+              <TabsTrigger value="day">Hoje</TabsTrigger>
               <TabsTrigger value="week">Semana</TabsTrigger>
               <TabsTrigger value="month">Mês</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="flex items-center gap-1">
-            <Button size="sm" variant="ghost" onClick={() => changePeriod(-1)}>
-              <ArrowRight className="w-4 h-4 rotate-180" />
-            </Button>
-            <Input
-              type="date"
-              value={referenceDate}
-              onChange={(e) => setReferenceDate(e.target.value)}
-              className="w-auto h-9"
-            />
-            <Button size="sm" variant="ghost" onClick={() => changePeriod(1)}>
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
+          <Input
+            type="date"
+            value={referenceDate}
+            onChange={(e) => setReferenceDate(e.target.value)}
+            className="w-auto"
+          />
         </div>
       </div>
 
-      {/* 📈 KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPIItem icon={<DollarSign className="text-emerald-500" />} label="Receita" value={`R$ ${totalEarnings.toFixed(2)}`} sub={`Agendado: R$ ${totalScheduledValue.toFixed(2)}`} color="bg-emerald-500/10" />
-        <KPIItem icon={<Clock className="text-orange-500" />} label="Aguardando Pag." value={`${aguardandoPagamento}`} sub="pagamento pendente" color="bg-orange-500/10" />
-        <KPIItem icon={<CheckCircle2 className="text-blue-500" />} label="Pag. Confirmado" value={`${pagamentoConfirmado}`} sub="aguardando barbeiro" color="bg-blue-500/10" />
-        <KPIItem icon={<Sparkles className="text-violet-500" />} label="Aguardando Você" value={`${aguardandoBarbeiro}`} sub="precisa confirmar" color="bg-violet-500/10" />
-        <KPIItem icon={<Scissors className="text-green-500" />} label="Agendados" value={`${confirmados}`} sub="confirmados" color="bg-green-500/10" />
-        <KPIItem icon={<XCircle className="text-rose-500" />} label="Cancelados" value={`${cancelados}`} sub={`${cancellationRate.toFixed(0)}%`} color="bg-rose-500/10" />
-      </div>
-
-      {periodMode !== 'day' && (
-        <Card className="border-primary/20 bg-card/40">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-2">Comparado ao período anterior</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              {earningsChange >= 0 ? <TrendingUp className="w-5 h-5 text-emerald-500" /> : <XCircle className="w-5 h-5 text-rose-500" />}
-              <span className={`font-bold text-lg ${earningsChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {earningsChange >= 0 ? '+' : ''}{earningsChange.toFixed(1)}%
-              </span>
-              <span className="text-muted-foreground">{earningsChange >= 0 ? 'aumento' : 'queda'} na receita</span>
-              <span className="text-sm text-muted-foreground ml-auto">Anterior: R$ {prevEarnings.toFixed(2)}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ✅ CARD: AGUARDANDO CONFIRMAÇÃO DO BARBEIRO */}
-      {aguardandoConfirmacao.length > 0 && (
-        <Card className="border-violet-300 bg-violet-50/50 dark:bg-violet-950/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-violet-500" />
-              Aguardando Sua Confirmação ({aguardandoConfirmacao.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {aguardandoConfirmacao.map(apt => (
-              <div key={apt.id} className="flex items-center justify-between p-3 bg-card rounded-lg border border-violet-200">
-                <div>
-                  <p className="font-semibold">{apt.serviceName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {apt.date?.split('-').reverse().join('/')} às {apt.time}
-                    {apt.userName && ` • ${apt.userName}`}
-                  </p>
-                </div>
-                <Button 
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => confirmarAgendamento(apt.id!)}
-                  disabled={confirmandoId === apt.id}
-                >
-                  {confirmandoId === apt.id ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-                      Confirmando...
-                    </>
-                  ) : (
-                    <>✅ Confirmar</>
-                  )}
-                </Button>
+      {/* ⭐ NOTIFICAÇÃO PENDENTE — DESTAQUE NO TOPO */}
+      {pendingConfirmation.length > 0 ? (
+        <Card className="border-amber-400 bg-amber-50 dark:bg-amber-950/20 shadow-md">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
+              <div className="relative">
+                <AlertCircle className="w-6 h-6" />
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {pendingConfirmation.length}
+                </span>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* GRÁFICOS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="border-primary/20 bg-card/40 lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-headline text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" /> Volume e Faturamento
+              Agendamentos Aguardando Confirmação
             </CardTitle>
+            <CardDescription className="text-amber-700 dark:text-amber-300">
+              Pagamento confirmado — clique para aceitar e notificar o cliente
+            </CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px]">
-            {chartData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-muted-foreground italic">Sem dados para o período.</div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart data={chartData}>
-                  <XAxis dataKey="label" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }} />
-                  <Legend />
-                  <Bar dataKey="count" name="Atendimentos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="revenue" name="R$ Concluído" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card/40">
-          <CardHeader><CardTitle className="font-headline text-lg">Status</CardTitle></CardHeader>
-          <CardContent className="h-[320px]">
-            {statusData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-muted-foreground italic">Sem dados.</div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPie>
-                  <Pie data={statusData} cx="50%" cy="50%" outerRadius={100} innerRadius={50} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
-                    {statusData.map((entry, i) => (<Cell key={i} fill={entry.fill} />))}
-                  </Pie>
-                  <Tooltip />
-                </RechartsPie>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* RANKING DE SERVIÇOS */}
-      <Card className="border-primary/20 bg-card/40">
-        <CardHeader>
-          <CardTitle className="font-headline text-lg flex items-center gap-2">
-            <Scissors className="w-5 h-5 text-primary" /> Ranking de Serviços Prestados
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {serviceRanking.length === 0 ? (
-            <p className="text-center text-muted-foreground italic py-8">Nenhum serviço concluído neste período.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                {serviceRanking.map((service, index) => (
-                  <div key={service.name} className="flex items-center justify-between p-3 rounded-lg bg-card border border-border/50">
-                    <div className="flex items-center gap-3">
-                      <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">{index + 1}</span>
-                      <div>
-                        <p className="font-semibold">{service.name}</p>
-                        <p className="text-xs text-muted-foreground">{service.count} atendimentos • Ticket médio: R$ {service.avgValue.toFixed(2)}</p>
-                      </div>
-                    </div>
-                    <div className="text-right"><p className="font-bold text-emerald-500">R$ {service.totalValue.toFixed(2)}</p></div>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingConfirmation.map(apt => (
+                <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-lg">
+                      {apt.userName || 'Cliente sem nome'}
+                    </p>
+                    <p className="text-sm text-muted-foreground flex gap-3 flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" /> {apt.date ? format(new Date(apt.date + 'T00:00:00'), "dd/MM") : 'Sem data'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" /> {apt.time || 'Sem horário'}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Scissors className="w-4 h-4" /> {apt.serviceName || 'Serviço'}
+                      </span>
+                      <span className="font-bold text-green-600">R$ {(apt.price || 0).toFixed(2)}</span>
+                    </p>
                   </div>
-                ))}
-              </div>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPie>
-                    <Pie data={serviceRanking.map((s, i) => ({ ...s, fill: COLORS[i % COLORS.length] }))} cx="50%" cy="50%" outerRadius={110} innerRadius={60} dataKey="count" label={({ name, count }) => `${name}: ${count}`}>
-                      {serviceRanking.map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
-                    </Pie>
-                    <Tooltip />
-                  </RechartsPie>
-                </ResponsiveContainer>
-              </div>
+                  <Button
+                    onClick={() => confirmAppointment(apt.id!)}
+                    disabled={confirmingId === apt.id}
+                    className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap"
+                  >
+                    {confirmingId === apt.id ? (
+                      <>⏳ Confirmando...</>
+                    ) : (
+                      <>✅ Confirmar Agendamento</>
+                    )}
+                  </Button>
+                </div>
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+          <CardContent className="py-4 flex items-center gap-3 text-green-700 dark:text-green-400">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="font-medium">Nenhum agendamento pendente de confirmação — tudo em ordem ✅</span>
+          </CardContent>
+        </Card>
+      )}
 
-// ==================== COMPONENTE KPI ====================
-function KPIItem({ icon, label, value, sub, color }: KPIProps) {
-  return (
-    <Card className="border-primary/10">
-      <CardContent className="p-3 flex items-start gap-3">
-        <div className={`p-2 rounded-lg ${color} shrink-0`}>{icon}</div>
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-muted-foreground uppercase">{label}</p>
-          <p className="text-lg font-headline font-bold truncate">{value}</p>
-          {sub && <p className="text-[10px] text-muted-foreground truncate">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Faturamento</p>
+            <p className="text-2xl font-bold text-green-600">R$ {metrics.totalRevenue.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">
+              {revenueChange >= 0 ? '↑' : '↓'} {Math.abs(revenueChange)}% vs. período anterior
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Atendimentos Concluídos</p>
+            <p className="text-2xl font-bold">{metrics.completedCount}</p>
+            <p className="text-xs text-muted-foreground">de {metrics.totalCount} agendamentos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Taxa de Cancelamento</p>
+            <p className="text-2xl font-bold">{metrics.cancellationRate}%</p>
+            <p className="text-xs text-muted-foreground">{metrics.canceled} cancelados</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Pendentes</p>
+            <p className="text-2xl font-bold text-amber-600">{pendingConfirmation.length}</p>
+            <p className="text-xs text-muted-foreground">aguardando confirmação</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
