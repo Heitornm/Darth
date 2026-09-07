@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-// ⚠️ ATENÇÃO: @/firebase/firebase — caminho COMPLETO!
 import { db } from '@/firebase/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -11,11 +10,11 @@ export async function POST(request: Request) {
     const agendamento = {
       ...body,
       createdAt: serverTimestamp(),
-      status: 'confirmado'
+      status: 'pagamento_aprovado'
     };
 
     const docRef = await addDoc(collection(db, 'appointments'), agendamento);
-    console.log("[AGENDAMENTO] ✅ CRIADO! ID:", docRef.id);
+    console.log("[AGENDAMENTO] ✅ CRIADO! ID:", docRef.id, "Status: pagamento_aprovado");
 
     return NextResponse.json({
       success: true,

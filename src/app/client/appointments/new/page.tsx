@@ -9,25 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-
-// ✅ AJUSTADO: SERVICES + tipo ServiceItem
 import { SERVICES } from '@/data/services';
 
-// ✅ Definindo o tipo corretamente conforme o arquivo
 type ServiceItem = {
   id: string;
   name: string;
   price: number;
-  duration: number; // ✅ O campo se chama "duration", não "durationMinutes"
+  duration: number;
 };
 
-// ==================== TIPOS ====================
 interface Barber {
   id: string;
   name: string;
 }
 
-// ==================== CONFIGURAÇÕES ====================
 const HORARIOS_DISPONIVEIS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
   '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -45,11 +40,9 @@ const SERVICE_LIST: ServiceItem[] = (() => {
     : typeof SERVICES === 'function'
       ? (SERVICES as () => ServiceItem[])()
       : [];
-
   return Array.isArray(resolved) ? resolved : [];
 })();
 
-// ==================== COMPONENTE PRINCIPAL ====================
 export default function NewAppointmentPage() {
   const { user, userProfile } = useFirebase();
   const router = useRouter();
@@ -64,7 +57,6 @@ export default function NewAppointmentPage() {
   const [sucesso, setSucesso] = useState(false);
   const agora = new Date();
 
-  // ✅ REGRA: Verifica se o horário JÁ PASSOU
   const horarioJaPassou = useMemo(() => {
     return (horario: string): boolean => {
       if (!dataSelecionada || !horario) return false;
@@ -73,10 +65,8 @@ export default function NewAppointmentPage() {
     };
   }, [dataSelecionada, agora]);
 
-  // ✅ Desabilita datas anteriores a hoje
   const dataMinima = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
-  // Carrega horários ocupados quando muda a data
   useEffect(() => {
     if (!dataSelecionada || !barbeiroSelecionado) return;
     const buscarHorarios = async () => {
@@ -98,24 +88,20 @@ export default function NewAppointmentPage() {
     buscarHorarios();
   }, [dataSelecionada, barbeiroSelecionado]);
 
-  // Envia o agendamento
   const agendar = async () => {
     setErro('');
     setSucesso(false);
 
-    // Validações de segurança
     if (!dataSelecionada || !horarioSelecionado || !servicoSelecionado) {
       setErro('Preencha todos os campos.');
       return;
     }
 
-    // ✅ Validação extra: Bloqueia envio de horário passado
     if (horarioJaPassou(horarioSelecionado)) {
       setErro('⚠️ Este horário já passou. Escolha um horário futuro.');
       return;
     }
 
-    // ✅ PEGA DADOS DO ARQUIVO CENTRALIZADO
     const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
     if (!servico) {
       setErro('Serviço não encontrado.');
@@ -124,7 +110,8 @@ export default function NewAppointmentPage() {
 
     setEnviando(true);
     try {
-      const res = await fetch('/api/appointments/new', {
+      // PASSO 1: Cria o agendamento
+      const resAgendamento = await fetch('/api/appointments/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -133,22 +120,50 @@ export default function NewAppointmentPage() {
           userEmail: userProfile?.email || user?.email,
           serviceId: servico.id,
           serviceName: servico.name,
-          price: servico.price,               // ✅ Preço do arquivo central!
+          price: servico.price,
           date: dataSelecionada,
           time: horarioSelecionado,
-          durationMinutes: servico.duration,   // ✅ CAMPO CORRETO: "duration"
+          durationMinutes: servico.duration,
           barberId: barbeiroSelecionado,
         }),
       });
-      const resposta = await res.json();
-      if (res.ok && resposta.success) {
-        setSucesso(true);
+
+      const respostaAgendamento = await resAgendamento.json();
+      if (!resAgendamento.ok || !respostaAgendamento.success) {
+        setErro(respostaAgendamento.error || 'Erro ao criar agendamento.');
+        setEnviando(false);
+        return;
+      }
+
+      const appointmentId = respostaAgendamento.appointmentId;
+      setSucesso(true);
+
+      // PASSO 2: Chama Checkout para pagamento
+      console.log("[CHECKOUT] Gerando link de pagamento...");
+      const resCheckout = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: appointmentId,
+          price: servico.price,
+          serviceName: servico.name,
+        }),
+      });
+
+      const respostaCheckout = await resCheckout.json();
+      
+      if (resCheckout.ok && respostaCheckout.success && respostaCheckout.checkoutUrl) {
+        console.log("[CHECKOUT] ✅ Link gerado, redirecionando...");
         setTimeout(() => {
-          router.push(`/client/appointments/${resposta.appointmentId}`);
+          window.location.href = respostaCheckout.checkoutUrl;
         }, 1500);
       } else {
-        setErro(resposta.error || 'Erro ao criar agendamento.');
+        console.warn("[CHECKOUT] Sem link, indo para página do agendamento");
+        setTimeout(() => {
+          router.push(`/client/appointments/${appointmentId}`);
+        }, 1500);
       }
+
     } catch (err) {
       setErro('Erro de conexão. Tente novamente.');
     } finally {
@@ -158,7 +173,6 @@ export default function NewAppointmentPage() {
 
   const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
 
-  // ==================== RENDER ====================
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -168,7 +182,7 @@ export default function NewAppointmentPage() {
       {sucesso && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-          <p className="text-green-800 font-medium">Agendamento criado! Redirecionando...</p>
+          <p className="text-green-800 font-medium">Agendamento criado! Redirecionando para pagamento...</p>
         </div>
       )}
 
