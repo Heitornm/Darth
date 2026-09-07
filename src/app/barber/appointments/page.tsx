@@ -23,9 +23,7 @@ import {
   Clock, 
   User, 
   DollarSign, 
-  Scissors,
-  ChevronLeft,
-  ChevronRight
+  Scissors
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -244,14 +242,22 @@ export default function BarberAppointmentsPage() {
             <p className="text-sm text-muted-foreground">Visualize e gerencie os horários</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={() => changePeriod(-1)}><ChevronLeft className="w-4 h-4" /></Button>
+            <Button size="sm" variant="ghost" onClick={() => changePeriod(-1)}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 18l-6-6 6-6"/>
+              </svg>
+            </Button>
             <Input 
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)}
               className="w-auto bg-card border-border"
             />
-            <Button size="sm" variant="ghost" onClick={() => changePeriod(1)}><ChevronRight className="w-4 h-4" /></Button>
+            <Button size="sm" variant="ghost" onClick={() => changePeriod(1)}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 6l6 6-6 6"/>
+              </svg>
+            </Button>
           </div>
         </div>
         <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>

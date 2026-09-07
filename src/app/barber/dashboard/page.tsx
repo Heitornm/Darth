@@ -6,14 +6,15 @@ import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, end
 import { ptBR } from 'date-fns/locale';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   TrendingUp, DollarSign, Clock, Scissors, Users, AlertCircle, Calendar as CalendarIcon,
-  ChevronLeft, ChevronRight, BarChart3, PieChart, Target, TrendingDown
+  ChevronLeft, ChevronRight, BarChart, Bullseye, TrendingDown, CheckCircle2
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RechartsPie, 
-  Pie, Cell, LineChart, Line, Legend 
+  Pie, Cell, Legend 
 } from 'recharts';
 
 const BARBER_EMAIL = "darthbarber@darth.com.br";
@@ -180,7 +181,7 @@ export default function BarberDashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
-            <BarChart3 className="w-7 h-7" /> Painel de Gestão
+            <BarChart className="w-7 h-7" /> Painel de Gestão
           </h1>
           <p className="text-muted-foreground flex items-center gap-2 mt-1">
             <CalendarIcon className="w-4 h-4" /> {periodLabel}
@@ -206,7 +207,7 @@ export default function BarberDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <KPIItem icon={<DollarSign className="text-emerald-500" />} label="Receita" value={`R$ ${totalEarnings.toFixed(2)}`} sub={`Agendado: R$ ${totalScheduledValue.toFixed(2)}`} color="bg-emerald-500/10" />
         <KPIItem icon={<Scissors className="text-blue-500" />} label="Atendimentos" value={`${completedServices}`} sub={`De ${totalAppointments} agendados`} color="bg-blue-500/10" />
-        <KPIItem icon={<Target className="text-violet-500" />} label="Ticket Médio" value={`R$ ${avgPrice.toFixed(2)}`} sub="por atendimento" color="bg-violet-500/10" />
+        <KPIItem icon={<Bullseye className="text-violet-500" />} label="Ticket Médio" value={`R$ ${avgPrice.toFixed(2)}`} sub="por atendimento" color="bg-violet-500/10" />
         <KPIItem icon={<Clock className="text-orange-500" />} label="Horas" value={`${totalHours.toFixed(1)}h`} sub={`${totalMinutes} min`} color="bg-orange-500/10" />
         <KPIItem icon={<Users className="text-pink-500" />} label="Clientes Únicos" value={`${uniqueClients}`} sub="neste período" color="bg-pink-500/10" />
         <KPIItem icon={cancellationRate > 20 ? <TrendingDown className="text-rose-500" /> : <CheckCircle2 className="text-emerald-500" />} label="Cancelamentos" value={`${cancellationRate.toFixed(0)}%`} sub={`${cancelledServices} de ${totalAppointments}`} color={cancellationRate > 20 ? "bg-rose-500/10" : "bg-emerald-500/10"} />
