@@ -1,8 +1,7 @@
 "use client";
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, CreditCard } from 'lucide-react';
+import { FaSpinner, FaCreditCard } from 'react-icons/fa';
 import { useToast } from '@/hooks/use-toast';
 
 interface CheckoutButtonProps {
@@ -31,16 +30,13 @@ export default function CheckoutButton({
 
   const handleBookingAndPayment = async () => {
     setIsLoading(true);
-
     try {
-      // 1. Extrai 'date' (YYYY-MM-DD) e 'time' (HH:mm) para atender o contrato da API
       const date = dataHoraSelection.toISOString().split('T')[0];
       const time = dataHoraSelection.toLocaleTimeString('pt-BR', {
         hour: '2-digit',
         minute: '2-digit',
       });
 
-      // 2. Salva o agendamento via API (Server-side com Firebase Admin)
       const appointmentRes = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,12 +54,10 @@ export default function CheckoutButton({
       });
 
       const appointmentData = await appointmentRes.json();
-
       if (!appointmentRes.ok) {
         throw new Error(appointmentData.error || 'Falha ao criar agendamento.');
       }
 
-      // 3. Chama a API de checkout passando o ID do agendamento gerado
       const checkoutRes = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,19 +74,15 @@ export default function CheckoutButton({
       });
 
       const checkoutData = await checkoutRes.json();
-
       if (!checkoutRes.ok || !checkoutData.url) {
         throw new Error(checkoutData.error || 'Falha ao gerar o link de pagamento.');
       }
 
-      // 4. Sucesso: Redireciona para o gateway
       toast({
         title: "Agendamento reservado!",
         description: "Redirecionando para o pagamento seguro...",
       });
-
       window.location.href = checkoutData.url;
-
     } catch (error: any) {
       console.error(error);
       toast({
@@ -113,12 +103,12 @@ export default function CheckoutButton({
     >
       {isLoading ? (
         <>
-          <Loader2 className="w-5 h-5 animate-spin" />
+          <FaSpinner className="w-5 h-5 animate-spin" />
           Processando...
         </>
       ) : (
         <>
-          <CreditCard className="w-5 h-5" />
+          <FaCreditCard className="w-5 h-5" />
           Confirmar e Pagar (R$ {price.toFixed(2)})
         </>
       )}

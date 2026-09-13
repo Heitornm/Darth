@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase'; 
@@ -9,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Phone, Lock, Save, Loader2, UserCircle } from 'lucide-react';
+import { FaUser, FaEnvelope, FaPhone, FaLock, FaSave, FaSpinner, FaUserCircle } from 'react-icons/fa';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
@@ -25,7 +24,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
-  // Redireciona usuários não autenticados para o login de forma limpa
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace('/login?redirectTo=/profile');
@@ -60,13 +58,11 @@ export default function ProfilePage() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !db) return;
-
     setLoading(true);
     try {
       if (name !== user.displayName) {
         await updateProfile(user, { displayName: name });
       }
-
       if (email !== user.email) {
         try {
           await updateEmail(user, email);
@@ -78,12 +74,10 @@ export default function ProfilePage() {
           });
         }
       }
-
       if (password) {
         await updatePassword(user, password);
         setPassword('');
       }
-
       setDocumentNonBlocking(
         doc(db, 'users', user.uid), 
         {
@@ -94,7 +88,6 @@ export default function ProfilePage() {
         }, 
         { merge: true }
       );
-
       toast({
         title: "Sucesso!",
         description: "Perfil atualizado com sucesso.",
@@ -114,7 +107,7 @@ export default function ProfilePage() {
   if (isLoading || fetching) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <FaSpinner className="w-8 h-8 text-primary animate-spin" />
         <p className="text-muted-foreground text-sm font-medium">Carregando perfil...</p>
       </div>
     );
@@ -127,7 +120,7 @@ export default function ProfilePage() {
       <Card className="border-primary/20 bg-card/40 backdrop-blur-md">
         <CardHeader className="text-center pb-8 border-b border-border/50">
           <div className="mx-auto bg-primary/20 w-20 h-20 rounded-full flex items-center justify-center mb-4 border border-primary/20">
-            <UserCircle className="text-primary w-12 h-12" />
+            <FaUserCircle className="text-primary w-12 h-12" />
           </div>
           <CardTitle className="text-3xl font-headline font-bold text-primary">Editar Perfil</CardTitle>
           <CardDescription>Gerencie suas informações pessoais e de acesso.</CardDescription>
@@ -137,33 +130,30 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <Label htmlFor="profile-name">Nome Completo</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <FaUser className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                 <Input id="profile-name" className="pl-10" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="profile-email">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <FaEnvelope className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                   <Input id="profile-email" type="email" className="pl-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="profile-phone">Telefone / WhatsApp</Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <FaPhone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                   <Input id="profile-phone" className="pl-10" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(00) 00000-0000" />
                 </div>
               </div>
             </div>
-
             <div className="space-y-2 pt-4 border-t border-border/50">
               <Label htmlFor="profile-password">Nova Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <FaLock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                 <Input id="profile-password" type="password" className="pl-10" placeholder="Mínimo 6 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
               <p className="text-[10px] text-muted-foreground italic">Deixe em branco para manter a senha atual.</p>
@@ -171,7 +161,7 @@ export default function ProfilePage() {
           </CardContent>
           <CardFooter className="pt-6">
             <Button type="submit" className="w-full gap-2 h-12 text-lg font-headline" disabled={loading}>
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              {loading ? <FaSpinner className="w-5 h-5 animate-spin" /> : <FaSave className="w-5 h-5" />}
               Salvar Alterações
             </Button>
           </CardFooter>

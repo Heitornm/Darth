@@ -1,8 +1,7 @@
 "use client";
-
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { ShieldAlert, Home, RotateCcw } from 'lucide-react';
+import { FaExclamationTriangle, FaRedo, FaHome } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -24,7 +23,7 @@ export default function GlobalError({
       <Card className="max-w-md w-full border-destructive/20 bg-card/60 backdrop-blur-xl shadow-2xl relative z-10">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto bg-destructive/10 w-20 h-20 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20">
-            <ShieldAlert className="text-destructive w-10 h-10 animate-pulse" />
+            <FaExclamationTriangle className="text-destructive w-10 h-10 animate-pulse" />
           </div>
           <CardTitle className="text-3xl font-headline font-bold tracking-tight">Oops!</CardTitle>
         </CardHeader>
@@ -45,12 +44,12 @@ export default function GlobalError({
             className="w-full h-12 gap-2 font-bold shadow-lg shadow-primary/20"
             onClick={() => reset()}
           >
-            <RotateCcw className="w-4 h-4" />
+            <FaRedo className="w-4 h-4" />
             Tentar Novamente
           </Button>
           <Button asChild variant="outline" className="w-full h-12 gap-2 border-primary/20">
             <Link href="/">
-              <Home className="w-4 h-4" />
+              <FaHome className="w-4 h-4" />
               Voltar para Tela Inicial
             </Link>
           </Button>
