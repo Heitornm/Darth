@@ -4,7 +4,10 @@ import * as React from "react"
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
 } from "embla-carousel-react"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import {
+  FiChevronLeft as ArrowLeft,
+  FiChevronRight as ArrowRight,
+} from "react-icons/fi"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"

@@ -11,7 +11,9 @@ export function NotificationListener() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!user || !db) return;
+    if (!user || !db) {
+      return undefined;
+    }
 
     try {
       const q = query(
@@ -52,6 +54,7 @@ export function NotificationListener() {
       return () => unsubscribe();
     } catch (err) {
       console.error('Erro na inicialização do listener de notificações:', err);
+      return undefined;
     }
   }, [user, db, toast]);
 
