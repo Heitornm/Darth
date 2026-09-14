@@ -1,6 +1,6 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,15 +11,19 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Se não houver apiKey durante o build, injetamos uma string qualquer pro SDK não quebrar
-const isMissingKeys = !firebaseConfig.apiKey;
+// Validação estrita das variáveis
+if (!firebaseConfig.apiKey) {
+  console.error(
+    "❌ [Firebase Config Error] NEXT_PUBLIC_FIREBASE_API_KEY não foi encontrada. " +
+    "Verifique se ela está declarada no arquivo .env.local ou na Vercel."
+  );
+}
 
-const app = isMissingKeys 
-  ? (getApps().length > 0 ? getApp() : initializeApp({ apiKey: "BUILD_PLACEHOLDER_KEY" }))
-  : (getApps().length > 0 ? getApp() : initializeApp(firebaseConfig));
+// Inicializa estritamente com os dados reais do objeto firebaseConfig
+const app: FirebaseApp =
+  getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
 
-// Mantemos as exportações exatamente como seus outros componentes esperam
 export { app, auth, db };
