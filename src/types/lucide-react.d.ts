@@ -16,4 +16,5 @@ declare module 'lucide-react' {
   export const Users: FC<SVGProps<SVGSVGElement>>;
   export const AlertCircle: FC<SVGProps<SVGSVGElement>>;
   export const Loader2: FC<SVGProps<SVGSVGElement>>;
+  export const X: FC<SVGProps<SVGSVGElement>>;
 }
