@@ -1,5 +1,12 @@
 import Link from 'next/link';
-import { Scissors, Calendar, ShieldCheck, Sparkles, Clock, ArrowRight } from 'lucide-react';
+import { 
+  FiScissors as Scissors, 
+  FiCalendar as Calendar, 
+  FiShield as ShieldCheck, 
+  FiZap as Sparkles, 
+  FiClock as Clock, 
+  FiArrowRight as ArrowRight 
+} from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { ServiceCarousel } from '@/components/features/services/ServiceCarousel';
 import { SERVICES } from '@/data/services';
@@ -7,7 +14,6 @@ import { SERVICES } from '@/data/services';
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-background relative">
-      {/* Hero Section estilo n8n */}
       <section className="relative py-24 md:py-36 overflow-hidden bg-n8n-grid bg-n8n-glow border-b border-border/40">
         <div className="container mx-auto px-4 relative z-10 text-center max-w-4xl">
           
@@ -42,7 +48,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Carrossel de Serviços */}
       <section className="py-20 container mx-auto px-4">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
           <div>
@@ -61,7 +66,6 @@ export default function HomePage() {
         <ServiceCarousel services={SERVICES} />
       </section>
 
-      {/* Cards Compactos de Diferenciais — Sem texto descritivo */}
       <section className="py-10 border-t border-border/40 bg-card/20 bg-n8n-grid">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-3 gap-4 justify-items-center">

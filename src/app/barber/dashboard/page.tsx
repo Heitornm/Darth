@@ -8,12 +8,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Clock, Scissors, Calendar, XCircle,
-  AlertCircle, User
-} from 'lucide-react';
+  FiClock as Clock,
+  FiScissors as Scissors,
+  FiCalendar as Calendar,
+  FiXCircle as XCircle,
+  FiAlertCircle as AlertCircle,
+  FiUser as User
+} from 'react-icons/fi';
 
-// ==================== CONFIGURAÇÕES ====================
-// ✅ COLOQUE SEU UID REAL DO FIREBASE ABAIXO
 const BARBER_UIDS = ['2cAVs3U9ciV3NiqApJuOlYGEJS32'];
 const BARBER_EMAIL = ["heitormartins@email.com", "darthbarbers@email.com"];
 const BARBER_ID_ALIASES = ['barbeiro1', 'barbeiro_1', 'main'];
@@ -34,7 +36,6 @@ interface Appointment {
   createdAt?: Timestamp | { seconds: number };
 }
 
-// ✅ STATUS QUE PRECISAM DE AÇÃO
 const PENDING_STATUSES = [
   'aguardando_pagamento',
   'pagamento_confirmado',
@@ -42,7 +43,6 @@ const PENDING_STATUSES = [
   'pagamento_processando'
 ];
 
-// ==================== COMPONENTE PRINCIPAL ====================
 export default function BarberDashboardPage() {
   const { user, appointments, isAppointmentsLoading } = useFirebase();
   const [periodMode, setPeriodMode] = useState<PeriodMode>('upcoming');
@@ -52,7 +52,6 @@ export default function BarberDashboardPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // ✅ Verifica se é o barbeiro
   const isBarber = useMemo(() => {
     if (!user) return false;
     const isUid = BARBER_UIDS.includes(user.uid);
@@ -60,7 +59,6 @@ export default function BarberDashboardPage() {
     return isUid || isEmail;
   }, [user]);
 
-  // ✅ Verifica se pertence ao barbeiro
   const belongsToMe = useMemo(() => {
     return (apt?: Appointment): boolean => {
       if (!apt) return false;
@@ -71,12 +69,10 @@ export default function BarberDashboardPage() {
     };
   }, [user]);
 
-  // ✅ TODOS os meus agendamentos
   const myAppointments = useMemo(() => {
     return (appointments || []).filter(belongsToMe);
   }, [appointments, belongsToMe]);
 
-  // ✅ ⭐ PENDÊNCIAS — APARECEM SEMPRE, SEM FILTRO DE DATA
   const pendingConfirmation = useMemo(() => {
     return myAppointments.filter(apt =>
       PENDING_STATUSES.includes(apt.status || '')
@@ -89,7 +85,6 @@ export default function BarberDashboardPage() {
     });
   }, [myAppointments]);
 
-  // ✅ FILTRO PRÓXIMOS vs PERÍODO
   const periodRange = useMemo(() => {
     const baseDate = new Date(`${referenceDate}T00:00:00`);
     switch (periodMode) {
@@ -104,7 +99,6 @@ export default function BarberDashboardPage() {
     }
   }, [periodMode, referenceDate]);
 
-  // ✅ LISTA FILTRADA — ordenada por horário
   const filteredAppointments = useMemo(() => {
     return myAppointments.filter(apt => {
       if (!apt.date) return false;
@@ -121,7 +115,6 @@ export default function BarberDashboardPage() {
     });
   }, [myAppointments, periodRange]);
 
-  // ✅ Métricas
   const metrics = useMemo(() => {
     const completed = filteredAppointments.filter(a => a.status === 'concluido');
     const totalRevenue = completed.reduce((sum, a) => sum + (a.price || 0), 0);
@@ -132,7 +125,6 @@ export default function BarberDashboardPage() {
     return { completedCount: completed.length, totalRevenue, canceled, cancellationRate, totalCount: filteredAppointments.length };
   }, [filteredAppointments]);
 
-  // ✅ Confirma agendamento
   const confirmAppointment = async (appointmentId: string) => {
     if (!confirm("Confirmar este agendamento? O cliente será notificado.")) return;
     setConfirmingId(appointmentId);
@@ -155,7 +147,6 @@ export default function BarberDashboardPage() {
     }
   };
 
-  // ✅ Traduz status
   const getStatusLabel = (status?: string) => {
     switch (status) {
       case 'aguardando_pagamento': return '⏳ Aguardando Pagamento';
@@ -186,7 +177,6 @@ export default function BarberDashboardPage() {
     }
   };
 
-  // ✅ Formata data
   const formatAppointmentDate = (dateStr?: string) => {
     if (!dateStr) return 'Data não informada';
     try {
@@ -199,7 +189,6 @@ export default function BarberDashboardPage() {
     } catch { return dateStr; }
   };
 
-  // ==================== CARREGAMENTO / ACESSO ====================
   if (!mounted || isAppointmentsLoading) {
     return <div className="p-20 text-center animate-pulse text-xl">Carregando painel...</div>;
   }
@@ -214,10 +203,8 @@ export default function BarberDashboardPage() {
     );
   }
 
-  // ==================== RENDER PRINCIPAL ====================
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
-      {/* CABEÇALHO */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold">Painel do Barbeiro</h1>
@@ -245,7 +232,6 @@ export default function BarberDashboardPage() {
         </div>
       </div>
 
-      {/* ⚠️ AVISO URGENTE — PENDÊNCIAS */}
       {pendingConfirmation.length > 0 && (
         <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg shadow-lg animate-pulse">
           <div className="flex items-center gap-3">
@@ -260,7 +246,6 @@ export default function BarberDashboardPage() {
         </div>
       )}
 
-      {/* ⭐ CARD DE PENDÊNCIAS — SEMPRE VISÍVEL */}
       {pendingConfirmation.length > 0 && (
         <Card className="border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20 shadow-md">
           <CardHeader className="pb-2">
@@ -328,7 +313,6 @@ export default function BarberDashboardPage() {
         </Card>
       )}
 
-      {/* 📋 LISTA DE SERVIÇOS — FILTRÁVEL POR PERÍODO */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -371,7 +355,6 @@ export default function BarberDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">

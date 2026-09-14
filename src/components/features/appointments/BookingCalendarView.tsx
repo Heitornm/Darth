@@ -1,7 +1,14 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarIcon, Clock, Loader2, CheckCircle2, User, Scissors } from 'lucide-react';
+import { 
+  FiCalendar as CalendarIcon, 
+  FiClock as Clock, 
+  FiLoader as Loader2, 
+  FiCheckCircle as CheckCircle2, 
+  FiUser as User, 
+  FiScissors as Scissors 
+} from 'react-icons/fi';
 import { getBookedSlotsByDate } from '@/services/appointmentService';
 
 const AVAILABLE_HOURS = [
@@ -22,7 +29,6 @@ interface BookingCalendarViewProps {
   selectedTime?: string;
 }
 
-// ✅ Função auxiliar segura para criar datas
 function safeDate(value?: string | Date | number | null): string {
   if (!value) {
     return new Date().toISOString().split('T')[0];
@@ -55,11 +61,8 @@ export function BookingCalendarView({
         const safeDateValue = safeDate(date);
         const booked = await getBookedSlotsByDate(safeDateValue);
         
-        // ✅ Conversão SEGURA — aceita tanto lista de horários quanto objetos
         if (booked && booked.length > 0) {
-          // Verifica se é formato antigo (string[]) ou novo (objeto[])
           if (typeof booked[0] === 'string') {
-            // Formato antigo: só horários
             setBookedAppointments(
               (booked as string[]).map(hour => ({
                 time: hour,
@@ -67,7 +70,6 @@ export function BookingCalendarView({
               }))
             );
           } else {
-            // Novo formato: objetos completos
             setBookedAppointments(booked as unknown as AppointmentInfo[]);
           }
         } else {
@@ -165,7 +167,6 @@ export function BookingCalendarView({
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    {/* Horário */}
                     <div className="flex items-center gap-2 font-bold text-base">
                       <span className={`${isOcupado ? 'text-amber-600 dark:text-amber-400' : ''}`}>
                         {hour}
@@ -173,7 +174,6 @@ export function BookingCalendarView({
                       {isSelected && <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
                     </div>
 
-                    {/* Informações do Agendamento (se ocupado) */}
                     {isOcupado ? (
                       <div className="flex-1 text-xs space-y-1 ml-2">
                         {appointment?.clientName && (

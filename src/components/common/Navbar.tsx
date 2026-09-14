@@ -3,16 +3,16 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  Scissors, 
-  Calendar, 
-  User, 
-  Sparkles,
-  TrendingUp,       // ✅ Painel — você já tem esse funcionando!
-  DollarSign,       // ✅ Sair — reaproveitando ícone seguro
-  Clock,            // ✅ Entrar — reaproveitando ícone seguro
-  Users,            // ✅ Minhas Reservas — você já tem esse funcionando!
-  AlertCircle       // ✅ Configurações — você já tem esse funcionando!
-} from 'lucide-react';
+  FiScissors as Scissors, 
+  FiCalendar as Calendar, 
+  FiUser as User, 
+  FiZap as Sparkles,
+  FiTrendingUp as TrendingUp,
+  FiDollarSign as DollarSign,
+  FiClock as Clock,
+  FiUsers as Users,
+  FiAlertCircle as AlertCircle
+} from 'react-icons/fi';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
