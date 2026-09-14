@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Scissors } from 'lucide-react';
+import { FiScissors as Scissors } from 'react-icons/fi';
 
 export default function NotFound() {
   return (
