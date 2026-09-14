@@ -1,56 +1,65 @@
 "use client";
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { FaExclamationTriangle, FaRedo, FaHome } from 'react-icons/fa';
+import { FiAlertTriangle, FiRefreshCw, FiHome } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
+type ErrorProps = {
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+};
+
+export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
     console.debug('Aplicação capturou um erro:', error);
   }, [error]);
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 bg-background">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--muted)/20%,transparent)] pointer-events-none" />
       
-      <Card className="max-w-md w-full border-destructive/20 bg-card/60 backdrop-blur-xl shadow-2xl relative z-10">
+      <Card className="w-full max-w-md relative z-10 shadow-lg border-muted/50">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto bg-destructive/10 w-20 h-20 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20">
-            <FaExclamationTriangle className="text-destructive w-10 h-10 animate-pulse" />
+          <div className="flex justify-center mb-4">
+            <FiAlertTriangle size={48} className="text-destructive" />
           </div>
-          <CardTitle className="text-3xl font-headline font-bold tracking-tight">Oops!</CardTitle>
+          <CardTitle className="text-2xl font-bold">Ops! Algo deu errado</CardTitle>
         </CardHeader>
-        <CardContent className="text-center space-y-4 pt-2">
-          <p className="text-lg font-bold">Não foi possível atender a solicitação.</p>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Ocorreu uma instabilidade ou problema de permissão. 
-            Tente recarregar ou volte para a página inicial.
+
+        <CardContent className="text-center space-y-3">
+          <p className="text-muted-foreground">
+            Ocorreu um erro inesperado na aplicação.
           </p>
+          {error.message && (
+            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">
+              {error.message}
+            </p>
+          )}
           {error.digest && (
-            <div className="p-2 bg-muted/30 rounded text-[10px] font-mono opacity-50">
-              ID: {error.digest}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Código do erro: <code className="bg-muted px-1 rounded">{error.digest}</code>
+            </p>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-3 pb-8 px-8">
-          <Button 
-            className="w-full h-12 gap-2 font-bold shadow-lg shadow-primary/20"
-            onClick={() => reset()}
+
+        <CardFooter className="flex flex-col sm:flex-row gap-3 pt-2">
+          <Button
+            onClick={reset}
+            className="w-full sm:w-auto gap-2"
           >
-            <FaRedo className="w-4 h-4" />
-            Tentar Novamente
+            <FiRefreshCw size={16} />
+            Tentar novamente
           </Button>
-          <Button asChild variant="outline" className="w-full h-12 gap-2 border-primary/20">
+          
+          <Button
+            variant="secondary"
+            className="w-full sm:w-auto gap-2"
+            asChild
+          >
             <Link href="/">
-              <FaHome className="w-4 h-4" />
-              Voltar para Tela Inicial
+              <FiHome size={16} />
+              Voltar ao início
             </Link>
           </Button>
         </CardFooter>

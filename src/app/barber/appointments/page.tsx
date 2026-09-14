@@ -1,374 +1,269 @@
-'use client';
+"use client";
 import { useState, useEffect, useMemo } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  addDoc, 
-  serverTimestamp, 
-  Timestamp 
-} from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { 
-  Calendar as CalendarIcon, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  User, 
-  DollarSign, 
-  Scissors
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { useFirebase } from '@/firebase';
+import { Timestamp } from 'firebase/firestore';
+import { format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday } from 'date-fns';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { BookingCalendarView } from '@/components/features/appointments/BookingCalendarView';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { FaClock, FaCut, FaCalendarAlt, FaTimesCircle, FaExclamationCircle, FaUser } from 'react-icons/fa';
 
-const BARBER_EMAIL = "heitornmartins@gmail.com";
-const MASTER_BARBER_ID = '2cAVs3U9ciV3NiqApJuOlYGEJS32';
+// ==================== CONFIGURAÇÕES ====================
+const BARBER_UIDS = ['2cAVs3U9ciV3NiqApJuOlYGEJS32'];
+const BARBER_EMAIL = ["heitormartins@email.com", "darthbarbers@email.com"];
+const BARBER_ID_ALIASES = ['barbeiro1', 'barbeiro_1', 'main'];
 
+type PeriodMode = 'upcoming' | 'day' | 'week' | 'month';
 interface Appointment {
-  id: string;
-  barberId: string;
-  clientId: string;
-  userId: string;
-  clientName?: string;
-  clientEmail?: string;
-  serviceName: string;
-  date: string;
-  time: string;
-  dataHora?: Timestamp;
-  price: number;
-  durationMinutes?: number;
-  status: 'pendente' | 'confirmado' | 'solicitado_cancelamento' | 'concluido' | 'cancelado';
-  createdAt?: Timestamp;
+  id?: string; barberId?: string; clientId?: string; userName?: string;
+  serviceName?: string; date?: string; time?: string; status?: string;
+  price?: number; durationMinutes?: number;
+  createdAt?: Timestamp | { seconds: number };
 }
 
-type FilterTab = 'todas' | 'pendente' | 'confirmado' | 'solicitado_cancelamento' | 'concluido';
-type PeriodMode = 'day' | 'week' | 'month';
+const PENDING_STATUSES = ['aguardando_pagamento', 'pagamento_confirmado', 'aguardando_barbeiro', 'pagamento_processando'];
 
-export default function BarberAppointmentsPage() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const db = useFirestore();
-  const router = useRouter();
-  const { toast } = useToast();
+export default function BarberDashboardPage() {
+  const { user, appointments, isAppointmentsLoading } = useFirebase();
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('upcoming');
+  const [referenceDate, setReferenceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [mounted, setMounted] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<string>(format(today, 'yyyy-MM-dd'));
-  const [periodMode, setPeriodMode] = useState<PeriodMode>('day');
-  const [filterTab, setFilterTab] = useState<FilterTab>('todas');
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  useEffect(() => { setMounted(true); }, []);
 
-  const isBarber = user?.email === BARBER_EMAIL || user?.uid === MASTER_BARBER_ID;
-  const barberId = isBarber ? user?.uid : null;
+  const isBarber = useMemo(() => {
+    if (!user) return false;
+    const isUid = BARBER_UIDS.includes(user.uid);
+    const isEmail = BARBER_EMAIL.some(email => user.email?.toLowerCase() === email.toLowerCase());
+    return isUid || isEmail;
+  }, [user]);
 
-  // Calcula intervalo de datas conforme período
-  const dateRange = useMemo(() => {
-    const baseDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : today;
+  const belongsToMe = useMemo(() => {
+    return (apt?: Appointment): boolean => {
+      if (!apt) return false;
+      const aptBarberId = apt.barberId || '';
+      if (user && aptBarberId === user.uid) return true;
+      if (BARBER_ID_ALIASES.includes(aptBarberId)) return true;
+      return false;
+    };
+  }, [user]);
+
+  const myAppointments = useMemo(() => (appointments || []).filter(belongsToMe), [appointments, belongsToMe]);
+
+  const pendingConfirmation = useMemo(() => {
+    return myAppointments.filter(apt => PENDING_STATUSES.includes(apt.status || '')).sort((a, b) => {
+      try {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      } catch { return 0; }
+    });
+  }, [myAppointments]);
+
+  const periodRange = useMemo(() => {
+    const baseDate = new Date(`${referenceDate}T00:00:00`);
     switch (periodMode) {
-      case 'day':
-        return { start: startOfDay(baseDate), end: endOfDay(baseDate) };
-      case 'week':
-        return { start: startOfWeek(baseDate, { weekStartsOn: 1 }), end: endOfWeek(baseDate, { weekStartsOn: 1 }) };
-      case 'month':
-        return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
+      case 'upcoming': return { start: startOfDay(new Date()), end: new Date('2100-12-31') };
+      case 'day': return { start: startOfDay(baseDate), end: endOfDay(baseDate) };
+      case 'week': return { start: startOfWeek(baseDate, { weekStartsOn: 1 }), end: endOfWeek(baseDate, { weekStartsOn: 1 }) };
+      case 'month': return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
     }
-  }, [periodMode, selectedDate]);
+  }, [periodMode, referenceDate]);
 
-  const periodLabel = useMemo(() => {
-    if (periodMode === 'day') return format(dateRange.start, "dd 'de' MMMM", { locale: ptBR });
-    if (periodMode === 'week') {
-      return `${format(dateRange.start, 'dd/MM')} a ${format(dateRange.end, 'dd/MM')}`;
-    }
-    return format(dateRange.start, "MMMM 'de' yyyy", { locale: ptBR });
-  }, [dateRange, periodMode]);
-
-  // Navegar período
-  const changePeriod = (direction: number) => {
-    const current = selectedDate ? new Date(selectedDate + 'T00:00:00') : today;
-    let newDate = new Date(current);
-    if (periodMode === 'day') newDate.setDate(current.getDate() + direction);
-    else if (periodMode === 'week') newDate.setDate(current.getDate() + (7 * direction));
-    else newDate.setMonth(current.getMonth() + direction);
-    setSelectedDate(format(newDate, 'yyyy-MM-dd'));
-  };
-
-  // Autorização
-  useEffect(() => {
-    if (!isUserLoading && !isBarber) {
-      router.push('/');
-    }
-  }, [isUserLoading, isBarber, router]);
-
-  // Busca agendamentos do barbeiro
-  useEffect(() => {
-    if (!db || !isBarber || !barberId) return;
-    setLoading(true);
-    const appointmentsRef = collection(db, 'appointments');
-    const q = query(
-      appointmentsRef,
-      where('barberId', '==', barberId),
-      orderBy('dataHora', 'desc')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedList = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as Appointment[];
-      setAppointments(fetchedList);
-      setLoading(false);
-    }, (error) => {
-      console.error('[ERRO BUSCA AGENDA]:', error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [db, barberId, isBarber]);
-
-  // Filtra por período e status
   const filteredAppointments = useMemo(() => {
-    let list = [...appointments].filter(apt => {
-      let aptDate: Date | null = null;
-      if (apt.dataHora) {
-        aptDate = apt.dataHora instanceof Timestamp ? apt.dataHora.toDate() : new Date((apt.dataHora as any)?.seconds * 1000);
-      } else if (apt.date) {
-        aptDate = new Date(`${apt.date}T${apt.time || '00:00'}`);
-      }
-      if (!aptDate || isNaN(aptDate.getTime())) return false;
-      return aptDate >= dateRange.start && aptDate <= dateRange.end;
+    return myAppointments.filter(apt => {
+      if (!apt.date) return false;
+      try {
+        const aptDate = new Date(`${apt.date}T00:00:00`);
+        return aptDate >= periodRange.start && aptDate <= periodRange.end;
+      } catch { return false; }
+    }).sort((a, b) => {
+      try {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      } catch { return 0; }
     });
-    if (filterTab !== 'todas') {
-      list = list.filter(apt => apt.status === filterTab);
-    }
-    return list.sort((a, b) => {
-      const getTime = (apt: Appointment) => {
-        if (apt.dataHora) {
-          return apt.dataHora instanceof Timestamp ? apt.dataHora.toDate().getTime() : (apt.dataHora as any)?.seconds * 1000;
-        }
-        return new Date(`${apt.date}T${apt.time}`).getTime();
-      };
-      return getTime(a) - getTime(b);
-    });
-  }, [appointments, dateRange, filterTab]);
+  }, [myAppointments, periodRange]);
 
-  // Atualiza status
-  const handleUpdateStatus = async (
-    appointment: Appointment, 
-    newStatus: 'confirmado' | 'concluido' | 'cancelado',
-    customMessage?: string
-  ) => {
-    if (!db || !user) return;
+  const metrics = useMemo(() => {
+    const completed = filteredAppointments.filter(a => a.status === 'concluido');
+    const totalRevenue = completed.reduce((sum, a) => sum + (a.price || 0), 0);
+    const canceled = filteredAppointments.filter(a => a.status === 'cancelado').length;
+    const cancellationRate = filteredAppointments.length > 0 ? Math.round((canceled / filteredAppointments.length) * 100) : 0;
+    return { completedCount: completed.length, totalRevenue, canceled, cancellationRate, totalCount: filteredAppointments.length };
+  }, [filteredAppointments]);
+
+  const confirmAppointment = async (appointmentId: string) => {
+    if (!confirm("Confirmar este agendamento? O cliente será notificado.")) return;
+    setConfirmingId(appointmentId);
     try {
-      setProcessingId(appointment.id);
-      const appRef = doc(db, 'appointments', appointment.id);
-      await updateDoc(appRef, { status: newStatus, updatedAt: serverTimestamp() });
-
-      const formattedDate = appointment.date 
-        ? appointment.date.split('-').reverse().join('/') 
-        : format(
-            appointment.dataHora instanceof Timestamp ? appointment.dataHora.toDate() : new Date((appointment.dataHora as any)?.seconds * 1000),
-            'dd/MM'
-          );
-      const time = appointment.time || '--:--';
-      let notifTitle = 'Atualização no Agendamento';
-      let notifMessage = customMessage || `Seu agendamento para ${appointment.serviceName} em ${formattedDate} às ${time} foi atualizado.`;
-      if (newStatus === 'cancelado') {
-        notifTitle = '❌ Agendamento Cancelado';
-        notifMessage = `Seu agendamento de ${appointment.serviceName} em ${formattedDate} às ${time} foi cancelado pelo barbeiro.`;
-      } else if (newStatus === 'concluido') {
-        notifTitle = '✂️ Serviço Concluído!';
-        notifMessage = `Obrigado pela visita! Seu atendimento de ${appointment.serviceName} foi finalizado.`;
-      } else if (newStatus === 'confirmado') {
-        notifTitle = '✅ Agendamento Confirmado!';
-        notifMessage = `Sua solicitação de ${appointment.serviceName} em ${formattedDate} às ${time} foi CONFIRMADA!`;
-      }
-      await addDoc(collection(db, 'notifications'), {
-        toId: appointment.clientId || appointment.userId,
-        fromId: user.uid,
-        title: notifTitle,
-        message: notifMessage,
-        type: newStatus === 'cancelado' ? 'cancellation_request' : 'new_appointment',
-        appointmentId: appointment.id,
-        read: false,
-        createdAt: serverTimestamp(),
+      const res = await fetch('/api/barber/confirm-appointment', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId })
       });
-      toast({ title: "Status Atualizado!", description: `Agendamento marcado como ${newStatus}.` });
-    } catch (error) {
-      console.error('[ERRO ATUALIZAR STATUS]:', error);
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível alterar o status." });
-    } finally {
-      setProcessingId(null);
-    }
+      const result = await res.json();
+      alert(res.ok ? '✅ Agendamento CONFIRMADO! Notificação enviada ao cliente.' : `Erro: ${result.error || 'Tente novamente'}`);
+    } catch { alert('Erro de conexão. Tente novamente.'); }
+    finally { setConfirmingId(null); }
   };
 
-  const handleRejectCancellation = async (appointment: Appointment) => {
-    await handleUpdateStatus(appointment, 'confirmado', `Sua solicitação de cancelamento foi analisada e recusada. O horário permanece reservado.`);
-  };
-
-  const getStatusBadge = (status: string) => {
+  const getStatusLabel = (status?: string) => {
     switch (status) {
-      case 'confirmado': return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Confirmado</Badge>;
-      case 'pendente': return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">Aguardando</Badge>;
-      case 'solicitado_cancelamento': return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse">Solicita Cancelamento</Badge>;
-      case 'concluido': return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">Concluído</Badge>;
-      case 'cancelado': return <Badge variant="outline" className="text-zinc-500 border-zinc-700">Cancelado</Badge>;
-      default: return <Badge variant="secondary">{status}</Badge>;
+      case 'aguardando_pagamento': return '⏳ Aguardando Pagamento';
+      case 'pagamento_confirmado': return '✅ Pago — Aguardando Confirmação';
+      case 'aguardando_barbeiro': return '🔔 Aguardando Sua Confirmação';
+      case 'confirmado': return '✅ Confirmado';
+      case 'concluido': return '✅ Concluído';
+      case 'cancelado': return '❌ Cancelado';
+      default: return status || 'Desconhecido';
     }
   };
 
-  if (isUserLoading || loading) {
-    return <div className="min-h-[80vh] flex items-center justify-center"><p className="text-muted-foreground animate-pulse">Carregando agenda...</p></div>;
-  }
+  const getStatusBadgeClass = (status?: string) => {
+    switch (status) {
+      case 'pagamento_confirmado': case 'aguardando_barbeiro': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 font-bold';
+      case 'aguardando_pagamento': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'confirmado': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'concluido': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
+      case 'cancelado': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatAppointmentDate = (dateStr?: string) => {
+    if (!dateStr) return 'Data não informada';
+    try {
+      if (dateStr.includes('-')) {
+        const d = parseISO(dateStr);
+        if (isToday(d)) return 'Hoje';
+        return format(d, "dd/MM/yyyy");
+      }
+      return dateStr;
+    } catch { return dateStr; }
+  };
+
+  if (!mounted || isAppointmentsLoading) return <div className="p-20 text-center animate-pulse text-xl">Carregando painel...</div>;
+  if (!user || !isBarber) return (
+    <div className="container mx-auto p-20 text-center">
+      <FaTimesCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+      <h2 className="text-2xl font-bold mb-2">Acesso Restrito</h2>
+      <p className="text-muted-foreground">Esta área é exclusiva para o barbeiro.</p>
+    </div>
+  );
 
   return (
-    <main className="container mx-auto p-4 md:p-8 max-w-6xl space-y-6">
-      {/* CABEÇALHO E NAVEGAÇÃO DE PERÍODO */}
-      <div className="flex flex-col gap-4 border-b pb-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <CalendarIcon className="w-6 h-6 text-primary" /> Agenda do Barbeiro
-            </h1>
-            <p className="text-sm text-muted-foreground">Visualize e gerencie os horários</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={() => changePeriod(-1)}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 18l-6-6 6-6"/>
-              </svg>
-            </Button>
-            <Input 
-              type="date" 
-              value={selectedDate} 
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-auto bg-card border-border"
-            />
-            <Button size="sm" variant="ghost" onClick={() => changePeriod(1)}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 6l6 6-6 6"/>
-              </svg>
-            </Button>
+    <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Painel do Barbeiro</h1>
+          <p className="text-muted-foreground">{periodMode === 'upcoming' ? '📅 Próximos agendamentos por horário' : 'Serviços filtrados por período'}</p>
+        </div>
+        <div className="flex gap-2 items-center flex-wrap">
+          <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>
+            <TabsList>
+              <TabsTrigger value="upcoming">📅 Próximos</TabsTrigger>
+              <TabsTrigger value="day">Hoje</TabsTrigger>
+              <TabsTrigger value="week">Semana</TabsTrigger>
+              <TabsTrigger value="month">Mês</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {periodMode !== 'upcoming' && <Input type="date" value={referenceDate} onChange={(e) => setReferenceDate(e.target.value)} className="w-auto" />}
+        </div>
+      </div>
+
+      {pendingConfirmation.length > 0 && (
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg shadow-lg animate-pulse">
+          <div className="flex items-center gap-3">
+            <FaExclamationCircle className="w-8 h-8 text-red-600 shrink-0" />
+            <div>
+              <h2 className="text-lg font-bold text-red-800">⚠️ {pendingConfirmation.length} AGENDAMENTO(S) PENDENTE(S) DE CONFIRMAÇÃO</h2>
+              <p className="text-red-600">Pagamento confirmado — confirme o quanto antes para notificar o cliente!</p>
+            </div>
           </div>
         </div>
-        <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto">
-            <TabsTrigger value="day">Hoje / Dia</TabsTrigger>
-            <TabsTrigger value="week">Semana</TabsTrigger>
-            <TabsTrigger value="month">Mês</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <p className="text-sm font-medium text-primary">Período: {periodLabel}</p>
-      </div>
+      )}
 
-      {/* 📊 RESUMO RÁPIDO */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="bg-card/40 border-border"><CardContent className="p-3"><span className="text-xs text-muted-foreground">Total</span><p className="text-xl font-bold mt-1">{filteredAppointments.length}</p></CardContent></Card>
-        <Card className="bg-card/40 border-border"><CardContent className="p-3"><span className="text-xs text-muted-foreground">Pendentes</span><p className="text-xl font-bold text-amber-500 mt-1">{filteredAppointments.filter(a => a.status === 'pendente').length}</p></CardContent></Card>
-        <Card className="bg-card/40 border-border"><CardContent className="p-3"><span className="text-xs text-muted-foreground">Confirmados</span><p className="text-xl font-bold text-emerald-500 mt-1">{filteredAppointments.filter(a => a.status === 'confirmado').length}</p></CardContent></Card>
-        <Card className="bg-card/40 border-border"><CardContent className="p-3"><span className="text-xs text-muted-foreground">Cancelamento</span><p className="text-xl font-bold text-rose-400 mt-1">{filteredAppointments.filter(a => a.status === 'solicitado_cancelamento').length}</p></CardContent></Card>
-        <Card className="bg-card/40 border-border"><CardContent className="p-3"><span className="text-xs text-muted-foreground">Concluídos</span><p className="text-xl font-bold text-blue-400 mt-1">{filteredAppointments.filter(a => a.status === 'concluido').length}</p></CardContent></Card>
-      </div>
+      {pendingConfirmation.length > 0 && (
+        <Card className="border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20 shadow-md">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
+              <div className="relative">
+                <FaExclamationCircle className="w-6 h-6" />
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{pendingConfirmation.length}</span>
+              </div>
+              Aguardando Sua Confirmação
+            </CardTitle>
+            <CardDescription className="text-amber-700 dark:text-amber-300">Estes agendamentos já foram pagos — clique em Confirmar para oficializar</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingConfirmation.map(apt => (
+                <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-800 shadow-sm">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(apt.status)}`}>{getStatusLabel(apt.status)}</span>
+                    </div>
+                    <p className="font-semibold text-lg flex items-center gap-2">
+                      <FaUser className="w-4 h-4 text-muted-foreground" />
+                      {apt.userName || 'Cliente sem nome'}
+                    </p>
+                    <p className="text-sm text-muted-foreground flex gap-4 flex-wrap">
+                      <span className="flex items-center gap-1"><FaCalendarAlt className="w-4 h-4" /> {formatAppointmentDate(apt.date)}</span>
+                      <span className="flex items-center gap-1"><FaClock className="w-4 h-4" /> às {apt.time || 'Horário não informado'}</span>
+                      <span className="flex items-center gap-1"><FaCut className="w-4 h-4" /> {apt.serviceName || 'Serviço'}</span>
+                      <span className="font-bold text-green-600 text-lg">Valor: R$ {(apt.price || 0).toFixed(2)}</span>
+                    </p>
+                  </div>
+                  <Button onClick={() => confirmAppointment(apt.id!)} disabled={confirmingId === apt.id} className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap text-base px-6" size="lg">
+                    {confirmingId === apt.id ? '⏳ Confirmando...' : '✅ Confirmar Agendamento'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* 📅 CALENDÁRIO DE HORÁRIOS LIVRES */}
-      <Card className="border-primary/20 bg-card/40">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" /> Horários Livres e Ocupacionais
+          <CardTitle className="flex items-center gap-2">
+            <FaCalendarAlt className="w-5 h-5 text-blue-600" />
+            {periodMode === 'upcoming' ? 'Próximos Agendamentos' : 'Agendamentos do Período'}
+            <span className="text-sm font-normal text-muted-foreground">({filteredAppointments.length})</span>
           </CardTitle>
-          <CardDescription>Visualização dos horários disponíveis — mesma visão do cliente</CardDescription>
+          <CardDescription>
+            {periodMode === 'upcoming' ? 'Ordenados por horário — do mais próximo ao mais distante' : `Visualizando: ${periodMode === 'day' ? 'Dia' : periodMode === 'week' ? 'Semana' : 'Mês'} selecionado`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <BookingCalendarView selectedDate={selectedDate} />
-        </CardContent>
-      </Card>
-
-      {/* 🔽 FILTRO DE STATUS */}
-      <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as FilterTab)}>
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-          <TabsTrigger value="confirmado">Confirmadas</TabsTrigger>
-          <TabsTrigger value="solicitado_cancelamento">Cancelamento</TabsTrigger>
-          <TabsTrigger value="concluido">Concluídas</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* 📋 LISTA DE AGENDAMENTOS */}
-      <Card className="border-border bg-card">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-lg">Agendamentos — {periodLabel}</CardTitle>
-          <CardDescription>{filteredAppointments.length} agendamento(s) encontrado(s)</CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 divide-y divide-border">
           {filteredAppointments.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <Clock className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">Nenhum agendamento para este período.</p>
-            </div>
+            <p className="text-center text-muted-foreground py-6">Nenhum agendamento encontrado neste período.</p>
           ) : (
-            filteredAppointments.map((app) => (
-              <div key={app.id} className={`py-4 flex flex-col md:flex-row justify-between md:items-center gap-4 ${app.status === 'solicitado_cancelamento' ? 'bg-rose-500/5 p-3 rounded-xl border border-rose-500/20' : ''}`}>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-bold text-lg text-primary flex items-center gap-1">
-                      <Clock className="w-4 h-4" /> {app.time || '--:--'}
-                    </span>
-                    <h3 className="font-semibold text-foreground">{app.serviceName}</h3>
-                    {getStatusBadge(app.status)}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
-                    <span className="flex items-center gap-1 text-foreground font-medium">
-                      <User className="w-3.5 h-3.5 text-muted-foreground" /> 
-                      {app.clientName || app.clientEmail || `Cliente #${(app.clientId || app.userId)?.substring(0, 6)}`}
-                    </span>
-                    <span className="flex items-center gap-1 text-emerald-500 font-bold">
-                      <DollarSign className="w-3.5 h-3.5" /> R$ {Number(app.price).toFixed(2)}
-                    </span>
-                    {app.durationMinutes && <span className="flex items-center gap-1 text-orange-400"><Clock className="w-3.5 h-3.5" /> {app.durationMinutes} min</span>}
-                  </div>
+            <div className="space-y-2">
+              {filteredAppointments.map(apt => (
+                <div key={apt.id} className="flex flex-wrap items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(apt.status)}`}>{getStatusLabel(apt.status)}</span>
+                  <span className="font-medium">{apt.userName || 'Cliente'}</span>
+                  <span className="text-muted-foreground">{apt.serviceName}</span>
+                  <span className="text-sm flex items-center gap-1"><FaCalendarAlt className="w-3 h-3" /> {formatAppointmentDate(apt.date)}</span>
+                  <span className="text-sm flex items-center gap-1"><FaClock className="w-3 h-3" /> às {apt.time}</span>
+                  <span className="font-bold text-green-600 ml-auto">R$ {(apt.price || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
-                  {app.status === 'solicitado_cancelamento' && (
-                    <>
-                      <Button size="sm" variant="destructive" disabled={processingId === app.id} onClick={() => handleUpdateStatus(app, 'cancelado')} className="gap-1 text-xs">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Aceitar
-                      </Button>
-                      <Button size="sm" variant="outline" disabled={processingId === app.id} onClick={() => handleRejectCancellation(app)} className="gap-1 text-xs border-amber-500/40 text-amber-400">
-                        <XCircle className="w-3.5 h-3.5" /> Manter
-                      </Button>
-                    </>
-                  )}
-                  {app.status === 'pendente' && (
-                    <Button size="sm" variant="default" disabled={processingId === app.id} onClick={() => handleUpdateStatus(app, 'confirmado')} className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Confirmar
-                    </Button>
-                  )}
-                  {app.status === 'confirmado' && (
-                    <Button size="sm" variant="outline" disabled={processingId === app.id} onClick={() => handleUpdateStatus(app, 'concluido')} className="gap-1 text-xs border-blue-500/40 text-blue-400">
-                      <Scissors className="w-3.5 h-3.5" /> Concluir
-                    </Button>
-                  )}
-                  {app.status !== 'cancelado' && app.status !== 'concluido' && app.status !== 'solicitado_cancelamento' && (
-                    <Button size="sm" variant="ghost" disabled={processingId === app.id} onClick={() => handleUpdateStatus(app, 'cancelado')} className="text-xs text-muted-foreground hover:text-rose-400">
-                      Cancelar
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
-    </main>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Faturamento</p><p className="text-2xl font-bold text-green-600">R$ {metrics.totalRevenue.toFixed(2)}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Atendimentos Concluídos</p><p className="text-2xl font-bold">{metrics.completedCount}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Taxa de Cancelamento</p><p className="text-2xl font-bold">{metrics.cancellationRate}%</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-amber-600">{pendingConfirmation.length}</p></CardContent></Card>
+      </div>
+    </div>
   );
 }

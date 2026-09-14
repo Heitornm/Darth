@@ -8,38 +8,16 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Clock, Scissors, User, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { FaCalendarAlt, FaClock, FaCut, FaUser, FaCheckCircle, FaSpinner, FaExclamationCircle } from 'react-icons/fa';
 import { SERVICES } from '@/data/services';
 
-type ServiceItem = {
-  id: string;
-  name: string;
-  price: number;
-  duration: number;
-};
+type ServiceItem = { id: string; name: string; price: number; duration: number; };
+interface Barber { id: string; name: string; }
 
-interface Barber {
-  id: string;
-  name: string;
-}
-
-const HORARIOS_DISPONIVEIS = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-  '17:00', '17:30', '18:00', '18:30', '19:00'
-];
-
-const BARBEIROS: Barber[] = [
-  { id: 'barbeiro1', name: 'Heitor Martins' },
-];
-
+const HORARIOS_DISPONIVEIS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00'];
+const BARBEIROS: Barber[] = [{ id: 'barbeiro1', name: 'Heitor Martins' }];
 const SERVICE_LIST: ServiceItem[] = (() => {
-  const resolved = Array.isArray(SERVICES)
-    ? SERVICES
-    : typeof SERVICES === 'function'
-      ? (SERVICES as () => ServiceItem[])()
-      : [];
+  const resolved = Array.isArray(SERVICES) ? SERVICES : typeof SERVICES === 'function' ? (SERVICES as () => ServiceItem[])() : [];
   return Array.isArray(resolved) ? resolved : [];
 })();
 
@@ -60,8 +38,7 @@ export default function NewAppointmentPage() {
   const horarioJaPassou = useMemo(() => {
     return (horario: string): boolean => {
       if (!dataSelecionada || !horario) return false;
-      const dataHoraEscolhida = new Date(`${dataSelecionada}T${horario}:00`);
-      return dataHoraEscolhida <= agora;
+      return new Date(`${dataSelecionada}T${horario}:00`) <= agora;
     };
   }, [dataSelecionada, agora]);
 
@@ -72,166 +49,91 @@ export default function NewAppointmentPage() {
     const buscarHorarios = async () => {
       setCarregando(true);
       try {
-        const res = await fetch(
-          `/api/appointments/slots?date=${dataSelecionada}&barberId=${barbeiroSelecionado}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setHorariosOcupados(data.occupiedSlots || []);
-        }
-      } catch (e) {
-        console.warn('Não foi possível carregar horários ocupados');
-      } finally {
-        setCarregando(false);
-      }
+        const res = await fetch(`/api/appointments/slots?date=${dataSelecionada}&barberId=${barbeiroSelecionado}`);
+        if (res.ok) { const data = await res.json(); setHorariosOcupados(data.occupiedSlots || []); }
+      } catch (e) { console.warn('Não foi possível carregar horários ocupados'); }
+      finally { setCarregando(false); }
     };
     buscarHorarios();
   }, [dataSelecionada, barbeiroSelecionado]);
 
   const agendar = async () => {
-    setErro('');
-    setSucesso(false);
-
-    if (!dataSelecionada || !horarioSelecionado || !servicoSelecionado) {
-      setErro('Preencha todos os campos.');
-      return;
-    }
-
-    if (horarioJaPassou(horarioSelecionado)) {
-      setErro('⚠️ Este horário já passou. Escolha um horário futuro.');
-      return;
-    }
-
+    setErro(''); setSucesso(false);
+    if (!dataSelecionada || !horarioSelecionado || !servicoSelecionado) { setErro('Preencha todos os campos.'); return; }
+    if (horarioJaPassou(horarioSelecionado)) { setErro('⚠️ Este horário já passou. Escolha um horário futuro.'); return; }
     const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
-    if (!servico) {
-      setErro('Serviço não encontrado.');
-      return;
-    }
-
+    if (!servico) { setErro('Serviço não encontrado.'); return; }
     setEnviando(true);
     try {
-      // PASSO 1: Cria o agendamento
       const resAgendamento = await fetch('/api/appointments/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: user?.uid || userProfile?.uid,
           userName: userProfile?.name || user?.displayName || 'Cliente',
           userEmail: userProfile?.email || user?.email,
-          serviceId: servico.id,
-          serviceName: servico.name,
-          price: servico.price,
-          date: dataSelecionada,
-          time: horarioSelecionado,
-          durationMinutes: servico.duration,
-          barberId: barbeiroSelecionado,
+          serviceId: servico.id, serviceName: servico.name, price: servico.price,
+          date: dataSelecionada, time: horarioSelecionado,
+          durationMinutes: servico.duration, barberId: barbeiroSelecionado,
         }),
       });
-
       const respostaAgendamento = await resAgendamento.json();
       if (!resAgendamento.ok || !respostaAgendamento.success) {
-        setErro(respostaAgendamento.error || 'Erro ao criar agendamento.');
-        setEnviando(false);
-        return;
+        setErro(respostaAgendamento.error || 'Erro ao criar agendamento.'); setEnviando(false); return;
       }
-
       const appointmentId = respostaAgendamento.appointmentId;
       setSucesso(true);
-
-      // PASSO 2: Chama Checkout para pagamento
-      console.log("[CHECKOUT] Gerando link de pagamento...");
       const resCheckout = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appointmentId: appointmentId,
-          price: servico.price,
-          serviceName: servico.name,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, price: servico.price, serviceName: servico.name }),
       });
-
       const respostaCheckout = await resCheckout.json();
-      
       if (resCheckout.ok && respostaCheckout.success && respostaCheckout.checkoutUrl) {
-        console.log("[CHECKOUT] ✅ Link gerado, redirecionando...");
-        setTimeout(() => {
-          window.location.href = respostaCheckout.checkoutUrl;
-        }, 1500);
+        setTimeout(() => { window.location.href = respostaCheckout.checkoutUrl; }, 1500);
       } else {
-        console.warn("[CHECKOUT] Sem link, indo para página do agendamento");
-        setTimeout(() => {
-          router.push(`/client/appointments/${appointmentId}`);
-        }, 1500);
+        setTimeout(() => { router.push(`/client/appointments/${appointmentId}`); }, 1500);
       }
-
-    } catch (err) {
-      setErro('Erro de conexão. Tente novamente.');
-    } finally {
-      setEnviando(false);
-    }
+    } catch (err) { setErro('Erro de conexão. Tente novamente.'); }
+    finally { setEnviando(false); }
   };
 
   const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Calendar className="w-6 h-6" /> Agendar Horário
-      </h1>
+      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2"><FaCalendarAlt className="w-6 h-6" /> Agendar Horário</h1>
 
       {sucesso && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+          <FaCheckCircle className="w-5 h-5 text-green-600 shrink-0" />
           <p className="text-green-800 font-medium">Agendamento criado! Redirecionando para pagamento...</p>
         </div>
       )}
-
       {erro && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+          <FaExclamationCircle className="w-5 h-5 text-red-600 shrink-0" />
           <p className="text-red-800">{erro}</p>
         </div>
       )}
 
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Scissors className="w-5 h-5" /> Passo 1 — Escolha o Serviço
-          </CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><FaCut className="w-5 h-5" /> Passo 1 — Escolha o Serviço</CardTitle></CardHeader>
         <CardContent>
           <Select value={servicoSelecionado} onValueChange={setServicoSelecionado}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o serviço desejado" />
-            </SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Selecione o serviço desejado" /></SelectTrigger>
             <SelectContent>
-              {SERVICE_LIST.map((s: ServiceItem) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name} — R$ {s.price.toFixed(2)} ({s.duration} min)
-                </SelectItem>
-              ))}
+              {SERVICE_LIST.map((s: ServiceItem) => (<SelectItem key={s.id} value={s.id}>{s.name} — R$ {s.price.toFixed(2)} ({s.duration} min)</SelectItem>))}
             </SelectContent>
           </Select>
         </CardContent>
       </Card>
 
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" /> Passo 2 — Profissional
-          </CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><FaUser className="w-5 h-5" /> Passo 2 — Profissional</CardTitle></CardHeader>
         <CardContent>
           <Select value={barbeiroSelecionado} onValueChange={setBarbeiroSelecionado}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o barbeiro" />
-            </SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Selecione o barbeiro" /></SelectTrigger>
             <SelectContent>
-              {BARBEIROS.map(b => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
+              {BARBEIROS.map(b => (<SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>))}
             </SelectContent>
           </Select>
         </CardContent>
@@ -239,44 +141,24 @@ export default function NewAppointmentPage() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" /> Passo 3 — Data
-          </CardTitle>
-          <CardDescription>
-            Hoje é {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2"><FaCalendarAlt className="w-5 h-5" /> Passo 3 — Data</CardTitle>
+          <CardDescription>Hoje é {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Input
-            type="date"
-            value={dataSelecionada}
-            min={dataMinima}
-            onChange={(e) => {
-              setDataSelecionada(e.target.value);
-              setHorarioSelecionado('');
-            }}
-          />
+          <Input type="date" value={dataSelecionada} min={dataMinima} onChange={(e) => { setDataSelecionada(e.target.value); setHorarioSelecionado(''); }} />
         </CardContent>
       </Card>
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" /> Passo 4 — Horário
-          </CardTitle>
+          <CardTitle className="flex items-center gap-2"><FaClock className="w-5 h-5" /> Passo 4 — Horário</CardTitle>
           <CardDescription>
-            {isToday(parseISO(dataSelecionada)) ? (
-              <span className="text-amber-600">⚠️ Hoje — horários já passados estão bloqueados</span>
-            ) : (
-              <span>Selecione o horário desejado</span>
-            )}
+            {isToday(parseISO(dataSelecionada)) ? <span className="text-amber-600">⚠️ Hoje — horários já passados estão bloqueados</span> : <span>Selecione o horário desejado</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {carregando ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Carregando horários...
-            </div>
+            <div className="flex items-center gap-2 text-muted-foreground"><FaSpinner className="w-4 h-4 animate-spin" /> Carregando horários...</div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
               {HORARIOS_DISPONIVEIS.map(horario => {
@@ -285,25 +167,11 @@ export default function NewAppointmentPage() {
                 const estaSelecionado = horarioSelecionado === horario;
                 const desabilitado = estaOcupado || jaPassou;
                 return (
-                  <Button
-                    key={horario}
-                    variant={estaSelecionado ? 'default' : 'outline'}
-                    size="sm"
-                    disabled={desabilitado}
-                    onClick={() => {
-                      setHorarioSelecionado(horario);
-                      setErro('');
-                    }}
-                    className={`
-                      ${desabilitado ? 'opacity-40 cursor-not-allowed line-through' : ''}
-                      ${estaSelecionado ? 'bg-primary text-white' : ''}
-                      ${jaPassou ? 'border-gray-300 text-gray-400' : ''}
-                      ${estaOcupado && !jaPassou ? 'border-red-200 bg-red-50 text-red-600' : ''}
-                    `}
+                  <Button key={horario} variant={estaSelecionado ? 'default' : 'outline'} size="sm" disabled={desabilitado}
+                    onClick={() => { setHorarioSelecionado(horario); setErro(''); }}
+                    className={`${desabilitado ? 'opacity-40 cursor-not-allowed line-through' : ''} ${estaSelecionado ? 'bg-primary text-white' : ''} ${jaPassou ? 'border-gray-300 text-gray-400' : ''} ${estaOcupado && !jaPassou ? 'border-red-200 bg-red-50 text-red-600' : ''}`}
                   >
-                    {horario}
-                    {jaPassou && ' ✗'}
-                    {estaOcupado && !jaPassou && ' ⚠'}
+                    {horario}{jaPassou && ' ✗'}{estaOcupado && !jaPassou && ' ⚠'}
                   </Button>
                 );
               })}
@@ -314,9 +182,7 @@ export default function NewAppointmentPage() {
 
       {servico && horarioSelecionado && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle>Resumo do Agendamento</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Resumo do Agendamento</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             <p><strong>Serviço:</strong> {servico.name}</p>
             <p><strong>Data:</strong> {format(parseISO(dataSelecionada), "dd/MM/yyyy")}</p>
@@ -327,20 +193,8 @@ export default function NewAppointmentPage() {
         </Card>
       )}
 
-      <Button
-        size="lg"
-        className="w-full text-lg"
-        disabled={!servicoSelecionado || !horarioSelecionado || enviando}
-        onClick={agendar}
-      >
-        {enviando ? (
-          <>
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Processando...
-          </>
-        ) : (
-          <>✅ Confirmar Agendamento</>
-        )}
+      <Button size="lg" className="w-full text-lg" disabled={!servicoSelecionado || !horarioSelecionado || enviando} onClick={agendar}>
+        {enviando ? (<><FaSpinner className="w-5 h-5 mr-2 animate-spin" /> Processando...</>) : (<>✅ Confirmar Agendamento</>)}
       </Button>
     </div>
   );
