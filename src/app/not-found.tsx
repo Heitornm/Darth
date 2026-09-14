@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Scissors } from 'lucide-react';
