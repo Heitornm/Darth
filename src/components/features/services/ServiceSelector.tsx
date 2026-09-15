@@ -15,16 +15,28 @@ export function ServiceSelector({
   onSelect,
   selectedServiceId,
 }: ServiceSelectorProps) {
-  const safeServices = services ?? [];
+  const safeServices = Array.isArray(services) ? services : [];
+
+  const getImageUrl = (service: ServiceItem & { image?: string }) => {
+    const rawUrl = service.imageUrl || service.image;
+    if (!rawUrl) {
+      return "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800";
+    }
+    return rawUrl.replace(/^\/public/, "");
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(price);
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {safeServices.map((service) => {
         const isSelected = service.id === selectedServiceId;
-        const imgSrc =
-          service.image ||
-          service.imageUrl ||
-          "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800";
+        const imgSrc = getImageUrl(service);
 
         return (
           <Card
@@ -36,7 +48,7 @@ export function ServiceSelector({
             }`}
             onClick={() => onSelect(service)}
           >
-            {/* Pequena imagem de miniatura no card */}
+            {/* Miniature Image */}
             <div className="relative w-28 h-auto flex-shrink-0 bg-muted">
               <Image
                 src={imgSrc}
@@ -51,9 +63,11 @@ export function ServiceSelector({
             <CardContent className="p-4 space-y-1 flex-1 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start gap-2">
-                  <h3 className="font-semibold text-base line-clamp-1">{service.name}</h3>
+                  <h3 className="font-semibold text-base line-clamp-1">
+                    {service.name}
+                  </h3>
                   <span className="font-bold text-primary text-sm whitespace-nowrap">
-                    R$ {Number(service.price).toFixed(2)}
+                    {formatPrice(Number(service.price))}
                   </span>
                 </div>
                 {service.description && (
