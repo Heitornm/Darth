@@ -12,7 +12,6 @@ export default function ServicesPage() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
-  // Garante o fallback de lista com dados do arquivo SERVICES
   const serviceList: ServiceItem[] = Array.isArray(SERVICES) ? SERVICES : [];
 
   const scroll = (direction: "left" | "right") => {
@@ -62,8 +61,6 @@ export default function ServicesPage() {
           >
             {serviceList.map((service) => {
               const isSelected = selectedService?.id === service.id;
-              
-              // Garante uma imagem padrão existente na pasta /public/images/
               const imageUrl = service.imageUrl || "/images/darthBarber.png";
 
               return (
@@ -82,7 +79,6 @@ export default function ServicesPage() {
                       sizes="(max-width: 768px) 100vw, 320px"
                       className="object-cover"
                       onError={(e) => {
-                        // Trata erros de carregamento sem interromper a execução do React
                         const target = e.target as HTMLImageElement;
                         target.srcset = "/images/darthBarber.png";
                       }}
