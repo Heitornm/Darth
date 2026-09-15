@@ -23,7 +23,9 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {services.map((service) => {
-        const imageUrl = service.image || "/images/placeholder-service.jpg";
+        // Correção 1: Usando service.imageUrl em vez de service.image
+        // Correção 2: Fallback para uma imagem que realmente existe no public/images/
+        const imageUrl = service.imageUrl || (service as any).image || "/images/darthBarber.png";
         const durationDisplay = service.duration || (service as any).durationMinutes || "30";
 
         return (
@@ -35,6 +37,9 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                onError={() => {
+                  console.error(`Erro ao carregar imagem para o serviço ${service.name}:`, imageUrl);
+                }}
               />
             </div>
 
