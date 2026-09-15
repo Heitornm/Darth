@@ -37,7 +37,8 @@ export default function ServicesPage() {
 
   // Trata caminhos vindos como '/public/images/...' para o padrão do Next.js '/images/...'
   const getServiceImageUrl = (service: BaseServiceItem) => {
-    const rawUrl = service.image || service.imageUrl;
+    const serviceWithImage = service as BaseServiceItem & { image?: string };
+    const rawUrl = serviceWithImage.image ?? service.imageUrl;
     if (!rawUrl) {
       return "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800";
     }
