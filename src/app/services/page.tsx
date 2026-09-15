@@ -3,26 +3,16 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { SERVICES } from "@/data/services";
+import { SERVICES, ServiceItem as BaseServiceItem } from "@/data/services";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-type ServiceItem = {
-  id: string | number;
-  name: string;
-  description?: string;
-  price: number | string;
-  duration?: number;
-  imageUrl?: string;
-};
 
 export default function ServicesPage() {
   const router = useRouter();
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const [selectedService, setSelectedService] = useState<BaseServiceItem | null>(null);
 
-  // Garantia absoluta contra o erro de 'undefined.map()' durante o build no Render
-  const serviceList: ServiceItem[] = Array.isArray(SERVICES) ? SERVICES : [];
+  const serviceList: BaseServiceItem[] = Array.isArray(SERVICES) ? SERVICES : [];
 
   const scroll = (direction: "left" | "right") => {
     if (carouselRef.current) {
@@ -35,7 +25,7 @@ export default function ServicesPage() {
     }
   };
 
-  const handleSelectService = (service: ServiceItem) => {
+  const handleSelectService = (service: BaseServiceItem) => {
     setSelectedService(service);
   };
 
@@ -43,6 +33,15 @@ export default function ServicesPage() {
     if (selectedService) {
       router.push(`/client/appointments/new?serviceId=${selectedService.id}`);
     }
+  };
+
+  // Trata caminhos vindos como '/public/images/...' para o padrão do Next.js '/images/...'
+  const getServiceImageUrl = (service: BaseServiceItem) => {
+    const rawUrl = service.image || service.imageUrl;
+    if (!rawUrl) {
+      return "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800";
+    }
+    return rawUrl.replace(/^\/public/, "");
   };
 
   return (
@@ -56,7 +55,6 @@ export default function ServicesPage() {
 
       {serviceList.length > 0 ? (
         <div className="relative group">
-          {/* Botão para rolar Carrossel à esquerda */}
           <button
             onClick={() => scroll("left")}
             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background border rounded-full p-2 shadow-md transition-all"
@@ -65,17 +63,14 @@ export default function ServicesPage() {
             ←
           </button>
 
-          {/* Container do Carrossel */}
           <div
             ref={carouselRef}
             className="flex gap-6 overflow-x-auto scrollbar-none scroll-smooth p-2"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {serviceList.map((service: ServiceItem) => {
+            {serviceList.map((service) => {
               const isSelected = selectedService?.id === service.id;
-              const imageUrl =
-                service.imageUrl ||
-                "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800";
+              const imageUrl = getServiceImageUrl(service);
 
               return (
                 <Card
@@ -118,7 +113,6 @@ export default function ServicesPage() {
             })}
           </div>
 
-          {/* Botão para rolar Carrossel à direita */}
           <button
             onClick={() => scroll("right")}
             className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background border rounded-full p-2 shadow-md transition-all"
