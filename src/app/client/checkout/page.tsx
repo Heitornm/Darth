@@ -187,7 +187,7 @@ function CheckoutContent() {
           <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border bg-muted/20">
             <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-muted shrink-0 border">
               <Image
-                src={service.image || "/images/placeholder-service.jpg"}
+                src={(service as any).image ?? "/images/placeholder-service.jpg"}
                 alt={service.name}
                 fill
                 className="object-cover"
