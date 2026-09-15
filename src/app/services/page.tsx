@@ -35,16 +35,6 @@ export default function ServicesPage() {
     }
   };
 
-  // Trata caminhos vindos como '/public/images/...' para o padrão do Next.js '/images/...'
-  const getServiceImageUrl = (service: BaseServiceItem) => {
-    const serviceWithImage = service as BaseServiceItem & { image?: string };
-    const rawUrl = serviceWithImage.image ?? service.imageUrl;
-    if (!rawUrl) {
-      return "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800";
-    }
-    return rawUrl.replace(/^\/public/, "");
-  };
-
   return (
     <div className="container mx-auto max-w-5xl p-6 space-y-8">
       <div className="text-center space-y-2">
@@ -71,7 +61,7 @@ export default function ServicesPage() {
           >
             {serviceList.map((service) => {
               const isSelected = selectedService?.id === service.id;
-              const imageUrl = getServiceImageUrl(service);
+              const imageUrl = service.imageUrl || "/images/darthBarber.png";
 
               return (
                 <Card
@@ -88,7 +78,6 @@ export default function ServicesPage() {
                       fill
                       sizes="(max-width: 768px) 100vw, 320px"
                       className="object-cover"
-                      unoptimized
                     />
                   </div>
                   <CardContent className="p-4 space-y-2">
