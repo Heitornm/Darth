@@ -36,7 +36,7 @@ export const SERVICES: ServiceItem[] = [
     name: 'Corte + Barba Express', 
     price: 1, 
     duration: 40, 
-    imageUrl: '/images/comboImperial.png',
+    imageUrl: '../images/comboImperial.png',
     description: 'Combo ágil para um visual renovado no dia a dia.' 
   },
   { 
