@@ -3,16 +3,17 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { SERVICES, ServiceItem as BaseServiceItem } from "@/data/services";
+import { SERVICES, ServiceItem } from "@/data/services";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function ServicesPage() {
   const router = useRouter();
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [selectedService, setSelectedService] = useState<BaseServiceItem | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
 
-  const serviceList: BaseServiceItem[] = Array.isArray(SERVICES) ? SERVICES : [];
+  // Garante o fallback de lista com dados do arquivo SERVICES
+  const serviceList: ServiceItem[] = Array.isArray(SERVICES) ? SERVICES : [];
 
   const scroll = (direction: "left" | "right") => {
     if (carouselRef.current) {
@@ -25,7 +26,7 @@ export default function ServicesPage() {
     }
   };
 
-  const handleSelectService = (service: BaseServiceItem) => {
+  const handleSelectService = (service: ServiceItem) => {
     setSelectedService(service);
   };
 
@@ -61,6 +62,8 @@ export default function ServicesPage() {
           >
             {serviceList.map((service) => {
               const isSelected = selectedService?.id === service.id;
+              
+              // Garante uma imagem padrão existente na pasta /public/images/
               const imageUrl = service.imageUrl || "/images/darthBarber.png";
 
               return (
@@ -78,6 +81,11 @@ export default function ServicesPage() {
                       fill
                       sizes="(max-width: 768px) 100vw, 320px"
                       className="object-cover"
+                      onError={(e) => {
+                        // Trata erros de carregamento sem interromper a execução do React
+                        const target = e.target as HTMLImageElement;
+                        target.srcset = "/images/darthBarber.png";
+                      }}
                     />
                   </div>
                   <CardContent className="p-4 space-y-2">
