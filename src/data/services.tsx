@@ -44,7 +44,7 @@ export const SERVICES: ServiceItem[] = [
     name: 'Corte + Barba Premium', 
     price: 1,
     duration: 60, 
-    imageUrl: '/images/comboImperial.png',
+    imageUrl: './images/cortePremium.png',
     description: 'Combo completo para um visual renovado, com relaxamento e toalha quente.'
   }
 ];
