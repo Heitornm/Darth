@@ -15,19 +15,45 @@ interface ServiceCarouselProps {
 export function ServiceCarousel({ services }: ServiceCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [cardsPerPage, setCardsPerPage] = useState(1);
 
   const serviceList: ServiceItem[] = Array.isArray(services) ? services : [];
 
-  // Transição automática a cada 2,5 segundos (2500ms) com pausa no Hover
+  // Detecta dinamicamente quantos cards cabem na tela
   useEffect(() => {
-    if (serviceList.length <= 1 || isHovered) return;
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setCardsPerPage(3); // Desktop: 3 cards
+      } else if (window.innerWidth >= 768) {
+        setCardsPerPage(2); // Tablet: 2 cards
+      } else {
+        setCardsPerPage(1); // Mobile: 1 card
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // O limite de navegacao e o total de servicos menos os visiveis no momento
+  const maxIndex = Math.max(0, serviceList.length - cardsPerPage);
+
+  // Transição automática respeitando o limite maxIndex
+  useEffect(() => {
+    if (serviceList.length <= cardsPerPage || isHovered) return;
 
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % serviceList.length);
+      setCurrentIndex((prevIndex) => {
+        if (prevIndex >= maxIndex) {
+          return 0; // Se chegou ao final perfeito, reseta para o inicio
+        }
+        return prevIndex + 1;
+      });
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [serviceList.length, isHovered]);
+  }, [serviceList.length, cardsPerPage, maxIndex, isHovered]);
 
   if (!serviceList || serviceList.length === 0) {
     return (
@@ -36,6 +62,9 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
       </div>
     );
   }
+
+  // O cálculo de deslocamento se ajusta exatamente pela porcentagem de cada card visível
+  const translatePercent = currentIndex * (100 / cardsPerPage);
 
   return (
     <div 
@@ -47,7 +76,7 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
       <div
         className="flex transition-transform duration-500 ease-in-out gap-6"
         style={{
-          transform: `translateX(-${currentIndex * 100}%)`,
+          transform: `translateX(-${translatePercent}%)`,
         }}
       >
         {serviceList.map((service) => {
@@ -108,19 +137,21 @@ export function ServiceCarousel({ services }: ServiceCarouselProps) {
         })}
       </div>
 
-      {/* Indicadores Visuais de Posição (Bolinhas) */}
-      <div className="flex justify-center gap-2 mt-6">
-        {serviceList.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentIndex(index)}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              currentIndex === index ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
-            }`}
-            aria-label={`Ir para o item ${index + 1}`}
-          />
-        ))}
-      </div>
+      {/* Indicadores Visuais de Posição (Exibe apenas as posições reais possíveis) */}
+      {maxIndex > 0 && (
+        <div className="flex justify-center gap-2 mt-6">
+          {Array.from({ length: maxIndex + 1 }).map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                currentIndex === index ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
+              }`}
+              aria-label={`Ir para a página ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
