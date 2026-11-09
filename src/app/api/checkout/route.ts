@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 
 /**
  * Rota de API: Checkout InfinitePay
- * Responsável por receber os dados do agendamento, converter o valor e solicitar a geração 
- * do link de pagamento/PIX através da API de Links da InfinitePay.
  */
 export async function POST(req: Request) {
   try {
@@ -20,10 +18,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Carrega variáveis de ambiente com fallbacks seguros
     const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.onrender.com";
     const apiKey = process.env.INFINITEPAY_API_KEY;
+
+    // 🔍 Sanitização estrita do baseUrl para garantir um URL com HTTPS válido
+    let rawBaseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.vercel.app").trim();
+    if (!rawBaseUrl.startsWith("http://") && !rawBaseUrl.startsWith("https://")) {
+      rawBaseUrl = `https://${rawBaseUrl}`;
+    }
+    // Remove barra final no final da base URL se houver
+    const baseUrl = rawBaseUrl.replace(/\/$/, "");
 
     // Converte o valor em Reais (BRL) para centavos (ex: R$ 35,00 -> 3500)
     const amountInCents = Math.round(Number(price) * 100);
@@ -36,14 +40,19 @@ export async function POST(req: Request) {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    const redirectUrl = `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`;
+    const webhookUrl = `${baseUrl}/api/webhooks/infinitepay`;
+
+    console.log("[CHECKOUT API] URLs configuradas:", { redirectUrl, webhookUrl });
+
     // Chamada oficial à API de links da InfinitePay
     const response = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
       headers,
       body: JSON.stringify({
         handle: handle,
-        redirect_url: `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`,
-        webhook_url: `${baseUrl}/api/webhooks/infinitepay`,
+        redirect_url: redirectUrl,
+        webhook_url: webhookUrl,
         order_nsu: appointmentId,
         items: [
           {
@@ -68,8 +77,8 @@ export async function POST(req: Request) {
       }, { status: 200 });
     }
 
-    // Caso a API retorne erro ou ausência do link, utiliza fallback para a chave pública do barbeiro
-    console.warn("[CHECKOUT API WARNING] Não foi possível gerar o link dinâmico. Redirecionando para fallback:", responseData);
+    // Se a API recusar, loga o erro e usa o fallback
+    console.warn("[CHECKOUT API WARNING] Erro ao gerar link dinâmico da InfinitePay:", responseData);
 
     const fallbackUrl = `https://infinitepay.io/pay/${handle}`;
     return NextResponse.json({
