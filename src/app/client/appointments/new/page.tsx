@@ -155,12 +155,18 @@ export default function NewAppointmentPage() {
       const respostaCheckout = await resCheckout.json();
 
       if (resCheckout.ok && respostaCheckout.success && respostaCheckout.checkoutUrl) {
-        console.log('[CHECKOUT] ✅ Redirecionando para:', respostaCheckout.checkoutUrl);
+        const destinationUrl = respostaCheckout.checkoutUrl;
+        console.log('[CHECKOUT] ✅ Redirecionando para:', destinationUrl);
+        
         setTimeout(() => {
-          window.location.href = respostaCheckout.checkoutUrl;
+          // Trata URLs absolutas externas (InfinitePay) vs rotas relativas internas do Next.js
+          if (destinationUrl.startsWith('http://') || destinationUrl.startsWith('https://')) {
+            window.location.href = destinationUrl;
+          } else {
+            router.push(destinationUrl);
+          }
         }, 1000);
       } else {
-        // Redireciona de forma segura para a lista de minhas reservas do cliente (evitando o 404)
         console.warn('[CHECKOUT] Redirecionando para a lista de reservas.');
         setTimeout(() => {
           router.push('/client/appointments');

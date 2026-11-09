@@ -14,18 +14,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔴 ALTERE AQUI: insira a sua nova tag/handle da InfinitePay no fallback
-    const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "SUA_NOVA_TAG_AQUI";
+    // Handle da InfinitePay (darthbarbers)
+    const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
     const apiKey = process.env.INFINITEPAY_API_KEY;
 
-    // 🔍 Sanitização estrita para EVITAR duplicar "https://"
-    let envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.vercel.app";
-    envBaseUrl = envBaseUrl.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const baseUrl = `${envBaseUrl}`;
+    // Sanitização para garantir URL externa absoluta com HTTPS válido
+    let envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || "darthbarbers.vercel.app";
+    const cleanDomain = envBaseUrl
+      .replace(/[\[\]\(\)]/g, "")
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/$/, "");
+
+    const absoluteBaseUrl = `https://${cleanDomain}`;
 
     const amountInCents = Math.round(Number(price) * 100);
-    const redirectUrl = `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`;
-    const webhookUrl = `${baseUrl}/api/webhooks/infinitepay`;
+    const redirectUrl = `${absoluteBaseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`;
+    const webhookUrl = `${absoluteBaseUrl}/api/webhooks/infinitepay`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -35,7 +40,7 @@ export async function POST(req: Request) {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    // Chamada à API da InfinitePay
+    // 1. Tenta gerar o link dinâmico via API oficial da InfinitePay
     const response = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
       headers,
@@ -66,15 +71,16 @@ export async function POST(req: Request) {
       }, { status: 200 });
     }
 
-    console.warn("[CHECKOUT API WARNING] Falha na API InfinitePay, usando redirecionamento interno:", responseData);
+    console.warn("[CHECKOUT API WARNING] Não foi possível gerar o link dinâmico. Redirecionando para fallback:", responseData);
 
-    // Redirecionamento interno seguro em caso de indisponibilidade do link dinâmico
-    const safeInternalUrl = `${baseUrl}/client/appointments?status=pending_payment&order_nsu=${appointmentId}`;
+    // 2. Fallback Seguro: Se a API falhar, redireciona para a rota relativa INTERNA da aplicação
+    // (Sem prefixo https:// para evitar concatenação dupla no router.push do Next.js)
+    const relativeInternalUrl = `/client/appointments?status=pending_payment&order_nsu=${appointmentId}`;
     
     return NextResponse.json({
       success: true,
       message: "Agendamento registrado. Redirecionando para suas reservas.",
-      checkoutUrl: safeInternalUrl,
+      checkoutUrl: relativeInternalUrl,
     }, { status: 200 });
 
   } catch (error: any) {
