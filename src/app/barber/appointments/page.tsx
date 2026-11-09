@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useFirebase } from '@/firebase';
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,7 +71,8 @@ export default function BarberAppointmentsPage() {
   const isAgendamentoVencido = (dateStr?: string, timeStr?: string): boolean => {
     if (!dateStr || !timeStr) return false;
     try {
-      const dataHoraAgendamento = new Date(`${dateStr}T${timeStr}:00`);
+      const horaLimpa = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+      const dataHoraAgendamento = new Date(`${dateStr}T${horaLimpa}`);
       return dataHoraAgendamento < agora;
     } catch {
       return false;
@@ -100,9 +102,6 @@ export default function BarberAppointmentsPage() {
     }
   };
 
-  /**
-   * Ordena a lista geral de agendamentos por data e horário
-   */
   const sortedAppointments = useMemo(() => {
     return [...(appointments || [])].sort((a, b) => {
       try {
@@ -115,9 +114,6 @@ export default function BarberAppointmentsPage() {
     });
   }, [appointments]);
 
-  /**
-   * REQUISITO 1: Agrupa os agendamentos do barbeiro por data para uma visualização organizada
-   */
   const agendamentosPorData = useMemo(() => {
     const grupos: { [key: string]: Appointment[] } = {};
     sortedAppointments.forEach((apt) => {
@@ -161,9 +157,6 @@ export default function BarberAppointmentsPage() {
     }
   };
 
-  /**
-   * REQUISITOS 3 e 4: Cancela a solicitação/reserva e libera imediatamente o horário na agenda
-   */
   const handleCancel = async (e: React.MouseEvent, appointmentId: string) => {
     e.stopPropagation();
     if (!confirm("Tem certeza que deseja cancelar esta solicitação de agendamento? O horário será liberado imediatamente.")) return;
@@ -187,6 +180,15 @@ export default function BarberAppointmentsPage() {
       alert("Erro de conexão com o servidor ao tentar cancelar.");
     } finally {
       setProcessandoId(null);
+    }
+  };
+
+  const formatarDataCabecalho = (dateKey: string) => {
+    if (dateKey === 'sem_data') return 'Data Não Informada';
+    try {
+      return format(parseISO(dateKey), "EEEE, dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return dateKey;
     }
   };
 
@@ -231,12 +233,7 @@ export default function BarberAppointmentsPage() {
               <div className="flex items-center gap-3 pt-2">
                 <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-3 py-1.5 rounded-lg text-sm font-bold">
                   <Calendar className="w-4 h-4" />
-                  <span>
-                    {dateKey !== 'sem_data' 
-                      ? format(parseISO(dateKey), "EEEE, dd/MM/yyyy", { locale: require('date-fns/locale/pt-BR') })
-                      : 'Data Não Informada'
-                    }
-                  </span>
+                  <span>{formatarDataCabecalho(dateKey)}</span>
                 </div>
                 <div className="flex-1 h-[1px] bg-border/60"></div>
               </div>
@@ -252,7 +249,7 @@ export default function BarberAppointmentsPage() {
 
                   return (
                     <Card
-                      key={apt.id}
+                      key={apt.id || Math.random().toString()}
                       onClick={() => toggleExpandirCard(apt.id)}
                       className={`border-border/60 transition-all cursor-pointer hover:border-primary/50 select-none ${
                         isSolicitouCancelamento ? 'bg-orange-950/20 border-orange-500/40' :
@@ -294,7 +291,7 @@ export default function BarberAppointmentsPage() {
                             </div>
                           </div>
 
-                          {/* BOTOES DE AÇÃO */}
+                          {/* BOTÕES DE AÇÃO */}
                           <div className="flex items-center gap-2 w-full md:w-auto justify-end" onClick={(e) => e.stopPropagation()}>
                             {isSolicitouCancelamento ? (
                               <Button
@@ -349,13 +346,13 @@ export default function BarberAppointmentsPage() {
                           </div>
                         </div>
 
-                        {/* REQUISITO 3: PAINEL EXPANSÍVEL COM OPÇÃO EXPLICITA DE CANCELAMENTO */}
+                        {/* PAINEL EXPANSÍVEL */}
                         {isExpanded && (
                           <div className="pt-4 border-t border-border/50 space-y-4 bg-accent/20 p-4 rounded-lg">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
                               <div className="flex items-center gap-2">
                                 <Info className="w-4 h-4 text-primary shrink-0" />
-                                <span><strong>ID do Agendamento:</strong> {apt.id}</span>
+                                <span><strong>ID do Agendamento:</strong> {apt.id || 'N/A'}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Mail className="w-4 h-4 text-primary shrink-0" />
