@@ -3,23 +3,24 @@ import { adminDb } from '@/firebase/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * Rota de API: Confirmação e Cancelamento de Agendamentos pelo Barbeiro
+ * Rota de API: Processamento de Confirmações e Cancelamentos (Barbeiro & Cliente)
+ * Atualiza os status no Firestore e notifica os envolvidos.
  */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { appointmentId, action = 'approve' } = body;
 
-    // 1. Validação básica de entrada
+    // 1. Validação do ID do agendamento
     if (!appointmentId) {
       return NextResponse.json({ error: 'ID do agendamento ausente no payload.' }, { status: 400 });
     }
 
-    // 2. Validação da conexão com o Firestore Admin
+    // 2. Validação da conexão com o Firebase Admin
     if (!adminDb) {
       console.error('[CONFIRM API ERROR] Instância adminDb indisponível.');
       return NextResponse.json({
-        error: 'Instância do Firebase Admin indisponível no servidor. Verifique as credenciais no painel da Vercel.'
+        error: 'Instância do Firebase Admin indisponível no servidor.'
       }, { status: 503 });
     }
 
@@ -40,22 +41,51 @@ export async function POST(request: Request) {
       dateStr = appointmentData.date.split('-').reverse().join('/');
     }
 
-    // 3. AÇÃO: CANCELAMENTO DE SOLICITAÇÃO
-    if (action === 'cancel') {
+    // 3. AÇÃO: SOLICITAÇÃO DE CANCELAMENTO ENVIADA PELO CLIENTE
+    if (action === 'request_cancel') {
+      await appointmentRef.update({
+        status: 'solicitado_cancelamento',
+        updatedAt: Timestamp.now()
+      });
+
+      // Notifica o barbeiro sobre a solicitação do cliente
+      if (appointmentData.barberId) {
+        try {
+          await adminDb.collection('notifications').add({
+            toId: appointmentData.barberId,
+            fromId: appointmentData.clientId || 'system',
+            title: '⚠️ Solicitação de Cancelamento',
+            message: `O cliente ${clientName} solicitou o cancelamento do agendamento de ${serviceName} do dia ${dateStr} às ${timeStr}.`,
+            type: 'cancellation_request',
+            appointmentId: appointmentId,
+            read: false,
+            createdAt: Timestamp.now()
+          });
+        } catch (nErr) {
+          console.warn('[CONFIRM API WARNING] Falha ao enviar notificação ao barbeiro:', nErr);
+        }
+      }
+
+      console.log(`⚠️ Solicitação de cancelamento gravada para o agendamento ${appointmentId}.`);
+      return NextResponse.json({ success: true, message: 'Solicitação de cancelamento registrada com sucesso.' }, { status: 200 });
+    }
+
+    // 4. AÇÃO: CANCELAMENTO DEFINITIVO (EFETUADO PELO BARBEIRO OU APROVAÇÃO DE CANCELAMENTO)
+    // REQUISITO 4: O status 'cancelado' faz as rotas /slots e getBookedSlotsByDate liberarem a agenda imediatamente
+    if (action === 'cancel' || action === 'approve_cancel') {
       await appointmentRef.update({
         status: 'cancelado',
         canceledAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
 
-      // Gravação opcional de notificação ao cliente
       if (appointmentData.clientId) {
         try {
           await adminDb.collection('notifications').add({
             toId: appointmentData.clientId,
             fromId: 'system',
             title: '❌ Agendamento Cancelado',
-            message: `Olá ${clientName}, o agendamento de ${serviceName} para ${dateStr}${timeStr ? ` às ${timeStr}` : ''} foi cancelado pelo barbeiro.`,
+            message: `Olá ${clientName}, o agendamento de ${serviceName} para ${dateStr}${timeStr ? ` às ${timeStr}` : ''} foi cancelado e a vaga foi liberada na agenda.`,
             type: 'appointment_canceled',
             appointmentId: appointmentId,
             read: false,
@@ -66,11 +96,11 @@ export async function POST(request: Request) {
         }
       }
 
-      console.log(`❌ Agendamento ${appointmentId} cancelado.`);
-      return NextResponse.json({ success: true, message: 'Solicitação cancelada com sucesso.' }, { status: 200 });
+      console.log(`❌ Agendamento ${appointmentId} alterado para cancelado (agenda liberada).`);
+      return NextResponse.json({ success: true, message: 'Agendamento cancelado com sucesso e agenda liberada.' }, { status: 200 });
     }
 
-    // 4. AÇÃO: CONFIRMAÇÃO DE AGENDAMENTO
+    // 5. AÇÃO: CONFIRMAÇÃO DE AGENDAMENTO PELO BARBEIRO
     await appointmentRef.update({
       status: 'confirmado',
       confirmedAt: Timestamp.now(),
@@ -94,12 +124,11 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log(`✅ Agendamento ${appointmentId} confirmado.`);
+    console.log(`✅ Agendamento ${appointmentId} confirmado pelo barbeiro.`);
     return NextResponse.json({ success: true, message: 'Agendamento confirmado com sucesso!' }, { status: 200 });
 
   } catch (error: any) {
     console.error('[CONFIRM API EXCEPTION]:', error);
-    // Devolve o detalhe exato do erro no payload JSON para fácil diagnóstico
     return NextResponse.json({
       error: 'Erro no servidor ao processar agendamento.',
       details: error?.message || String(error)

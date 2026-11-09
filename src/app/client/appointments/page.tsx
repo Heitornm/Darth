@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useFirebase } from '@/firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
@@ -17,7 +17,8 @@ import {
   FiCheckCircle as CheckCircle,
   FiXCircle as XCircle,
   FiAlertCircle as AlertCircle,
-  FiScissors as Scissors
+  FiScissors as Scissors,
+  FiSlash as Ban
 } from 'react-icons/fi';
 
 interface Appointment {
@@ -26,14 +27,19 @@ interface Appointment {
   price: number;
   date: string;
   time: string;
-  status: 'aguardando_pagamento' | 'aguardando_barbeiro' | 'confirmado' | 'cancelado' | 'concluido';
+  status: 'aguardando_pagamento' | 'aguardando_barbeiro' | 'confirmado' | 'cancelado' | 'concluido' | 'solicitado_cancelamento';
   createdAt?: any;
 }
 
+/**
+ * Página de Gestão de Agendamentos do Cliente.
+ * Exibe próximos agendamentos agrupados por data e permite solicitar o cancelamento da reserva.
+ */
 export default function ClientAppointmentsPage() {
   const { user } = useFirebase();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processandoId, setProcessandoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -71,17 +77,76 @@ export default function ClientAppointmentsPage() {
   const hojeStr = new Date().toISOString().split('T')[0];
 
   // Separação entre próximos agendamentos ativos e o histórico passado/cancelado
-  const proximosAgendamentos = appointments.filter((apt) => {
-    if (apt.status === 'cancelado' || apt.status === 'concluido') return false;
-    return apt.date >= hojeStr;
-  });
+  const proximosAgendamentos = useMemo(() => {
+    return appointments.filter((apt) => {
+      if (apt.status === 'cancelado' || apt.status === 'concluido') return false;
+      return apt.date >= hojeStr;
+    });
+  }, [appointments, hojeStr]);
 
-  const historicoAgendamentos = appointments.filter((apt) => {
-    if (apt.status === 'cancelado' || apt.status === 'concluido') return true;
-    return apt.date < hojeStr;
-  });
+  const historicoAgendamentos = useMemo(() => {
+    return appointments.filter((apt) => {
+      if (apt.status === 'cancelado' || apt.status === 'concluido') return true;
+      return apt.date < hojeStr;
+    });
+  }, [appointments, hojeStr]);
 
-  // Renderiza a tag estilizada para cada status
+  /**
+   * REQUISITO 1: Agrupa os próximos agendamentos por data em ordem cronológica crescente
+   */
+  const agendamentosAgrupadosPorData = useMemo(() => {
+    const ordenados = [...proximosAgendamentos].sort((a, b) => {
+      try {
+        const timeA = new Date(`${a.date}T${a.time}:00`).getTime();
+        const timeB = new Date(`${b.date}T${b.time}:00`).getTime();
+        return timeA - timeB;
+      } catch {
+        return 0;
+      }
+    });
+
+    const grupos: { [key: string]: Appointment[] } = {};
+    ordenados.forEach((apt) => {
+      if (!grupos[apt.date]) {
+        grupos[apt.date] = [];
+      }
+      grupos[apt.date].push(apt);
+    });
+
+    return grupos;
+  }, [proximosAgendamentos]);
+
+  /**
+   * REQUISITO 2: Envia a solicitação de cancelamento do cliente para a API
+   */
+  const handleRequestCancel = async (appointmentId: string) => {
+    if (!confirm("Deseja solicitar o cancelamento deste agendamento? O barbeiro será notificado.")) return;
+    setProcessandoId(appointmentId);
+
+    try {
+      const res = await fetch('/api/barber/confirm-appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, action: 'request_cancel' })
+      });
+
+      if (res.ok) {
+        alert("✅ Solicitação de cancelamento enviada com sucesso ao barbeiro.");
+      } else {
+        const errData = await res.json();
+        alert(`Erro: ${errData.error || 'Não foi possível solicitar o cancelamento.'}`);
+      }
+    } catch (error) {
+      console.error('Erro ao solicitar cancelamento:', error);
+      alert("Erro de conexão com o servidor ao solicitar cancelamento.");
+    } finally {
+      setProcessandoId(null);
+    }
+  };
+
+  /**
+   * Renderiza a tag estilizada para cada status
+   */
   const renderStatusBadge = (status: Appointment['status']) => {
     switch (status) {
       case 'confirmado':
@@ -102,6 +167,12 @@ export default function ClientAppointmentsPage() {
             <AlertCircle className="w-3.5 h-3.5" /> Aguardando Pagamento
           </Badge>
         );
+      case 'solicitado_cancelamento':
+        return (
+          <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 flex items-center gap-1">
+            <Ban className="w-3.5 h-3.5" /> Cancelamento Solicitado
+          </Badge>
+        );
       case 'cancelado':
         return (
           <Badge className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 flex items-center gap-1">
@@ -119,14 +190,20 @@ export default function ClientAppointmentsPage() {
     }
   };
 
-  // Helper para formatar a data visualmente (DD/MM/YYYY)
-  const formatarData = (dateStr: string) => {
+  /**
+   * Formata a data por extenso com dia da semana (ex: Segunda-feira, 16/11/2026)
+   */
+  const formatarDataExtenso = (dateStr: string) => {
     if (!dateStr) return '';
-    const partes = dateStr.split('-');
-    if (partes.length === 3) {
-      return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    try {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      const diaSemana = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+      const diaSemanaFormatado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+      return `${diaSemanaFormatado}, ${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+    } catch {
+      return dateStr;
     }
-    return dateStr;
   };
 
   return (
@@ -165,7 +242,7 @@ export default function ClientAppointmentsPage() {
             <TabsTrigger value="historico">Histórico & Cancelados</TabsTrigger>
           </TabsList>
 
-          {/* ABA 1: PRÓXIMOS AGENDAMENTOS (FUTUROS) */}
+          {/* ABA 1: PRÓXIMOS AGENDAMENTOS (DIVIDIDOS POR DATA) */}
           <TabsContent value="proximos">
             {proximosAgendamentos.length === 0 ? (
               <Card className="text-center py-12 border-dashed">
@@ -185,35 +262,72 @@ export default function ClientAppointmentsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {proximosAgendamentos.map((apt) => (
-                  <Card key={apt.id} className="border-primary/20 hover:border-primary/50 transition-all shadow-sm">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <CardTitle className="text-lg font-bold flex items-center gap-2">
-                          <Scissors className="w-4 h-4 text-primary" /> {apt.serviceName}
-                        </CardTitle>
-                        {renderStatusBadge(apt.status)}
+              <div className="space-y-8">
+                {/* DIVISÃO VISUAL POR DATA NA LISTA DE AGENDAMENTOS */}
+                {Object.keys(agendamentosAgrupadosPorData).map((dateKey) => (
+                  <div key={dateKey} className="space-y-3">
+                    {/* DIVISOR DE DATA DESTAQUE */}
+                    <div className="flex items-center gap-3 pt-2">
+                      <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 text-primary px-3 py-1.5 rounded-lg text-sm font-bold">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatarDataExtenso(dateKey)}</span>
                       </div>
-                      <CardDescription className="text-xs">
-                        ID: {apt.id}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-foreground font-medium">
-                        <Calendar className="w-4 h-4 text-primary shrink-0" />
-                        <span>Data: {formatarData(apt.date)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-foreground font-medium">
-                        <Clock className="w-4 h-4 text-primary shrink-0" />
-                        <span>Horário: {apt.time}</span>
-                      </div>
-                      <div className="pt-2 border-t flex justify-between items-center text-base font-bold text-primary">
-                        <span>Valor:</span>
-                        <span>R$ {Number(apt.price).toFixed(2)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      <div className="flex-1 h-[1px] bg-border/60"></div>
+                    </div>
+
+                    {/* GRADE DE AGENDAMENTOS PARA A DATA ESPECÍFICA */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {agendamentosAgrupadosPorData[dateKey].map((apt) => (
+                        <Card key={apt.id} className="border-primary/20 hover:border-primary/50 transition-all shadow-sm flex flex-col justify-between">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <Scissors className="w-4 h-4 text-primary shrink-0" /> {apt.serviceName}
+                              </CardTitle>
+                              {renderStatusBadge(apt.status)}
+                            </div>
+                            <CardDescription className="text-xs">
+                              ID: {apt.id}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4 text-sm">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-foreground font-medium">
+                                <Clock className="w-4 h-4 text-primary shrink-0" />
+                                <span>Horário: <strong>{apt.time}</strong></span>
+                              </div>
+                              <div className="flex justify-between items-center text-base font-bold text-primary pt-1">
+                                <span>Valor:</span>
+                                <span>R$ {Number(apt.price).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            {/* REQUISITO 2: BOTÃO DE SOLICITAÇÃO DE CANCELAMENTO PELO CLIENTE */}
+                            {apt.status !== 'cancelado' && apt.status !== 'concluido' && apt.status !== 'solicitado_cancelamento' && (
+                              <div className="pt-2 border-t">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRequestCancel(apt.id)}
+                                  disabled={processandoId === apt.id}
+                                  className="w-full border-red-500/40 text-red-500 hover:bg-red-500/10 hover:text-red-600 font-semibold flex items-center justify-center gap-1.5"
+                                >
+                                  {processandoId === apt.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Ban className="w-4 h-4" />
+                                      Solicitar Cancelamento
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -238,7 +352,7 @@ export default function ClientAppointmentsPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-1 text-sm text-muted-foreground">
-                      <p>Data: {formatarData(apt.date)} às {apt.time}</p>
+                      <p>Data: {formatarDataExtenso(apt.date)} às {apt.time}</p>
                       <p className="font-semibold text-foreground">R$ {Number(apt.price).toFixed(2)}</p>
                     </CardContent>
                   </Card>
