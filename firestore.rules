@@ -14,7 +14,7 @@ service cloud.firestore {
     function isMaster() {
       return isAuthenticated() && (
         request.auth.token.email == 'heitornmartins@gmail.com' ||
-        request.auth.token.email == 'darthbarber@darth.com.br' ||
+        request.auth.token.email == 'darthbarber@gmail.com.br' ||
         request.auth.uid == 'eUCAkXknM1N0mcC04hCIfF3HcMk1' ||
         request.auth.uid == 'wWlt2ixyjwfLqDHDQFFNQgaYfCT2' ||
         request.auth.uid == '2cAVs3U9ciV3NiqApJuOlYGEJS32' ||
