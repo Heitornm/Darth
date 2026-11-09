@@ -20,9 +20,25 @@ import {
   FiInfo as Info
 } from 'react-icons/fi';
 
-const BARBER_UIDS = ['2cAVs3U9ciV3NiqApJuOlYGEJS32'];
-const BARBER_EMAIL = ["heitormartins@gmail.com", "heitormartins@email.com", "darthbarbers@email.com"];
+/**
+ * Lista de UIDs e E-mails com permissão de Barbeiro/Master
+ */
+const BARBER_UIDS = [
+  '2cAVs3U9ciV3NiqApJuOlYGEJS32',
+  'eUCAkXknM1N0mcC04hCIfF3HcMk1',
+  'wWlt2ixyjwfLqDHDQFFNQgaYfCT2'
+];
 
+const BARBER_EMAILS = [
+  'heitormartins@gmail.com',
+  'heitormartins@email.com',
+  'darthbarbers@email.com',
+  'darthbarber@gmail.com.br'
+];
+
+/**
+ * Interface dos dados de agendamento na interface
+ */
 interface Appointment {
   id?: string;
   barberId?: string;
@@ -39,9 +55,8 @@ interface Appointment {
 }
 
 /**
- * Página de Gestão de Solicitações de Agendamentos (Painel do Barbeiro Solo)
- * Exibe lista expansível de cards com status dinâmicos (incluindo agendamentos vencidos)
- * e opções para confirmar ou cancelar solicitações.
+ * Página de Gestão de Solicitações de Agendamentos (Painel do Barbeiro)
+ * Permite visualizar, aprovar e cancelar solicitações recebidas dos clientes.
  */
 export default function BarberAppointmentsPage() {
   const { user, appointments, isAppointmentsLoading } = useFirebase();
@@ -50,13 +65,20 @@ export default function BarberAppointmentsPage() {
 
   const agora = useMemo(() => new Date(), []);
 
-  // Validação de acesso do barbeiro proprietário
+  /**
+   * Valida se o usuário logado possui privilégios de barbeiro
+   */
   const isBarber = useMemo(() => {
     if (!user) return false;
-    return BARBER_UIDS.includes(user.uid) || BARBER_EMAIL.some(e => user.email?.toLowerCase() === e.toLowerCase());
+    const userEmailLower = user.email?.toLowerCase() || '';
+    const matchUid = BARBER_UIDS.includes(user.uid);
+    const matchEmail = BARBER_EMAILS.some(e => e.toLowerCase() === userEmailLower);
+    return matchUid || matchEmail;
   }, [user]);
 
-  // Auxiliar para determinar se o agendamento já passou da data e horário atuais
+  /**
+   * Verifica se a data e horário do agendamento já passaram em relação ao momento atual
+   */
   const isAgendamentoVencido = (dateStr?: string, timeStr?: string): boolean => {
     if (!dateStr || !timeStr) return false;
     try {
@@ -67,27 +89,60 @@ export default function BarberAppointmentsPage() {
     }
   };
 
-  // Ordena os agendamentos por data e horário (mais recentes primeiro)
+  /**
+   * Formata a exibição amigável do status do agendamento
+   */
+  const formatarStatus = (status?: string): { texto: string; classe: string } => {
+    switch (status) {
+      case 'confirmado':
+      case 'confirmed':
+        return { texto: 'Confirmado', classe: 'bg-green-500/20 text-green-400 border-green-500/30' };
+      case 'concluido':
+      case 'completed':
+        return { texto: 'Concluído', classe: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      case 'cancelado':
+      case 'cancelled':
+        return { texto: 'Cancelado', classe: 'bg-red-500/20 text-red-400 border-red-500/30' };
+      case 'aguardando_pagamento':
+        return { texto: 'Aguardando Pagamento', classe: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
+      case 'aguardando_barbeiro':
+      case 'pending':
+      case 'solicitado':
+      default:
+        return { texto: 'Pendente de Aprovação', classe: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+    }
+  };
+
+  /**
+   * Ordena a lista de agendamentos por data e horário (os mais recentes primeiro)
+   */
   const sortedAppointments = useMemo(() => {
     return [...(appointments || [])].sort((a, b) => {
       try {
         const dateA = new Date(`${a.date}T${a.time}`);
         const dateB = new Date(`${b.date}T${b.time}`);
         return dateB.getTime() - dateA.getTime();
-      } catch { return 0; }
+      } catch {
+        return 0;
+      }
     });
   }, [appointments]);
 
-  // Alterna a visualização detalhada do card ao clicar nele
+  /**
+   * Expande ou recolhe as informações detalhadas do card selecionado
+   */
   const toggleExpandirCard = (id?: string) => {
     if (!id) return;
-    setCardExpandidoId(prev => prev === id ? null : id);
+    setCardExpandidoId(prev => (prev === id ? null : id));
   };
 
-  // Executa a confirmação do agendamento
+  /**
+   * Envia a requisição para confirmar o agendamento do cliente
+   */
   const handleConfirm = async (e: React.MouseEvent, appointmentId: string) => {
-    e.stopPropagation(); // Evita expandir/recolher o card ao clicar no botão
+    e.stopPropagation();
     if (!confirm("Deseja confirmar este agendamento? O cliente será notificado.")) return;
+    
     setProcessandoId(appointmentId);
     try {
       const res = await fetch('/api/barber/confirm-appointment', {
@@ -95,23 +150,28 @@ export default function BarberAppointmentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appointmentId, action: 'approve' })
       });
+
       if (res.ok) {
         alert("✅ Agendamento confirmado com sucesso!");
       } else {
         const errData = await res.json();
         alert(`Erro: ${errData.error || 'Não foi possível confirmar o agendamento.'}`);
       }
-    } catch {
-      alert("Erro de conexão ao servidor.");
+    } catch (error) {
+      console.error('Erro na requisição de confirmação:', error);
+      alert("Erro de conexão com o servidor ao tentar confirmar.");
     } finally {
       setProcessandoId(null);
     }
   };
 
-  // Executa o cancelamento da solicitação (inclusive as vencidas)
+  /**
+   * Envia a requisição para cancelar a solicitação de agendamento
+   */
   const handleCancel = async (e: React.MouseEvent, appointmentId: string) => {
-    e.stopPropagation(); // Evita expandir/recolher o card ao clicar no botão
+    e.stopPropagation();
     if (!confirm("Tem certeza que deseja cancelar esta solicitação de agendamento?")) return;
+
     setProcessandoId(appointmentId);
     try {
       const res = await fetch('/api/barber/confirm-appointment', {
@@ -119,27 +179,31 @@ export default function BarberAppointmentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appointmentId, action: 'cancel' })
       });
+
       if (res.ok) {
         alert("❌ Solicitação cancelada com sucesso.");
       } else {
         const errData = await res.json();
         alert(`Erro: ${errData.error || 'Não foi possível cancelar o agendamento.'}`);
       }
-    } catch {
-      alert("Erro de conexão ao servidor.");
+    } catch (error) {
+      console.error('Erro na requisição de cancelamento:', error);
+      alert("Erro de conexão com o servidor ao tentar cancelar.");
     } finally {
       setProcessandoId(null);
     }
   };
 
+  // 1. Estado de carregamento dos dados
   if (isAppointmentsLoading) {
     return (
       <div className="p-20 text-center animate-pulse text-primary font-headline flex items-center justify-center gap-2">
-        <Loader2 className="w-6 h-6 animate-spin" /> Carregando lista de agendamentos...
+        <Loader2 className="w-6 h-6 animate-spin" /> Carregando solicitações de agendamento...
       </div>
     );
   }
 
+  // 2. Bloqueio de acesso para usuários não autenticados ou sem perfil de barbeiro
   if (!user || !isBarber) {
     return (
       <div className="container mx-auto p-20 text-center max-w-lg">
@@ -150,36 +214,40 @@ export default function BarberAppointmentsPage() {
     );
   }
 
+  // 3. Renderização principal da página do barbeiro
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold font-headline text-primary flex items-center gap-2">
-          <Calendar className="w-7 h-7" /> Gestão de Solicitacões
+          <Calendar className="w-7 h-7" /> Gestão de Solicitações
         </h1>
         <p className="text-muted-foreground">
-          Clique sobre qualquer agendamento para visualizar os detalhes completos.
+          Clique sobre qualquer agendamento para visualizar os detalhes completos e gerenciar o status.
         </p>
       </div>
 
       <div className="space-y-4">
         {sortedAppointments.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground border-border/60">
-            Nenhum agendamento encontrado no banco de dados.
+            Nenhum agendamento registrado no banco de dados até o momento.
           </Card>
         ) : (
           sortedAppointments.map((apt: Appointment) => {
-            const vencido = isAgendamentoVencido(apt.date, apt.time) && apt.status !== 'confirmado' && apt.status !== 'concluido' && apt.status !== 'cancelado';
+            const isFinalizado = apt.status === 'confirmado' || apt.status === 'confirmed' || apt.status === 'concluido' || apt.status === 'completed' || apt.status === 'cancelado' || apt.status === 'cancelled';
+            const vencido = isAgendamentoVencido(apt.date, apt.time) && !isFinalizado;
             const isExpanded = cardExpandidoId === apt.id;
+            const statusInfo = formatarStatus(apt.status);
 
             return (
               <Card
                 key={apt.id}
                 onClick={() => toggleExpandirCard(apt.id)}
-                className={`border-border/60 transition-all cursor-pointer hover:border-primary/50 select-none ${vencido ? 'bg-red-950/10 border-red-500/30' : 'bg-card/70'
-                  }`}
+                className={`border-border/60 transition-all cursor-pointer hover:border-primary/50 select-none ${
+                  vencido ? 'bg-red-950/10 border-red-500/30' : 'bg-card/70'
+                }`}
               >
                 <CardContent className="p-5 space-y-4">
-                  {/* CABEÇALHO DO CARD - RESUMO PRINCIPAL */}
+                  {/* CABEÇALHO DO CARD - VISÃO GERAL DA SOLICITAÇÃO */}
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -188,12 +256,8 @@ export default function BarberAppointmentsPage() {
                             <AlertCircle className="w-3.5 h-3.5" /> Solicitação Vencida
                           </span>
                         ) : (
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${apt.status === 'confirmado' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                              apt.status === 'concluido' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                                apt.status === 'cancelado' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                                  'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                            }`}>
-                            Status: {apt.status || 'Pendente'}
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusInfo.classe}`}>
+                            Status: {statusInfo.texto}
                           </span>
                         )}
                       </div>
@@ -210,7 +274,7 @@ export default function BarberAppointmentsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4 text-primary" />
-                          {apt.date ? format(parseISO(apt.date), 'dd/MM/yyyy') : 'Data n/i'}
+                          {apt.date ? format(parseISO(apt.date), 'dd/MM/yyyy') : 'Data não informada'}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-4 h-4 text-primary" />
@@ -222,7 +286,7 @@ export default function BarberAppointmentsPage() {
                       </div>
                     </div>
 
-                    {/* GRUPO DE BOTÕES DE AÇÃO */}
+                    {/* BOTÕES DE AÇÃO DO BARBEIRO */}
                     <div className="flex items-center gap-2 w-full md:w-auto justify-end" onClick={(e) => e.stopPropagation()}>
                       {vencido ? (
                         <>
@@ -253,7 +317,7 @@ export default function BarberAppointmentsPage() {
                         </>
                       ) : (
                         <>
-                          {apt.status !== 'confirmado' && apt.status !== 'concluido' && apt.status !== 'cancelado' && (
+                          {!isFinalizado && (
                             <>
                               <Button
                                 onClick={(e) => handleConfirm(e, apt.id!)}
@@ -285,19 +349,19 @@ export default function BarberAppointmentsPage() {
                         </>
                       )}
 
-                      {/* ÍCONE DE INDICADOR DE EXPANSÃO DO CARD */}
+                      {/* INDICADOR PARA RECOLHER / EXPANDIR DETALHES */}
                       <div className="ml-2 text-muted-foreground">
                         {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                       </div>
                     </div>
                   </div>
 
-                  {/* PAINEL EXPANSÍVEL - INFORMAÇÕES DETALHADAS DO AGENDAMENTO */}
+                  {/* PAINEL EXPANSÍVEL COM DETALHES DO CLIENTE E RESERVA */}
                   {isExpanded && (
                     <div className="pt-4 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground bg-accent/20 p-4 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Info className="w-4 h-4 text-primary shrink-0" />
-                        <span><strong>ID da Reserva:</strong> {apt.id}</span>
+                        <span><strong>ID do Agendamento:</strong> {apt.id}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Mail className="w-4 h-4 text-primary shrink-0" />
@@ -309,7 +373,7 @@ export default function BarberAppointmentsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-primary shrink-0" />
-                        <span><strong>ID do Barbeiro:</strong> {apt.barberId || 'barbeiro1'}</span>
+                        <span><strong>ID do Barbeiro:</strong> {apt.barberId || 'Não especificado'}</span>
                       </div>
                     </div>
                   )}
