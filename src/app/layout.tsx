@@ -11,8 +11,11 @@ export const metadata: Metadata = {
 };
 
 /**
- * Layout Raiz da Aplicação
- * Envolve todo o sistema com o Provedor do Firebase, o Provedor da Sidebar e inclui a navegação lateral.
+ * Layout Raiz da Aplicação.
+ * Envolve todo o sistema com o Provedor do Firebase, Provedor da Sidebar e inclui a navegação lateral.
+ * A área principal (main) possui uma margem esquerda reservada (ml-16) correspondente à largura da sidebar recolhida.
+ * Isso garante que o conteúdo principal nunca seja sobreposto ou empurrado quando a sidebar estiver em estado de repouso,
+ * expandindo no formato overlay (sobreposição) apenas durante a interação de hover.
  */
 export default function RootLayout({
   children,
@@ -29,12 +32,12 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background text-foreground min-h-screen flex" suppressHydrationWarning>
         <FirebaseClientProvider>
           <SidebarProvider defaultOpen={false}>
-            <div className="flex min-h-screen w-full">
-              {/* Nova Navegação Lateral Retrátil */}
+            <div className="flex min-h-screen w-full relative">
+              {/* Navegação Lateral Retrátil em Tempo Real */}
               <AppSidebar />
 
-              {/* Área do Conteúdo Principal */}
-              <main className="flex-1 overflow-x-hidden p-4 md:p-8">
+              {/* Conteúdo Principal com margem reservada de 64px (ml-16) para a Sidebar recolhida */}
+              <main className="flex-1 min-w-0 ml-16 overflow-x-hidden p-4 md:p-8">
                 {children}
               </main>
             </div>
