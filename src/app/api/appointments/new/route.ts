@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/firebase/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-/**
- * Rota de API: Criação de Novo Agendamento
- * Grava a reserva de horário no Firestore com status inicial 'aguardando_pagamento'.
- */
+// IDs e emails dos barbeiros que devem receber notificações de novos agendamentos
+const BARBER_UIDS = [
+  '2cAVs3U9ciV3NiqApJuOlYGEJS32',
+  'eUCAkXknM1N0mcC04hCIfF3HcMk1'
+];
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -24,7 +26,6 @@ export async function POST(request: Request) {
       barberId = 'barbeiro1',
     } = body;
 
-    // 1. Validação estrita de campos obrigatórios
     if (!serviceName || !price || !date || !time) {
       return NextResponse.json(
         { error: 'Campos obrigatórios ausentes (serviceName, price, date, time).' },
@@ -32,16 +33,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Validação da instância do Firebase Admin
     if (!adminDb) {
-      console.error('[NEW APPOINTMENT API ERROR] adminDb não inicializado no servidor.');
+      console.error('[NEW APPOINTMENT API ERROR] adminDb não inicializado.');
       return NextResponse.json(
-        { error: 'Serviço do Firebase Admin temporariamente indisponível no servidor.' },
+        { error: 'Serviço do Firebase Admin indisponível no servidor.' },
         { status: 503 }
       );
     }
 
-    // 3. Montagem do objeto de agendamento
+    // 1. Criar o documento de agendamento no Firestore
     const newAppointment = {
       clientId: clientId || 'anonimo',
       userName: userName || 'Cliente sem Nome',
@@ -53,20 +53,38 @@ export async function POST(request: Request) {
       time,
       durationMinutes: durationMinutes || 30,
       barberId,
-      status: 'aguardando_pagamento',
+      status: 'aguardando_pagamento', // Será atualizado para 'aguardando_barbeiro' pelo Webhook ou aprovação
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
 
-    // 4. Gravação no Firestore (coleção 'appointments')
     const docRef = await adminDb.collection('appointments').add(newAppointment);
+    const appointmentId = docRef.id;
 
-    console.log(`[NEW APPOINTMENT API] ✅ Agendamento criado com sucesso! ID: ${docRef.id}`);
+    // 2. Disparar notificações no Firestore para os barbeiros da equipe
+    const batch = adminDb.batch();
+
+    BARBER_UIDS.forEach((toUid) => {
+      const notificationRef = adminDb.collection('notifications').doc();
+      batch.set(notificationRef, {
+        toId: toUid,
+        title: '✂️ Novo Agendamento Solicitado',
+        message: `${userName} agendou ${serviceName} para o dia ${date} às ${time}.`,
+        appointmentId: appointmentId,
+        read: false,
+        createdAt: Timestamp.now(),
+        type: 'new_appointment'
+      });
+    });
+
+    await batch.commit();
+
+    console.log(`[NEW APPOINTMENT API] ✅ Agendamento e notificações criados com sucesso! ID: ${appointmentId}`);
 
     return NextResponse.json({
       success: true,
-      appointmentId: docRef.id,
-      message: 'Agendamento criado com sucesso. Redirecionando para o pagamento.',
+      appointmentId,
+      message: 'Agendamento e notificação registrados com sucesso.',
     }, { status: 200 });
 
   } catch (error: any) {
