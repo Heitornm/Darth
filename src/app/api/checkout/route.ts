@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     // 🔍 Sanitização estrita para EVITAR duplicar "https://"
     let envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.vercel.app";
     envBaseUrl = envBaseUrl.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const baseUrl = `https://${envBaseUrl}`;
+    const baseUrl = `${envBaseUrl}`;
 
     const amountInCents = Math.round(Number(price) * 100);
     const redirectUrl = `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`;
