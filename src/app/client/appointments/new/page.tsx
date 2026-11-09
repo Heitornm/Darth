@@ -19,7 +19,6 @@ import {
 } from 'react-icons/fi';
 import { SERVICES } from '@/data/services';
 
-// Tipagem para os itens da lista de serviços
 type ServiceItem = {
   id: string;
   name: string;
@@ -27,7 +26,6 @@ type ServiceItem = {
   duration: number;
 };
 
-// Lista de horários operacionais padrão da barbearia
 const HORARIOS_DISPONIVEIS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
   '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -35,10 +33,8 @@ const HORARIOS_DISPONIVEIS = [
   '17:00', '17:30', '18:00', '18:30', '19:00'
 ];
 
-// Barbeiro Solo Padrão da Barbearia
 const BARBEIRO_PADRAO_ID = 'barbeiro1';
 
-// Tratamento seguro para garantir que a lista de serviços esteja sempre num formato iterável
 const SERVICE_LIST: ServiceItem[] = (() => {
   const resolved = Array.isArray(SERVICES)
     ? SERVICES
@@ -48,15 +44,10 @@ const SERVICE_LIST: ServiceItem[] = (() => {
   return Array.isArray(resolved) ? resolved : [];
 })();
 
-/**
- * Página de Novo Agendamento (Fluxo do Cliente)
- * Permite selecionar o serviço, data e horário, gerando a reserva e integrando com o Checkout.
- */
 export default function NewAppointmentPage() {
   const { user, userProfile } = useFirebase();
   const router = useRouter();
 
-  // Estados dos formulários e controle de UI
   const [dataSelecionada, setDataSelecionada] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [horarioSelecionado, setHorarioSelecionado] = useState<string>('');
   const [servicoSelecionado, setServicoSelecionado] = useState<string>('');
@@ -68,7 +59,6 @@ export default function NewAppointmentPage() {
 
   const agora = useMemo(() => new Date(), []);
 
-  // Helper para identificar se um determinado horário do dia atual já passou
   const horarioJaPassou = useMemo(() => {
     return (horario: string): boolean => {
       if (!dataSelecionada || !horario) return false;
@@ -77,10 +67,8 @@ export default function NewAppointmentPage() {
     };
   }, [dataSelecionada, agora]);
 
-  // Data mínima permitida para agendamento (hoje)
   const dataMinima = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
-  // Busca os horários ocupados na API sempre que a data selecionada mudar
   useEffect(() => {
     if (!dataSelecionada) return;
     const buscarHorarios = async () => {
@@ -94,7 +82,7 @@ export default function NewAppointmentPage() {
           setHorariosOcupados(data.occupiedSlots || []);
         }
       } catch (e) {
-        console.warn('Não foi possível carregar os horários ocupados');
+        console.warn('Não foi possível carregar a grade de horários ocupados.');
       } finally {
         setCarregando(false);
       }
@@ -102,7 +90,6 @@ export default function NewAppointmentPage() {
     buscarHorarios();
   }, [dataSelecionada]);
 
-  // Função para criar o agendamento no Firestore e redirecionar para o Checkout da InfinitePay
   const agendar = async () => {
     setErro('');
     setSucesso(false);
@@ -113,19 +100,19 @@ export default function NewAppointmentPage() {
     }
 
     if (horarioJaPassou(horarioSelecionado)) {
-      setErro('⚠️ Este horário já passou. Por favor, escolha um horário futuro.');
+      setErro('⚠️ Este horário já passou. Escolha um horário futuro.');
       return;
     }
 
     const servico = SERVICE_LIST.find((s: ServiceItem) => s.id === servicoSelecionado);
     if (!servico) {
-      setErro('Serviço selecionado não foi encontrado.');
+      setErro('Serviço selecionado não foi localizado.');
       return;
     }
 
     setEnviando(true);
     try {
-      // 1. Cria o agendamento inicial no banco de dados
+      // 1. Cria o agendamento no Firestore via API backend
       const resAgendamento = await fetch('/api/appointments/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,7 +132,7 @@ export default function NewAppointmentPage() {
 
       const respostaAgendamento = await resAgendamento.json();
       if (!resAgendamento.ok || !respostaAgendamento.success) {
-        setErro(respostaAgendamento.error || 'Ocorreu um erro ao criar o agendamento.');
+        setErro(respostaAgendamento.error || 'Erro ao gravar o agendamento.');
         setEnviando(false);
         return;
       }
@@ -153,8 +140,8 @@ export default function NewAppointmentPage() {
       const appointmentId = respostaAgendamento.appointmentId;
       setSucesso(true);
 
-      // 2. Gera a sessão de pagamento via InfinitePay
-      console.log("[CHECKOUT] Gerando link de pagamento...");
+      // 2. Solicita o link de checkout na API da InfinitePay
+      console.log('[CHECKOUT] Gerando link de pagamento para o ID:', appointmentId);
       const resCheckout = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,19 +155,20 @@ export default function NewAppointmentPage() {
       const respostaCheckout = await resCheckout.json();
 
       if (resCheckout.ok && respostaCheckout.success && respostaCheckout.checkoutUrl) {
-        console.log("[CHECKOUT] ✅ Link gerado com sucesso. Redirecionando...");
+        console.log('[CHECKOUT] ✅ Redirecionando para:', respostaCheckout.checkoutUrl);
         setTimeout(() => {
           window.location.href = respostaCheckout.checkoutUrl;
-        }, 1200);
+        }, 1000);
       } else {
-        console.warn("[CHECKOUT] Link direto não disponível. Redirecionando para detalhes do agendamento.");
+        // Redireciona de forma segura para a lista de minhas reservas do cliente (evitando o 404)
+        console.warn('[CHECKOUT] Redirecionando para a lista de reservas.');
         setTimeout(() => {
-          router.push(`/client/appointments/${appointmentId}`);
+          router.push('/client/appointments');
         }, 1200);
       }
 
     } catch (err) {
-      setErro('Erro de conexão. Por favor, tente novamente.');
+      setErro('Erro de conexão ao servidor. Tente novamente.');
     } finally {
       setEnviando(false);
     }
@@ -194,15 +182,13 @@ export default function NewAppointmentPage() {
         <Calendar className="w-6 h-6 text-primary" /> Agendar Horário
       </h1>
 
-      {/* Mensagem de Sucesso */}
       {sucesso && (
         <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
           <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-          <p className="text-green-700 dark:text-green-400 font-medium">Agendamento criado! Redirecionando para a tela de pagamento...</p>
+          <p className="text-green-700 dark:text-green-400 font-medium">Agendamento registrado! Redirecionando para o pagamento...</p>
         </div>
       )}
 
-      {/* Mensagem de Erro */}
       {erro && (
         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
@@ -264,16 +250,16 @@ export default function NewAppointmentPage() {
           </CardTitle>
           <CardDescription>
             {dataSelecionada === format(new Date(), 'yyyy-MM-dd') ? (
-              <span className="text-amber-600 font-medium">⚠️ Atenção: Horários que já passaram hoje estão bloqueados.</span>
+              <span className="text-amber-500 font-medium">⚠️ Horários retroativos bloqueados.</span>
             ) : (
-              <span>Selecione um horário disponível para o dia escolhido:</span>
+              <span>Selecione um horário disponível:</span>
             )}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {carregando ? (
             <div className="flex items-center gap-2 text-muted-foreground justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" /> Carregando grade de horários...
+              <Loader2 className="w-5 h-5 animate-spin text-primary" /> Carregando horários...
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
@@ -296,13 +282,9 @@ export default function NewAppointmentPage() {
                     className={`
                       ${desabilitado ? 'opacity-40 cursor-not-allowed line-through' : ''}
                       ${estaSelecionado ? 'bg-primary text-primary-foreground font-bold' : ''}
-                      ${jaPassou ? 'border-gray-300 text-gray-400' : ''}
-                      ${estaOcupado && !jaPassou ? 'border-red-300 bg-red-50 text-red-600 dark:bg-red-950/40' : ''}
                     `}
                   >
                     {horario}
-                    {jaPassou && ' ✗'}
-                    {estaOcupado && !jaPassou && ' ⚠'}
                   </Button>
                 );
               })}
@@ -315,7 +297,7 @@ export default function NewAppointmentPage() {
       {servico && horarioSelecionado && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardHeader>
-            <CardTitle className="text-lg font-headline">Resumo da Reserva</CardTitle>
+            <CardTitle className="text-lg font-headline">Resumo do Agendamento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p><strong>Serviço:</strong> {servico.name}</p>
@@ -329,7 +311,7 @@ export default function NewAppointmentPage() {
         </Card>
       )}
 
-      {/* BOTÃO DE CONFIRMAÇÃO */}
+      {/* BOTÃO DE SUBMISSÃO */}
       <Button
         size="lg"
         className="w-full text-lg py-6 font-semibold"
@@ -339,7 +321,7 @@ export default function NewAppointmentPage() {
         {enviando ? (
           <>
             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Processando Agendamento...
+            Criando Reserva...
           </>
         ) : (
           <>Confirmar & Ir para Pagamento</>

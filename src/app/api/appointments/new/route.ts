@@ -2,39 +2,78 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/firebase/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 
+/**
+ * Rota de API: Criação de Novo Agendamento
+ * Grava a reserva de horário no Firestore com status inicial 'aguardando_pagamento'.
+ */
 export async function POST(request: Request) {
   try {
-    console.log("[AGENDAMENTO] Iniciando...");
+    const body = await request.json();
+    console.log('[NEW APPOINTMENT API] Dados recebidos:', body);
 
-    // ✅ Verifica se adminDb está disponível
-    if (!adminDb) {
-      throw new Error("Banco de dados não inicializado. Verifique as variáveis de ambiente.");
+    const {
+      clientId,
+      userName,
+      userEmail,
+      serviceId,
+      serviceName,
+      price,
+      date,
+      time,
+      durationMinutes,
+      barberId = 'barbeiro1',
+    } = body;
+
+    // 1. Validação estrita de campos obrigatórios
+    if (!serviceName || !price || !date || !time) {
+      return NextResponse.json(
+        { error: 'Campos obrigatórios ausentes (serviceName, price, date, time).' },
+        { status: 400 }
+      );
     }
 
-    const body = await request.json();
-    console.log("[AGENDAMENTO] Dados recebidos:", body);
+    // 2. Validação da instância do Firebase Admin
+    if (!adminDb) {
+      console.error('[NEW APPOINTMENT API ERROR] adminDb não inicializado no servidor.');
+      return NextResponse.json(
+        { error: 'Serviço do Firebase Admin temporariamente indisponível no servidor.' },
+        { status: 503 }
+      );
+    }
 
-    const agendamento = {
-      ...body,
+    // 3. Montagem do objeto de agendamento
+    const newAppointment = {
+      clientId: clientId || 'anonimo',
+      userName: userName || 'Cliente sem Nome',
+      userEmail: userEmail || '',
+      serviceId: serviceId || '',
+      serviceName,
+      price: Number(price),
+      date,
+      time,
+      durationMinutes: durationMinutes || 30,
+      barberId,
+      status: 'aguardando_pagamento',
       createdAt: Timestamp.now(),
-      status: 'pagamento_aprovado'
+      updatedAt: Timestamp.now(),
     };
 
-    const docRef = await adminDb.collection('appointments').add(agendamento);
-    console.log("[AGENDAMENTO] ✅ CRIADO! ID:", docRef.id, "Status: pagamento_aprovado");
+    // 4. Gravação no Firestore (coleção 'appointments')
+    const docRef = await adminDb.collection('appointments').add(newAppointment);
+
+    console.log(`[NEW APPOINTMENT API] ✅ Agendamento criado com sucesso! ID: ${docRef.id}`);
 
     return NextResponse.json({
       success: true,
-      appointmentId: docRef.id
-    });
+      appointmentId: docRef.id,
+      message: 'Agendamento criado com sucesso. Redirecionando para o pagamento.',
+    }, { status: 200 });
+
   } catch (error: any) {
-    console.error("[AGENDAMENTO] ❌ ERRO:", error.message);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message || 'Erro ao salvar agendamento'
-      },
-      { status: 500 }
-    );
+    console.error('[NEW APPOINTMENT API EXCEPTION]:', error);
+    return NextResponse.json({
+      error: 'Erro interno no servidor ao criar o agendamento.',
+      details: error?.message || String(error),
+    }, { status: 500 });
   }
 }
