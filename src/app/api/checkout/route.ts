@@ -14,7 +14,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
+    // 🔴 ALTERE AQUI: insira a sua nova tag/handle da InfinitePay no fallback
+    const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "SUA_NOVA_TAG_AQUI";
     const apiKey = process.env.INFINITEPAY_API_KEY;
 
     // 🔍 Sanitização estrita para EVITAR duplicar "https://"
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
 
     console.warn("[CHECKOUT API WARNING] Falha na API InfinitePay, usando redirecionamento interno:", responseData);
 
-    // Redirecionamento interno seguro em caso de indisponibilidade do link
+    // Redirecionamento interno seguro em caso de indisponibilidade do link dinâmico
     const safeInternalUrl = `${baseUrl}/client/appointments?status=pending_payment&order_nsu=${appointmentId}`;
     
     return NextResponse.json({
