@@ -3,8 +3,12 @@ import type { NextConfig } from 'next';
 const isDev = process.env.NODE_ENV === 'development';
 
 const nextConfig: NextConfig = {
+  // ✅ Impede que o Next.js / Turbopack empacote o firebase-admin no servidor,
+  // resolvendo o erro "require() of ES Module (jose / jwks-rsa)" na Vercel.
+  serverExternalPackages: ['firebase-admin'],
+
   typescript: {
-    ignoreBuildErrors: isDev, // ✅ Só ignora erros localmente
+    ignoreBuildErrors: isDev, // Só ignora erros localmente
   },
 
   async headers() {
