@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 /**
  * Rota de API: Checkout InfinitePay
+ * Tenta gerar o link de pagamento dinâmico. Se falhar, redireciona o cliente
+ * de forma segura para o painel de reservas dentro da própria barbearia.
  */
 export async function POST(req: Request) {
   try {
@@ -10,7 +12,7 @@ export async function POST(req: Request) {
 
     const { appointmentId, price, serviceName } = body;
 
-    // Validação dos campos obrigatórios
+    // 1. Validação dos campos obrigatórios
     if (!price || !serviceName || !appointmentId) {
       return NextResponse.json(
         { error: "Campos obrigatórios ausentes no payload (appointmentId, price, serviceName)." },
@@ -21,16 +23,18 @@ export async function POST(req: Request) {
     const handle = process.env.NEXT_PUBLIC_INFINITEPAY_HANDLE || "darthbarbers";
     const apiKey = process.env.INFINITEPAY_API_KEY;
 
-    // 🔍 Sanitização estrita do baseUrl para garantir um URL com HTTPS válido
+    // 2. Sanitização da URL base (garante HTTPS sem barra no final)
     let rawBaseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://darthbarbers.vercel.app").trim();
     if (!rawBaseUrl.startsWith("http://") && !rawBaseUrl.startsWith("https://")) {
       rawBaseUrl = `https://${rawBaseUrl}`;
     }
-    // Remove barra final no final da base URL se houver
     const baseUrl = rawBaseUrl.replace(/\/$/, "");
 
-    // Converte o valor em Reais (BRL) para centavos (ex: R$ 35,00 -> 3500)
+    // 3. Converte o valor em Reais para centavos (ex: R$ 35,00 -> 3500)
     const amountInCents = Math.round(Number(price) * 100);
+
+    const redirectUrl = `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`;
+    const webhookUrl = `${baseUrl}/api/webhooks/infinitepay`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -40,12 +44,14 @@ export async function POST(req: Request) {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    const redirectUrl = `${baseUrl}/client/appointments?status=success&order_nsu=${appointmentId}`;
-    const webhookUrl = `${baseUrl}/api/webhooks/infinitepay`;
+    console.log("[CHECKOUT API] Enviando requisição para a InfinitePay...", {
+      handle,
+      redirectUrl,
+      webhookUrl,
+      amountInCents
+    });
 
-    console.log("[CHECKOUT API] URLs configuradas:", { redirectUrl, webhookUrl });
-
-    // Chamada oficial à API de links da InfinitePay
+    // 4. Chamada à API de links da InfinitePay
     const response = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
       headers,
@@ -66,10 +72,10 @@ export async function POST(req: Request) {
 
     const responseData = await response.json();
 
-    // Se o link foi gerado com sucesso pela InfinitePay
+    // 5. Sucesso: Link dinâmico gerado pela InfinitePay
     if (response.ok && (responseData.url || responseData.checkout_url)) {
       const checkoutUrl = responseData.url || responseData.checkout_url;
-      console.log("[CHECKOUT API] ✅ Link gerado com sucesso:", checkoutUrl);
+      console.log("[CHECKOUT API] ✅ Link dinâmico gerado com sucesso:", checkoutUrl);
 
       return NextResponse.json({
         success: true,
@@ -77,14 +83,15 @@ export async function POST(req: Request) {
       }, { status: 200 });
     }
 
-    // Se a API recusar, loga o erro e usa o fallback
-    console.warn("[CHECKOUT API WARNING] Erro ao gerar link dinâmico da InfinitePay:", responseData);
+    // 6. Caso de erro da API: Redireciona para o próprio site da barbearia (evita 404 externo)
+    console.warn("[CHECKOUT API WARNING] Não foi possível gerar o link dinâmico:", responseData);
 
-    const fallbackUrl = `https://infinitepay.io/pay/${handle}`;
+    const safeInternalUrl = `${baseUrl}/client/appointments?status=pending_payment&order_nsu=${appointmentId}`;
+    
     return NextResponse.json({
       success: true,
-      message: "Redirecionando para o link de pagamento padrão.",
-      checkoutUrl: fallbackUrl,
+      message: "Agendamento registrado. Redirecionando para suas reservas.",
+      checkoutUrl: safeInternalUrl,
     }, { status: 200 });
 
   } catch (error: any) {

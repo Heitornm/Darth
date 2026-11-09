@@ -1,308 +1,253 @@
-'use client';
+"use client";
 
-import { useEffect, Suspense, useState, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, Timestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useFirebase } from '@/firebase';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  FiCalendar as Calendar, 
+  FiClock as Clock, 
+  FiPlus as Plus, 
+  FiLoader as Loader2,
+  FiCheckCircle as CheckCircle,
+  FiXCircle as XCircle,
+  FiAlertCircle as AlertCircle,
+  FiScissors as Scissors
+} from 'react-icons/fi';
 
-
-// ✅ FUNÇÃO AUXILIAR: Conversão SEGURA de Timestamp → Date
-function safeTimestampToDate(value: any): Date | null {
-  if (!value) return null;
-  try {
-    // Timestamp padrão do Firestore
-    if (typeof value.toDate === 'function') {
-      const date = value.toDate();
-      return !isNaN(date.getTime()) ? date : null;
-    }
-    // Objeto { seconds, nanoseconds }
-    if (value && typeof value === 'object' && typeof value.seconds === 'number') {
-      const date = new Date(value.seconds * 1000);
-      return !isNaN(date.getTime()) ? date : null;
-    }
-    // String ISO
-    if (typeof value === 'string') {
-      const date = new Date(value);
-      return !isNaN(date.getTime()) ? date : null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+interface Appointment {
+  id: string;
+  serviceName: string;
+  price: number;
+  date: string;
+  time: string;
+  status: 'aguardando_pagamento' | 'aguardando_barbeiro' | 'confirmado' | 'cancelado' | 'concluido';
+  createdAt?: any;
 }
 
-
-function AppointmentsContent() {
-  const searchParams = useSearchParams();
-  const db = useFirestore();
-  const { user } = useUser();
-  const { toast } = useToast();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [showAll, setShowAll] = useState(false);
-  const [filterPeriod, setFilterPeriod] = useState<'all' | '30d' | '90d'>('all');
-
-
-  // ======================================
-  // ✅ ATUALIZAÇÃO DE STATUS APÓS PAGAMENTO
-  // ======================================
-  const status = searchParams.get('status');
-  const orderNsu = searchParams.get('order_nsu');
-  const sessionId = searchParams.get('session_id');
-
+export default function ClientAppointmentsPage() {
+  const { user } = useFirebase();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function confirmPaymentOnReturn() {
-      if (!db || !user) return;
-
-      const paymentRef = orderNsu || sessionId;
-      if ((status === 'success' || status === 'paid') && paymentRef) {
-        try {
-          const appointmentRef = doc(db, 'appointments', paymentRef);
-          await updateDoc(appointmentRef, {
-            status: 'confirmado',
-            paid: true,
-            paidAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
-          });
-
-          toast({
-            title: "✅ Pagamento Confirmado!",
-            description: "Seu horário foi reservado com sucesso.",
-            variant: "default",
-          });
-        } catch (err) {
-          console.error("Erro ao confirmar:", err);
-          toast({
-            title: "Atenção",
-            description: "Pagamento recebido, atualizando status...",
-            variant: "default",
-          });
-        }
-      }
+    if (!user?.uid) {
+      setLoading(false);
+      return;
     }
-    confirmPaymentOnReturn();
-  }, [status, orderNsu, sessionId, db, user, toast]);
 
-
-  // ======================================
-  // ✅ CARREGA + CONVERTE TIMESTAMPS DE FORMA SEGURA
-  // ======================================
-  useEffect(() => {
-    if (!db || !user) return;
-
+    // Busca todos os agendamentos pertencentes ao cliente logado ordenados pela data de criação
     const q = query(
       collection(db, 'appointments'),
       where('clientId', '==', user.uid),
-      orderBy('dataHora', 'desc')
+      orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      // ✅ AQUI: Converte Timestamps ANTES de guardar no estado
-      const list = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-          // 🔑 Converte campos de data de forma SEGURA na RAIZ
-          createdAt: safeTimestampToDate(data.createdAt),
-          dataHora: safeTimestampToDate(data.dataHora),
-          paidAt: safeTimestampToDate(data.paidAt),
-          updatedAt: safeTimestampToDate(data.updatedAt),
-        };
-      });
-      setAppointments(list);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const docs: Appointment[] = [];
+        snapshot.forEach((doc) => {
+          docs.push({ id: doc.id, ...doc.data() } as Appointment);
+        });
+        setAppointments(docs);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Erro ao carregar agendamentos do cliente:", error);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
-  }, [db, user]);
+  }, [user]);
 
+  // Data atual no formato YYYY-MM-DD para comparação
+  const hojeStr = new Date().toISOString().split('T')[0];
 
-  // ======================================
-  // ✅ FILTRO POR PERÍODO — 100% SEGURO
-  // ======================================
-  const filteredAppointments = useMemo(() => {
-    let list = [...appointments];
+  // Separação entre próximos agendamentos ativos e o histórico passado/cancelado
+  const proximosAgendamentos = appointments.filter((apt) => {
+    if (apt.status === 'cancelado' || apt.status === 'concluido') return false;
+    return apt.date >= hojeStr;
+  });
 
-    const now = Date.now();
-    if (filterPeriod === '30d') {
-      const cutoff = now - 30 * 24 * 60 * 60 * 1000;
-      list = list.filter(apt => getTimeFromApt(apt) >= cutoff);
-    } else if (filterPeriod === '90d') {
-      const cutoff = now - 90 * 24 * 60 * 60 * 1000;
-      list = list.filter(apt => getTimeFromApt(apt) >= cutoff);
-    }
+  const historicoAgendamentos = appointments.filter((apt) => {
+    if (apt.status === 'cancelado' || apt.status === 'concluido') return true;
+    return apt.date < hojeStr;
+  });
 
-    if (!showAll) {
-      return list.slice(0, 5);
-    }
-    return list;
-  }, [appointments, filterPeriod, showAll]);
-
-
-  // ✅ Agora recebe Date já convertido ou null → NUNCA mais quebra
-  function getTimeFromApt(apt: any): number {
-    try {
-      // createdAt e dataHora JÁ são Date (ou null) desde o carregamento
-      if (apt.createdAt instanceof Date) return apt.createdAt.getTime();
-      if (apt.dataHora instanceof Date) return apt.dataHora.getTime();
-      if (apt.date && apt.time) {
-        const d = new Date(`${apt.date}T${apt.time}`);
-        return isNaN(d.getTime()) ? 0 : d.getTime();
-      }
-      return 0;
-    } catch { return 0; }
-  }
-
-
-  // ======================================
-  // ✅ FORMATAÇÃO DE DATA — AGORA RECEBE Date | null
-  // ======================================
-  const formatDateSafe = (apt: any) => {
-    try {
-      let dateObj: Date | null = null;
-
-      // Campos JÁ convertidos em Date
-      if (apt.dataHora instanceof Date) dateObj = apt.dataHora;
-      else if (apt.createdAt instanceof Date) dateObj = apt.createdAt;
-      else if (apt.date && apt.time) {
-        let dateStr = apt.date.includes('-')
-          ? `${apt.date}T${apt.time}`
-          : `${apt.date.replace(/\//g, '-').split('-').reverse().join('-')}T${apt.time}`;
-        dateObj = new Date(dateStr);
-      }
-
-      if (!dateObj || isNaN(dateObj.getTime())) {
-        return apt.date && apt.time ? `${apt.date} às ${apt.time}` : apt.date || 'Data indisponível';
-      }
-
-      const dia = String(dateObj.getDate()).padStart(2, '0');
-      const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const ano = dateObj.getFullYear();
-      const hora = String(dateObj.getHours()).padStart(2, '0');
-      const min = String(dateObj.getMinutes()).padStart(2, '0');
-
-      return `${dia}/${mes}/${ano} às ${hora}:${min}`;
-    } catch {
-      return apt.date && apt.time ? `${apt.date} às ${apt.time}` : apt.date || 'Data indisponível';
-    }
-  };
-
-
-  // ======================================
-  // ✅ BADGE DE STATUS
-  // ======================================
-  const getStatusBadge = (status?: string, paid?: boolean) => {
-    if (paid && status !== 'confirmado' && status !== 'concluido') {
-      return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">✅ Pago - Confirmado</Badge>;
-    }
+  // Renderiza a tag estilizada para cada status
+  const renderStatusBadge = (status: Appointment['status']) => {
     switch (status) {
       case 'confirmado':
-        return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Confirmado</Badge>;
-      case 'concluido':
-        return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">Concluído</Badge>;
-      case 'solicitado_cancelamento':
-        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Cancelamento Solicitado</Badge>;
-      case 'pendente':
+        return (
+          <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" /> Confirmado
+          </Badge>
+        );
+      case 'aguardando_barbeiro':
+        return (
+          <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" /> Aguardando Barbeiro
+          </Badge>
+        );
       case 'aguardando_pagamento':
-        return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">⏳ Aguardando Pagamento</Badge>;
+        return (
+          <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" /> Aguardando Pagamento
+          </Badge>
+        );
       case 'cancelado':
-        return <Badge variant="outline" className="text-zinc-500 border-zinc-700">Cancelado</Badge>;
+        return (
+          <Badge className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5" /> Cancelado
+          </Badge>
+        );
+      case 'concluido':
+        return (
+          <Badge variant="outline" className="text-muted-foreground flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" /> Concluído
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary">{status || 'Desconhecido'}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
+  // Helper para formatar a data visualmente (DD/MM/YYYY)
+  const formatarData = (dateStr: string) => {
+    if (!dateStr) return '';
+    const partes = dateStr.split('-');
+    if (partes.length === 3) {
+      return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+    return dateStr;
+  };
 
-  // ======================================
-  // ✅ RENDER
-  // ======================================
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold font-headline mb-2">Minhas Reservas</h1>
-      <p className="text-muted-foreground mb-6">Acompanhe seus agendamentos e histórico.</p>
-
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-2 mb-6 items-center">
-        <span className="text-sm text-muted-foreground font-medium">Filtrar:</span>
-        <Button
-          variant={filterPeriod === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterPeriod('all')}
-        >
-          Todos
-        </Button>
-        <Button
-          variant={filterPeriod === '30d' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterPeriod('30d')}
-        >
-          Últimos 30 dias
-        </Button>
-        <Button
-          variant={filterPeriod === '90d' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterPeriod('90d')}
-        >
-          Últimos 90 dias
-        </Button>
-      </div>
-
-      {/* Lista com rolagem */}
-      <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-        {filteredAppointments.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground">
-            Nenhum agendamento encontrado. Que tal <strong>agendar seu primeiro horário</strong>?
-          </div>
-        ) : (
-          filteredAppointments.map((apt) => (
-            <Card key={apt.id} className="border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex justify-between items-center text-lg">
-                  <span>{apt.serviceName || 'Serviço'}</span>
-                  {getStatusBadge(apt.status, apt.paid)}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-1">
-                <p>Data: {formatDateSafe(apt)}</p>
-                {apt.price && (
-                  <p>Valor: <span className="font-bold text-emerald-500">R$ {Number(apt.price).toFixed(2)}</span></p>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* Botão Ver Mais / Ver Menos */}
-      {appointments.length > 5 && (
-        <div className="mt-4 text-center">
-          <Button
-            variant="outline"
-            onClick={() => setShowAll(!showAll)}
-          >
-            {showAll ? 'Ver Menos' : `Ver Todos (${appointments.length})`}
-          </Button>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
+            <Calendar className="w-8 h-8 text-primary" /> Meus Agendamentos
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Gerencie seus horários agendados e acompanhe o histórico da barbearia.
+          </p>
         </div>
+        <Link href="/client/appointments/new">
+          <Button className="flex items-center gap-2 font-semibold">
+            <Plus className="w-4 h-4" /> Novo Agendamento
+          </Button>
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" /> Carregando seus agendamentos...
+        </div>
+      ) : (
+        <Tabs defaultValue="proximos" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="proximos" className="relative">
+              Próximos Agendamentos
+              {proximosAgendamentos.length > 0 && (
+                <span className="ml-2 bg-primary text-primary-foreground text-xs font-bold rounded-full px-2 py-0.5">
+                  {proximosAgendamentos.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="historico">Histórico & Cancelados</TabsTrigger>
+          </TabsList>
+
+          {/* ABA 1: PRÓXIMOS AGENDAMENTOS (FUTUROS) */}
+          <TabsContent value="proximos">
+            {proximosAgendamentos.length === 0 ? (
+              <Card className="text-center py-12 border-dashed">
+                <CardContent className="space-y-4">
+                  <Scissors className="w-12 h-12 text-muted-foreground mx-auto opacity-50" />
+                  <div>
+                    <h3 className="text-lg font-semibold">Nenhum agendamento futuro encontrado</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Você não possui horários agendados para os próximos dias.
+                    </p>
+                  </div>
+                  <Link href="/client/appointments/new" className="inline-block">
+                    <Button variant="outline" className="gap-2">
+                      <Plus className="w-4 h-4" /> Agendar Agora
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {proximosAgendamentos.map((apt) => (
+                  <Card key={apt.id} className="border-primary/20 hover:border-primary/50 transition-all shadow-sm">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-lg font-bold flex items-center gap-2">
+                          <Scissors className="w-4 h-4 text-primary" /> {apt.serviceName}
+                        </CardTitle>
+                        {renderStatusBadge(apt.status)}
+                      </div>
+                      <CardDescription className="text-xs">
+                        ID: {apt.id}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-foreground font-medium">
+                        <Calendar className="w-4 h-4 text-primary shrink-0" />
+                        <span>Data: {formatarData(apt.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground font-medium">
+                        <Clock className="w-4 h-4 text-primary shrink-0" />
+                        <span>Horário: {apt.time}</span>
+                      </div>
+                      <div className="pt-2 border-t flex justify-between items-center text-base font-bold text-primary">
+                        <span>Valor:</span>
+                        <span>R$ {Number(apt.price).toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ABA 2: HISTÓRICO E CANCELADOS */}
+          <TabsContent value="historico">
+            {historicoAgendamentos.length === 0 ? (
+              <Card className="text-center py-12 border-dashed">
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Seu histórico de agendamentos passados está vazio.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-90">
+                {historicoAgendamentos.map((apt) => (
+                  <Card key={apt.id} className="bg-card/50">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-base font-semibold">{apt.serviceName}</CardTitle>
+                        {renderStatusBadge(apt.status)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-sm text-muted-foreground">
+                      <p>Data: {formatarData(apt.date)} às {apt.time}</p>
+                      <p className="font-semibold text-foreground">R$ {Number(apt.price).toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
-  );
-}
-
-
-export default function ClientAppointmentsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="container mx-auto px-4 py-12 text-center text-muted-foreground">
-          Carregando agendamentos...
-        </div>
-      }
-    >
-      <AppointmentsContent />
-    </Suspense>
   );
 }
