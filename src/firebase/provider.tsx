@@ -6,6 +6,25 @@ import { Firestore, collection, query, where, onSnapshot, doc } from 'firebase/f
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/common/FirebaseErrorListener';
 
+/**
+ * Lista oficial de UIDs de barbeiros/administradores da plataforma.
+ */
+const BARBER_UIDS = [
+  '2cAVs3U9ciV3NiqApJuOlYGEJS32',
+  'eUCAkXknM1N0mcC04hCIfF3HcMk1',
+  'wWlt2ixyjwfLqDHDQFFNQgaYfCT2'
+];
+
+/**
+ * Lista oficial de E-mails com permissão de gestão de agendamentos.
+ */
+const BARBER_EMAILS = [
+  'heitormartins@gmail.com',
+  'heitormartins@email.com',
+  'darthbarbers@email.com',
+  'darthbarber@gmail.com.br'
+];
+
 interface FirebaseProviderProps {
   children: ReactNode;
   firebaseApp: FirebaseApp;
@@ -52,10 +71,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [appointments, setAppointments] = useState<any[] | null>(null);
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(false);
 
-  // 1. Escuta mudanças no Firebase Auth
+  // 1. Escuta mudanças no estado de autenticação (Login / Logout)
   useEffect(() => {
     if (!auth) {
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Serviço de autenticação indisponível.") });
       setIsProfileLoading(false);
       return;
     }
@@ -77,7 +96,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [auth]);
 
-  // 2. Busca o documento de perfil do Firestore quando o usuário é autenticado
+  // 2. Escuta o perfil do usuário em tempo real no Firestore
   useEffect(() => {
     if (!userAuthState.user || !firestore) {
       setUserProfile(null);
@@ -106,7 +125,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [userAuthState.user, firestore]);
 
-  // 3. Busca agendamentos do usuário logado
+  // 3. Escuta os agendamentos em tempo real no Firestore
+  // CORREÇÃO: Detecta se o usuário é barbeiro/master para carregar TODOS os agendamentos da barbearia
   useEffect(() => {
     if (!firestore || !userAuthState.user) {
       setAppointments(null);
@@ -115,28 +135,38 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     }
 
     setIsAppointmentsLoading(true);
-    
-    const q = query(
-      collection(firestore, 'appointments'), 
-      where('clientId', '==', userAuthState.user.uid)
-    );
+
+    // Valida se o usuário possui perfil ou privilégios de barbeiro
+    const userEmailLower = userAuthState.user.email?.toLowerCase() || '';
+    const isBarber =
+      BARBER_UIDS.includes(userAuthState.user.uid) ||
+      BARBER_EMAILS.some((email) => email.toLowerCase() === userEmailLower) ||
+      userProfile?.role === 'barber';
+
+    const appointmentsCollection = collection(firestore, 'appointments');
+
+    // Se for barbeiro, escuta todos os agendamentos; se for cliente, escuta apenas os seus
+    const q = isBarber
+      ? query(appointmentsCollection)
+      : query(appointmentsCollection, where('clientId', '==', userAuthState.user.uid));
 
     const unsubscribe = onSnapshot(
-      q, 
+      q,
       (snap) => {
-        const apts = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        const apts = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
         setAppointments(apts);
         setIsAppointmentsLoading(false);
-      }, 
+      },
       (err) => {
-        console.error("Erro ao buscar agendamentos do usuário:", err);
+        console.error("Erro ao escutar agendamentos do Firestore:", err);
         setIsAppointmentsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [firestore, userAuthState.user]);
+  }, [firestore, userAuthState.user, userProfile]);
 
+  // Valor memoizado do contexto para evitar re-renderizações desnecessárias
   const contextValue = useMemo((): FirebaseContextState => {
     const servicesAvailable = !!(firebaseApp && firestore && auth);
     return {
@@ -153,13 +183,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       userError: userAuthState.userError,
     };
   }, [
-    firebaseApp, 
-    firestore, 
-    auth, 
-    userAuthState, 
-    userProfile, 
-    isProfileLoading, 
-    appointments, 
+    firebaseApp,
+    firestore,
+    auth,
+    userAuthState,
+    userProfile,
+    isProfileLoading,
+    appointments,
     isAppointmentsLoading
   ]);
 
@@ -193,10 +223,10 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
 
 export const useUser = () => {
   const { user, userProfile, isUserLoading, isProfileLoading, userError } = useFirebase();
-  return { 
-    user, 
-    userProfile, 
-    isLoading: isUserLoading || isProfileLoading, 
-    userError 
+  return {
+    user,
+    userProfile,
+    isLoading: isUserLoading || isProfileLoading,
+    userError
   };
 };

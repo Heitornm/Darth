@@ -13,7 +13,6 @@ import {
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-
 export type WithId<T> = T & { id: string };
 
 export interface UseCollectionResult<T> {
@@ -32,7 +31,10 @@ export interface InternalQuery extends Query<DocumentData> {
   path?: string;
 }
 
-// ✅ FUNÇÃO CHAVE: Converte Timestamp do Firestore de forma SEGURA
+/**
+ * Função de apoio para converter objetos Timestamp do Firestore em instâncias de Date nativas.
+ * Mantém as strings (como "YYYY-MM-DD" e "HH:mm") intactas para preservação de formato nas telas.
+ */
 function safeConvertTimestamps<T>(obj: any): T {
   if (!obj || typeof obj !== 'object') return obj;
 
@@ -41,23 +43,23 @@ function safeConvertTimestamps<T>(obj: any): T {
   for (const key of Object.keys(result)) {
     const value = result[key];
 
-    // 🔹 Se for Timestamp do Firestore → converte com VALIDAÇÃO
+    // 1. Se for uma instância oficial de Timestamp do Firestore
     if (value instanceof Timestamp) {
       try {
         const date = value.toDate();
         if (!isNaN(date.getTime())) {
-          result[key] = date; // ✅ Válida → converte
+          result[key] = date;
         } else {
           console.warn(`⚠️ Timestamp inválido no campo "${key}":`, value);
-          result[key] = null; // ❌ Inválida → define como null
+          result[key] = null;
         }
       } catch {
         console.warn(`⚠️ Falha ao converter campo "${key}":`, value);
         result[key] = null;
       }
     }
-    // 🔹 Se vier como objeto { seconds, nanoseconds }
-    else if (value && typeof value === 'object' && 'seconds' in value) {
+    // 2. Se for um objeto puro com a estrutura { seconds, nanoseconds }
+    else if (value && typeof value === 'object' && 'seconds' in value && typeof value.seconds === 'number') {
       try {
         const date = new Date(value.seconds * 1000);
         if (!isNaN(date.getTime())) {
@@ -70,22 +72,15 @@ function safeConvertTimestamps<T>(obj: any): T {
         result[key] = null;
       }
     }
-    // 🔹 Se vier como string → valida
-    else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        result[key] = date;
-      }
-    }
+    // Strings como "2026-11-09" permanecem como string para não quebrar a formatação da UI
   }
 
   return result as T;
 }
 
-
 /**
- * Hook para assinar uma coleção ou query do Firestore em tempo real.
- * ✅ Com conversão SEGURA de Timestamps — NUNCA mais quebra com Invalid Time Value
+ * Hook customizado para assinar uma coleção ou query do Firestore em tempo real.
+ * Inclui tratamento seguro de Timestamps e emissão de erros de permissão.
  */
 export function useCollection<T = any>(
   target: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
@@ -110,11 +105,11 @@ export function useCollection<T = any>(
     const unsubscribe = onSnapshot(
       target,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        // ✅ AQUI ESTÁ A CORREÇÃO: Converte TODOS os campos de forma segura
+        // Converte os dados salvaguardando a estrutura original dos documentos
         const results = snapshot.docs.map((doc) => {
           const rawData = doc.data() as T;
           return {
-            ...safeConvertTimestamps<T>(rawData), // 🔑 Validação AQUI
+            ...safeConvertTimestamps<T>(rawData),
             id: doc.id,
           };
         });
