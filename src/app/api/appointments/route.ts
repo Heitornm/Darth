@@ -1,124 +1,107 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { adminDb } from '@/firebase/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-export async function POST(request: NextRequest) {
+/**
+ * Converte horário no formato "HH:mm" em minutos
+ */
+function timeToMinutes(timeStr: string): number {
+  if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return 0;
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+/**
+ * Converte minutos em string "HH:mm"
+ */
+function minutesToTime(mins: number): string {
+  const h = Math.floor(mins / 60).toString().padStart(2, '0');
+  const m = (mins % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+/**
+ * Rota GET para consultar os horários ocupados de um barbeiro em uma data específica.
+ * Aplica a regra de expiração de 10 minutos para 'aguardando_pagamento' e cancela automaticamente no banco.
+ */
+export async function GET(request: NextRequest) {
   try {
-    // Proteção para o ambiente de build
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date');
+    const barberId = searchParams.get('barberId');
+
+    if (!date || !barberId) {
+      return NextResponse.json({ error: 'Parâmetros obrigatórios ausentes (date, barberId).' }, { status: 400 });
+    }
+
     if (!adminDb) {
-      console.warn("⚠️ Firebase Admin não está inicializado. Ignorando durante o build.");
-      return NextResponse.json({ error: 'Serviço temporariamente indisponível' }, { status: 503 });
+      return NextResponse.json({ occupiedSlots: [] }, { status: 200 });
     }
 
-    const db = adminDb;
-    const body = await request.json();
-    const { 
-      clientId, 
-      userName, 
-      userEmail, 
-      serviceId, 
-      serviceName, 
-      price, 
-      date,
-      time,
-      durationMinutes = 30,
-      barberId = 'barbeiro1'
-    } = body;
+    const snapshot = await adminDb
+      .collection('appointments')
+      .where('date', '==', date)
+      .where('barberId', '==', barberId)
+      .get();
 
-    // 1. Validação de campos obrigatórios
-    if (!clientId || !date || !time || !serviceId) {
-      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
-    }
+    const occupiedSlotsSet = new Set<string>();
+    const nowMs = Date.now();
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    const updateBatch = adminDb.batch();
+    let hasUpdates = false;
 
-    // ✅ VALIDAÇÃO CRÍTICA: Bloquear horários que JÁ PASSARAM
-    const appointmentDate = new Date(`${date}T${time}:00`);
-    const agora = new Date();
-    
-    // Compara considerando o horário do servidor (UTC-3 / São Paulo)
-    if (appointmentDate <= agora) {
-      return NextResponse.json(
-        { error: 'Não é possível agendar para um horário que já passou. Escolha um horário futuro.' }, 
-        { status: 400 }
-      );
-    }
+    snapshot.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      const status = data.status;
 
-    const appointmentTimestamp = Timestamp.fromDate(appointmentDate);
-    let createdAppointmentId = '';
-
-    // 2. Transação Atômica: Garante que NINGUÉM ocupe o horário ao mesmo tempo
-    await adminDb.runTransaction(async (transaction) => {
-      const appointmentsRef = db.collection('appointments');
-
-      // Busca agendamentos para a mesma data simples ou por campo dataHora
-      const snapshot = await transaction.get(
-        appointmentsRef
-          .where('date', '==', date)
-          .where('barberId', '==', barberId)
-      );
-
-      const TEN_MINUTES_MS = 10 * 60 * 1000;
-
-      // Verifica se existe algum agendamento conflitante no mesmo horário
-      const hasConflict = snapshot.docs.some(doc => {
-        const data = doc.data();
-        const status = data.status;
-
-        // Ignora cancelados
-        if (status === 'cancelado' || status === 'canceled') {
-          return false;
-        }
-
-        // Se for aguardando_pagamento, checa se caducou (mais de 10 min atrás)
-        if (status === 'aguardando_pagamento' || status === 'pending' || status === 'pendente') {
-          const createdAt = data.createdAt?.toDate 
-            ? data.createdAt.toDate() 
-            : new Date(data.createdAt || Date.now());
-          
-          if (agora.getTime() - createdAt.getTime() > TEN_MINUTES_MS) {
-            return false; // Expirou, horário está livre!
-          }
-        }
-
-        // Se bater exatamente no mesmo horário do barbeiro
-        return data.time === time;
-      });
-
-      if (hasConflict) {
-        throw new Error('SLOT_OCCUPIED');
+      // 1. Ignora agendamentos cancelados
+      if (status === 'cancelado' || status === 'canceled') {
+        return;
       }
 
-      // 3. Gravação segura dentro da transação
-      const newDocRef = appointmentsRef.doc();
-      createdAppointmentId = newDocRef.id;
-      transaction.set(newDocRef, {
-        clientId,
-        userName,
-        userEmail,
-        serviceId,
-        serviceName,
-        price: Number(price),
-        date,
-        time,
-        dataHora: appointmentTimestamp,
-        durationMinutes: Number(durationMinutes),
-        barberId,
-        status: 'aguardando_pagamento',
-        createdAt: Timestamp.fromDate(agora),
-      });
+      // 2. Regra dos 10 minutos para agendamentos aguardando pagamento
+      if (status === 'aguardando_pagamento') {
+        let createdAtMs = 0;
+        if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+          createdAtMs = data.createdAt.toDate().getTime();
+        } else if (data.createdAt && typeof data.createdAt.seconds === 'number') {
+          createdAtMs = data.createdAt.seconds * 1000;
+        }
+
+        // Se o pagamento não ocorreu em 10 minutos, cancela a reserva no Firestore e libera a agenda
+        if (createdAtMs > 0 && (nowMs - createdAtMs) > TEN_MINUTES_MS) {
+          updateBatch.update(docSnap.ref, {
+            status: 'cancelado',
+            cancellationReason: 'Tempo de pagamento expirado (10 min)',
+            updatedAt: Timestamp.now()
+          });
+          hasUpdates = true;
+          return;
+        }
+      }
+
+      // 3. Mapeia os blocos ocupados conforme a duração do serviço
+      const startTime = data.time;
+      if (!startTime || !/^\d{2}:\d{2}$/.test(startTime)) return;
+
+      const duration = Number(data.durationMinutes) || 30;
+      const startMins = timeToMinutes(startTime);
+      const endMins = startMins + duration;
+
+      for (let currentMins = startMins; currentMins < endMins; currentMins += 30) {
+        occupiedSlotsSet.add(minutesToTime(currentMins));
+      }
     });
 
-    return NextResponse.json(
-      { success: true, appointmentId: createdAppointmentId }, 
-      { status: 201 }
-    );
-  } catch (error: any) {
-    if (error.message === 'SLOT_OCCUPIED') {
-      return NextResponse.json(
-        { error: 'Este horário acabou de ser preenchido por outro cliente. Por favor, escolha outro horário.' }, 
-        { status: 409 }
-      );
+    // Atualiza em lote os agendamentos expirados no Firestore
+    if (hasUpdates) {
+      updateBatch.commit().catch(err => console.error("Erro ao atualizar agendamentos expirados em lote:", err));
     }
-    console.error('Erro na API de Agendamentos:', error);
-    return NextResponse.json({ error: 'Erro interno ao processar o agendamento.' }, { status: 500 });
+
+    return NextResponse.json({ occupiedSlots: Array.from(occupiedSlotsSet) }, { status: 200 });
+
+  } catch (err) {
+    console.error('Erro em /api/appointments/slots:', err);
+    return NextResponse.json({ occupiedSlots: [] }, { status: 200 });
   }
 }
