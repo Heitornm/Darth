@@ -1,8 +1,9 @@
 "use client";
+
 import { useState, useEffect, useMemo } from 'react';
 import { useFirebase } from '@/firebase';
 import { Timestamp } from 'firebase/firestore';
-import { format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -13,11 +14,15 @@ import {
   FiCalendar as Calendar,
   FiXCircle as XCircle,
   FiAlertCircle as AlertCircle,
-  FiUser as User
+  FiUser as User,
+  FiCheckCircle as CheckCircle,
+  FiTrendingUp as TrendingUp,
+  FiDollarSign as DollarSign
 } from 'react-icons/fi';
 
+// Identificadores para validação do Barbeiro Proprietário
 const BARBER_UIDS = ['2cAVs3U9ciV3NiqApJuOlYGEJS32'];
-const BARBER_EMAIL = ["heitormartins@email.com", "darthbarbers@email.com"];
+const BARBER_EMAIL = ["heitormartins@gmail.com", "heitormartins@email.com", "darthbarbers@email.com"];
 const BARBER_ID_ALIASES = ['barbeiro1', 'barbeiro_1', 'main'];
 
 type PeriodMode = 'upcoming' | 'day' | 'week' | 'month';
@@ -36,6 +41,7 @@ interface Appointment {
   createdAt?: Timestamp | { seconds: number };
 }
 
+// Status de agendamentos que necessitam da ação do barbeiro
 const PENDING_STATUSES = [
   'aguardando_pagamento',
   'pagamento_confirmado',
@@ -43,6 +49,49 @@ const PENDING_STATUSES = [
   'pagamento_processando'
 ];
 
+const startOfDay = (date: Date) => {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const endOfDay = (date: Date) => {
+  const result = new Date(date);
+  result.setHours(23, 59, 59, 999);
+  return result;
+};
+
+const startOfWeek = (date: Date, options: { weekStartsOn: number }) => {
+  const result = startOfDay(date);
+  const daysSinceStart = (result.getDay() - options.weekStartsOn + 7) % 7;
+  result.setDate(result.getDate() - daysSinceStart);
+  return result;
+};
+
+const endOfWeek = (date: Date, options: { weekStartsOn: number }) => {
+  const result = startOfWeek(date, options);
+  result.setDate(result.getDate() + 6);
+  return endOfDay(result);
+};
+
+const startOfMonth = (date: Date) => {
+  const result = startOfDay(date);
+  result.setDate(1);
+  return result;
+};
+
+const endOfMonth = (date: Date) => {
+  const result = startOfMonth(date);
+  result.setMonth(result.getMonth() + 1, 0);
+  return endOfDay(result);
+};
+
+const isToday = (date: Date) => startOfDay(date).getTime() === startOfDay(new Date()).getTime();
+
+/**
+ * Dashboard Administrativa do Barbeiro Proprietário
+ * Exibe métricas de faturamento, agendamentos pendentes de aprovação e lista de serviços por período.
+ */
 export default function BarberDashboardPage() {
   const { user, appointments, isAppointmentsLoading } = useFirebase();
   const [periodMode, setPeriodMode] = useState<PeriodMode>('upcoming');
@@ -52,6 +101,7 @@ export default function BarberDashboardPage() {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Valida se o usuário logado possui permissões de Barbeiro
   const isBarber = useMemo(() => {
     if (!user) return false;
     const isUid = BARBER_UIDS.includes(user.uid);
@@ -59,6 +109,7 @@ export default function BarberDashboardPage() {
     return isUid || isEmail;
   }, [user]);
 
+  // Filtra agendamentos vinculados ao barbeiro solo
   const belongsToMe = useMemo(() => {
     return (apt?: Appointment): boolean => {
       if (!apt) return false;
@@ -73,6 +124,7 @@ export default function BarberDashboardPage() {
     return (appointments || []).filter(belongsToMe);
   }, [appointments, belongsToMe]);
 
+  // Agendamentos pendentes de confirmação (sempre exibidos em destaque)
   const pendingConfirmation = useMemo(() => {
     return myAppointments.filter(apt =>
       PENDING_STATUSES.includes(apt.status || '')
@@ -85,6 +137,7 @@ export default function BarberDashboardPage() {
     });
   }, [myAppointments]);
 
+  // Define o intervalo de datas conforme a aba selecionada (Hoje, Semana, Mês ou Próximos)
   const periodRange = useMemo(() => {
     const baseDate = new Date(`${referenceDate}T00:00:00`);
     switch (periodMode) {
@@ -99,6 +152,7 @@ export default function BarberDashboardPage() {
     }
   }, [periodMode, referenceDate]);
 
+  // Agendamentos filtrados pelo período selecionado
   const filteredAppointments = useMemo(() => {
     return myAppointments.filter(apt => {
       if (!apt.date) return false;
@@ -115,8 +169,9 @@ export default function BarberDashboardPage() {
     });
   }, [myAppointments, periodRange]);
 
+  // Cálculo das métricas de desempenho e faturamento
   const metrics = useMemo(() => {
-    const completed = filteredAppointments.filter(a => a.status === 'concluido');
+    const completed = filteredAppointments.filter(a => a.status === 'concluido' || a.status === 'confirmado');
     const totalRevenue = completed.reduce((sum, a) => sum + (a.price || 0), 0);
     const canceled = filteredAppointments.filter(a => a.status === 'cancelado').length;
     const cancellationRate = filteredAppointments.length > 0
@@ -125,6 +180,7 @@ export default function BarberDashboardPage() {
     return { completedCount: completed.length, totalRevenue, canceled, cancellationRate, totalCount: filteredAppointments.length };
   }, [filteredAppointments]);
 
+  // Função para confirmar um agendamento pendente
   const confirmAppointment = async (appointmentId: string) => {
     if (!confirm("Confirmar este agendamento? O cliente será notificado.")) return;
     setConfirmingId(appointmentId);
@@ -138,7 +194,7 @@ export default function BarberDashboardPage() {
       if (res.ok) {
         alert('✅ Agendamento CONFIRMADO! Notificação enviada ao cliente.');
       } else {
-        alert(`Erro: ${result.error || 'Tente novamente'}`);
+        alert(`Erro: ${result.error || 'Não foi possível confirmar o agendamento'}`);
       }
     } catch {
       alert('Erro de conexão. Tente novamente.');
@@ -155,7 +211,7 @@ export default function BarberDashboardPage() {
       case 'confirmado': return '✅ Confirmado';
       case 'concluido': return '✅ Concluído';
       case 'cancelado': return '❌ Cancelado';
-      default: return status || 'Desconhecido';
+      default: return status || 'Pendente';
     }
   };
 
@@ -163,17 +219,17 @@ export default function BarberDashboardPage() {
     switch (status) {
       case 'pagamento_confirmado':
       case 'aguardando_barbeiro':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 font-bold';
+        return 'bg-amber-500/20 text-amber-500 border border-amber-500/30 font-bold';
       case 'aguardando_pagamento':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
       case 'confirmado':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        return 'bg-green-500/20 text-green-400 border border-green-500/30';
       case 'concluido':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
+        return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
       case 'cancelado':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        return 'bg-red-500/20 text-red-400 border border-red-500/30';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-500/20 text-gray-400';
     }
   };
 
@@ -190,31 +246,36 @@ export default function BarberDashboardPage() {
   };
 
   if (!mounted || isAppointmentsLoading) {
-    return <div className="p-20 text-center animate-pulse text-xl">Carregando painel...</div>;
+    return <div className="p-20 text-center animate-pulse text-xl text-primary font-headline">Carregando painel administrativo...</div>;
   }
 
   if (!user || !isBarber) {
     return (
-      <div className="container mx-auto p-20 text-center">
-        <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Acesso Restrito</h2>
-        <p className="text-muted-foreground">Esta área é exclusiva para o barbeiro.</p>
+      <div className="container mx-auto p-20 text-center max-w-lg">
+        <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold font-headline mb-2">Acesso Restrito</h2>
+        <p className="text-muted-foreground">Esta área é de acesso exclusivo do barbeiro proprietário.</p>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
+      {/* CABEÇALHO DO PAINEL */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Painel do Barbeiro</h1>
+          <h1 className="text-3xl font-bold font-headline text-primary flex items-center gap-2">
+            <TrendingUp className="w-7 h-7" /> Painel do Barbeiro
+          </h1>
           <p className="text-muted-foreground">
-            {periodMode === 'upcoming' ? '📅 Próximos agendamentos por horário' : 'Serviços filtrados por período'}
+            {periodMode === 'upcoming' ? '📅 Próximos atendimentos organizados por horário' : 'Gestão de atendimentos e desempenho por período'}
           </p>
         </div>
+        
+        {/* FILTROS DE PERÍODO */}
         <div className="flex gap-2 items-center flex-wrap">
           <Tabs value={periodMode} onValueChange={(v) => setPeriodMode(v as PeriodMode)}>
-            <TabsList>
+            <TabsList className="bg-card border border-border">
               <TabsTrigger value="upcoming">📅 Próximos</TabsTrigger>
               <TabsTrigger value="day">Hoje</TabsTrigger>
               <TabsTrigger value="week">Semana</TabsTrigger>
@@ -226,84 +287,120 @@ export default function BarberDashboardPage() {
               type="date"
               value={referenceDate}
               onChange={(e) => setReferenceDate(e.target.value)}
-              className="w-auto"
+              className="w-auto bg-card border-border"
             />
           )}
         </div>
       </div>
 
-      {pendingConfirmation.length > 0 && (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg shadow-lg animate-pulse">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-8 h-8 text-red-600 shrink-0" />
+      {/* METRICAS FINANCEIRAS E DE ATENDIMENTO */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border-border/60 bg-card/60">
+          <CardContent className="pt-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-red-800">
-                ⚠️ {pendingConfirmation.length} AGENDAMENTO(S) PENDENTE(S) DE CONFIRMAÇÃO
-              </h2>
-              <p className="text-red-600">Pagamento confirmado — confirme o quanto antes para notificar o cliente!</p>
+              <p className="text-xs text-muted-foreground font-semibold uppercase">Faturamento (Período)</p>
+              <p className="text-2xl font-bold text-green-500 mt-1">R$ {metrics.totalRevenue.toFixed(2)}</p>
             </div>
-          </div>
-        </div>
-      )}
+            <div className="p-3 bg-green-500/10 text-green-500 rounded-xl">
+              <DollarSign className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-border/60 bg-card/60">
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase">Atendimentos Realizados</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{metrics.completedCount}</p>
+            </div>
+            <div className="p-3 bg-primary/10 text-primary rounded-xl">
+              <Scissors className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
 
+        <Card className="border-border/60 bg-card/60">
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase">Pendentes de Aprovação</p>
+              <p className="text-2xl font-bold text-amber-500 mt-1">{pendingConfirmation.length}</p>
+            </div>
+            <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 bg-card/60">
+          <CardContent className="pt-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase">Taxa de Cancelamento</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{metrics.cancellationRate}%</p>
+            </div>
+            <div className="p-3 bg-red-500/10 text-red-500 rounded-xl">
+              <XCircle className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* BLOCO DE ALERTAS - AGENDAMENTOS PENDENTES DE CONFIRMAÇÃO */}
       {pendingConfirmation.length > 0 && (
-        <Card className="border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20 shadow-md">
+        <Card className="border-2 border-amber-500/50 bg-amber-500/10 shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
-              <div className="relative">
-                <AlertCircle className="w-6 h-6" />
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {pendingConfirmation.length}
-                </span>
-              </div>
-              Aguardando Sua Confirmação
+            <CardTitle className="flex items-center gap-2 text-amber-500 font-headline">
+              <AlertCircle className="w-6 h-6" />
+              Agendamentos Aguardando Sua Confirmação ({pendingConfirmation.length})
             </CardTitle>
-            <CardDescription className="text-amber-700 dark:text-amber-300">
-              Estes agendamentos já foram pagos — clique em Confirmar para oficializar
+            <CardDescription className="text-amber-600 dark:text-amber-400">
+              Pagamentos já confirmados pelo sistema — clique em Confirmar para notificar o cliente.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {pendingConfirmation.map(apt => (
-                <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-800 shadow-sm">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(apt.status)}`}>
+                <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-card rounded-xl border border-amber-500/30">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(apt.status)}`}>
                         {getStatusLabel(apt.status)}
                       </span>
                     </div>
-                    <p className="font-semibold text-lg flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      {apt.userName || 'Cliente sem nome'}
+                    <p className="font-bold text-lg flex items-center gap-2">
+                      <User className="w-4 h-4 text-primary" />
+                      {apt.userName || 'Cliente'}
                     </p>
-                    <p className="text-sm text-muted-foreground flex gap-4 flex-wrap">
+                    <div className="text-sm text-muted-foreground flex gap-4 flex-wrap">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
+                        <Calendar className="w-4 h-4 text-primary" />
                         {formatAppointmentDate(apt.date)}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        às {apt.time || 'Horário não informado'}
+                        <Clock className="w-4 h-4 text-primary" />
+                        às {apt.time || 'Horário n/i'}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Scissors className="w-4 h-4" />
-                        {apt.serviceName || 'Serviço'}
+                        <Scissors className="w-4 h-4 text-primary" />
+                        {apt.serviceName}
                       </span>
-                      <span className="font-bold text-green-600 text-lg">
-                        Valor: R$ {(apt.price || 0).toFixed(2)}
+                      <span className="font-bold text-green-500">
+                        R$ {(apt.price || 0).toFixed(2)}
                       </span>
-                    </p>
+                    </div>
                   </div>
+
                   <Button
                     onClick={() => confirmAppointment(apt.id!)}
                     disabled={confirmingId === apt.id}
-                    className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap text-base px-6"
-                    size="lg"
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-5 rounded-xl"
                   >
                     {confirmingId === apt.id ? (
                       <>⏳ Confirmando...</>
                     ) : (
-                      <>✅ Confirmar Agendamento</>
+                      <>
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        Confirmar Agendamento
+                      </>
                     )}
                   </Button>
                 </div>
@@ -313,74 +410,54 @@ export default function BarberDashboardPage() {
         </Card>
       )}
 
-      <Card>
+      {/* LISTAGEM DOS AGENDAMENTOS DO PERÍODO */}
+      <Card className="border-border/60 bg-card/40">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-600" />
-            {periodMode === 'upcoming' ? 'Próximos Agendamentos' : 'Agendamentos do Período'}
+          <CardTitle className="flex items-center gap-2 font-headline">
+            <Calendar className="w-5 h-5 text-primary" />
+            {periodMode === 'upcoming' ? 'Próximos Agendamentos Confirmados' : 'Agendamentos do Período'}
             <span className="text-sm font-normal text-muted-foreground">({filteredAppointments.length})</span>
           </CardTitle>
           <CardDescription>
             {periodMode === 'upcoming' 
-              ? 'Ordenados por horário — do mais próximo ao mais distante'
-              : `Visualizando: ${periodMode === 'day' ? 'Dia' : periodMode === 'week' ? 'Semana' : 'Mês'} selecionado`
+              ? 'Organizados em ordem cronológica'
+              : `Exibindo agendamentos para o filtro selecionado`
             }
           </CardDescription>
         </CardHeader>
         <CardContent>
           {filteredAppointments.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6">Nenhum agendamento encontrado neste período.</p>
+            <p className="text-center text-muted-foreground py-8">Nenhum agendamento encontrado para este período.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {filteredAppointments.map(apt => (
-                <div key={apt.id} className="flex flex-wrap items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800 transition-colors">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(apt.status)}`}>
+                <div key={apt.id} className="flex flex-wrap items-center gap-4 p-4 bg-card rounded-xl border border-border/60 hover:border-primary/40 transition-colors">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(apt.status)}`}>
                     {getStatusLabel(apt.status)}
                   </span>
-                  <span className="font-medium">{apt.userName || 'Cliente'}</span>
+                  
+                  <span className="font-bold">{apt.userName || 'Cliente'}</span>
                   <span className="text-muted-foreground">{apt.serviceName}</span>
-                  <span className="text-sm flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                  
+                  <span className="text-sm flex items-center gap-1 text-muted-foreground">
+                    <Calendar className="w-4 h-4 text-primary" />
                     {formatAppointmentDate(apt.date)}
                   </span>
-                  <span className="text-sm flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
+                  
+                  <span className="text-sm flex items-center gap-1 text-muted-foreground">
+                    <Clock className="w-4 h-4 text-primary" />
                     às {apt.time}
                   </span>
-                  <span className="font-bold text-green-600 ml-auto">R$ {(apt.price || 0).toFixed(2)}</span>
+                  
+                  <span className="font-bold text-green-500 ml-auto text-base">
+                    R$ {(apt.price || 0).toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Faturamento</p>
-            <p className="text-2xl font-bold text-green-600">R$ {metrics.totalRevenue.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Atendimentos Concluídos</p>
-            <p className="text-2xl font-bold">{metrics.completedCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Taxa de Cancelamento</p>
-            <p className="text-2xl font-bold">{metrics.cancellationRate}%</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Pendentes</p>
-            <p className="text-2xl font-bold text-amber-600">{pendingConfirmation.length}</p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

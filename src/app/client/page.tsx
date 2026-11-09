@@ -5,23 +5,28 @@ import { FiCalendar as Calendar, FiList as ListChecks } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useUser } from '@/firebase';
-
 import { BookingCalendarView } from '@/components/features/appointments/BookingCalendarView';
 
+/**
+ * Painel Inicial do Cliente
+ * Exibe saudações, acesso rápido a novos agendamentos, histórico e calendário de disponibilidade.
+ */
 export default function ClientHomePage() {
   const { user } = useUser();
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl space-y-10">
+      {/* Cabeçalho de Boas-vindas */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-headline font-bold text-primary">
           Olá, {user?.displayName || 'Cliente'}! ✂️
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Tudo pronto para cuidar do seu visual? Agende seu horário com facilidade, acompanhe seus atendimentos e garanta o melhor atendimento.
+          Tudo pronto para renovar o visual? Agende seu horário com facilidade e acompanhe seus agendamentos.
         </p>
       </div>
 
+      {/* Atalhos Principais de Navegação */}
       <div className="grid md:grid-cols-2 gap-6">
         <Button asChild size="lg" className="h-20 text-lg gap-3">
           <Link href="/client/appointments/new">
@@ -30,13 +35,14 @@ export default function ClientHomePage() {
         </Button>
         <Button asChild variant="outline" size="lg" className="h-20 text-lg gap-3">
           <Link href="/client/appointments">
-            <ListChecks className="w-6 h-6" /> Meus Agendamentos / Histórico
+            <ListChecks className="w-6 h-6" /> Meus Agendamentos
           </Link>
         </Button>
       </div>
 
+      {/* Calendário de Disponibilidade Geral */}
       <Card className="p-6 border-primary/20 bg-card/40">
-        <h2 className="text-2xl font-headline font-bold mb-4 text-center">Ver Dias e Horários Disponíveis</h2>
+        <h2 className="text-2xl font-headline font-bold mb-4 text-center">Dias e Horários Disponíveis</h2>
         <BookingCalendarView />
       </Card>
     </div>
