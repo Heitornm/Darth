@@ -1,20 +1,21 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 /**
- * Inicialização segura do Firebase Admin SDK no ambiente Serverless da Vercel (Next.js / Turbopack).
+ * Inicialização segura do Firebase Admin SDK no ambiente Serverless da Vercel.
+ * Carrega a credencial via JSON (FIREBASE_SERVICE_ACCOUNT_KEY) ou variáveis individuais.
  */
 function getAdminApp() {
   if (getApps().length > 0) {
-    return getApps()[0]!;
+    return getApp();
   }
 
-  // Opção A: Chave JSON completa via variável de ambiente privada na Vercel
+  // 1. Tenta carregar a Service Account completa do JSON via variável de ambiente
   const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (serviceAccountVar) {
     try {
-      const serviceAccount = typeof serviceAccountVar === 'string' 
-        ? JSON.parse(serviceAccountVar) 
+      const serviceAccount = typeof serviceAccountVar === 'string'
+        ? JSON.parse(serviceAccountVar)
         : serviceAccountVar;
 
       return initializeApp({
@@ -25,7 +26,7 @@ function getAdminApp() {
     }
   }
 
-  // Opção B: Variáveis individuais de chave privada
+  // 2. Tenta carregar variáveis de chave privada individuais
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
     ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     : undefined;
@@ -42,9 +43,10 @@ function getAdminApp() {
     });
   }
 
-  // Opção C: Fallback básico por ID do projeto
+  // 3. Fallback seguro: Inicialização sem credencial administrativa (apenas leitura pública)
+  console.warn("⚠️ [Firebase Admin] Nenhuma credencial de Service Account encontrada. Configure FIREBASE_SERVICE_ACCOUNT_KEY na Vercel.");
   return initializeApp({
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'darthbarber-default',
   });
 }
 
