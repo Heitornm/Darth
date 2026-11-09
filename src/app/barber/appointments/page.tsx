@@ -5,14 +5,19 @@ import { useFirebase } from '@/firebase';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  FiCalendar as Calendar, 
-  FiClock as Clock, 
-  FiScissors as Scissors, 
-  FiUser as User, 
-  FiCheckCircle as CheckCircle, 
-  FiXCircle as XCircle, 
-  FiLoader as Loader2
+import {
+  FiCalendar as Calendar,
+  FiClock as Clock,
+  FiScissors as Scissors,
+  FiUser as User,
+  FiCheckCircle as CheckCircle,
+  FiXCircle as XCircle,
+  FiAlertCircle as AlertCircle,
+  FiLoader as Loader2,
+  FiChevronDown as ChevronDown,
+  FiChevronUp as ChevronUp,
+  FiMail as Mail,
+  FiInfo as Info
 } from 'react-icons/fi';
 
 const BARBER_UIDS = ['2cAVs3U9ciV3NiqApJuOlYGEJS32'];
@@ -23,28 +28,46 @@ interface Appointment {
   barberId?: string;
   clientId?: string;
   userName?: string;
+  userEmail?: string;
   serviceName?: string;
   date?: string;
   time?: string;
   status?: string;
   price?: number;
+  durationMinutes?: number;
+  createdAt?: any;
 }
 
 /**
- * Página de Gestão de Solicitacões de Agendamentos (Painel do Barbeiro)
- * Permite aprovar, concluir ou cancelar reservas de horários dos clientes.
+ * Página de Gestão de Solicitações de Agendamentos (Painel do Barbeiro Solo)
+ * Exibe lista expansível de cards com status dinâmicos (incluindo agendamentos vencidos)
+ * e opções para confirmar ou cancelar solicitações.
  */
 export default function BarberAppointmentsPage() {
   const { user, appointments, isAppointmentsLoading } = useFirebase();
   const [processandoId, setProcessandoId] = useState<string | null>(null);
+  const [cardExpandidoId, setCardExpandidoId] = useState<string | null>(null);
 
-  // Validação de acesso do barbeiro
+  const agora = useMemo(() => new Date(), []);
+
+  // Validação de acesso do barbeiro proprietário
   const isBarber = useMemo(() => {
     if (!user) return false;
     return BARBER_UIDS.includes(user.uid) || BARBER_EMAIL.some(e => user.email?.toLowerCase() === e.toLowerCase());
   }, [user]);
 
-  // Ordena os agendamentos por data e horário (mais recentes/próximos primeiro)
+  // Auxiliar para determinar se o agendamento já passou da data e horário atuais
+  const isAgendamentoVencido = (dateStr?: string, timeStr?: string): boolean => {
+    if (!dateStr || !timeStr) return false;
+    try {
+      const dataHoraAgendamento = new Date(`${dateStr}T${timeStr}:00`);
+      return dataHoraAgendamento < agora;
+    } catch {
+      return false;
+    }
+  };
+
+  // Ordena os agendamentos por data e horário (mais recentes primeiro)
   const sortedAppointments = useMemo(() => {
     return [...(appointments || [])].sort((a, b) => {
       try {
@@ -55,30 +78,66 @@ export default function BarberAppointmentsPage() {
     });
   }, [appointments]);
 
-  // Executa a confirmação manual do agendamento
-  const handleConfirm = async (appointmentId: string) => {
-    if (!confirm("Deseja confirmar este agendamento?")) return;
+  // Alterna a visualização detalhada do card ao clicar nele
+  const toggleExpandirCard = (id?: string) => {
+    if (!id) return;
+    setCardExpandidoId(prev => prev === id ? null : id);
+  };
+
+  // Executa a confirmação do agendamento
+  const handleConfirm = async (e: React.MouseEvent, appointmentId: string) => {
+    e.stopPropagation(); // Evita expandir/recolher o card ao clicar no botão
+    if (!confirm("Deseja confirmar este agendamento? O cliente será notificado.")) return;
     setProcessandoId(appointmentId);
     try {
       const res = await fetch('/api/barber/confirm-appointment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId })
+        body: JSON.stringify({ appointmentId, action: 'approve' })
       });
       if (res.ok) {
         alert("✅ Agendamento confirmado com sucesso!");
       } else {
-        alert("Erro ao confirmar agendamento.");
+        const errData = await res.json();
+        alert(`Erro: ${errData.error || 'Não foi possível confirmar o agendamento.'}`);
       }
     } catch {
-      alert("Erro de conexão.");
+      alert("Erro de conexão ao servidor.");
+    } finally {
+      setProcessandoId(null);
+    }
+  };
+
+  // Executa o cancelamento da solicitação (inclusive as vencidas)
+  const handleCancel = async (e: React.MouseEvent, appointmentId: string) => {
+    e.stopPropagation(); // Evita expandir/recolher o card ao clicar no botão
+    if (!confirm("Tem certeza que deseja cancelar esta solicitação de agendamento?")) return;
+    setProcessandoId(appointmentId);
+    try {
+      const res = await fetch('/api/barber/confirm-appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, action: 'cancel' })
+      });
+      if (res.ok) {
+        alert("❌ Solicitação cancelada com sucesso.");
+      } else {
+        const errData = await res.json();
+        alert(`Erro: ${errData.error || 'Não foi possível cancelar o agendamento.'}`);
+      }
+    } catch {
+      alert("Erro de conexão ao servidor.");
     } finally {
       setProcessandoId(null);
     }
   };
 
   if (isAppointmentsLoading) {
-    return <div className="p-20 text-center animate-pulse text-primary font-headline">Carregando agendamentos...</div>;
+    return (
+      <div className="p-20 text-center animate-pulse text-primary font-headline flex items-center justify-center gap-2">
+        <Loader2 className="w-6 h-6 animate-spin" /> Carregando lista de agendamentos...
+      </div>
+    );
   }
 
   if (!user || !isBarber) {
@@ -86,82 +145,178 @@ export default function BarberAppointmentsPage() {
       <div className="container mx-auto p-20 text-center max-w-lg">
         <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold font-headline mb-2">Acesso Restrito</h2>
-        <p className="text-muted-foreground">Esta área é restrita ao barbeiro proprietário.</p>
+        <p className="text-muted-foreground">Esta área é de acesso exclusivo do barbeiro proprietário.</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl space-y-6">
+    <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold font-headline text-primary flex items-center gap-2">
-          <Calendar className="w-7 h-7" /> Gestão de Agendamentos
+          <Calendar className="w-7 h-7" /> Gestão de Solicitacões
         </h1>
         <p className="text-muted-foreground">
-          Acompanhe e confirme todas as reservas efetuadas pelos clientes.
+          Clique sobre qualquer agendamento para visualizar os detalhes completos.
         </p>
       </div>
 
       <div className="space-y-4">
         {sortedAppointments.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground border-border/60">
-            Nenhum agendamento cadastrado no sistema.
+            Nenhum agendamento encontrado no banco de dados.
           </Card>
         ) : (
-          sortedAppointments.map((apt: Appointment) => (
-            <Card key={apt.id} className="border-border/60 bg-card/60">
-              <CardContent className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                      Status: {apt.status || 'Pendente'}
-                    </span>
+          sortedAppointments.map((apt: Appointment) => {
+            const vencido = isAgendamentoVencido(apt.date, apt.time) && apt.status !== 'confirmado' && apt.status !== 'concluido' && apt.status !== 'cancelado';
+            const isExpanded = cardExpandidoId === apt.id;
+
+            return (
+              <Card
+                key={apt.id}
+                onClick={() => toggleExpandirCard(apt.id)}
+                className={`border-border/60 transition-all cursor-pointer hover:border-primary/50 select-none ${vencido ? 'bg-red-950/10 border-red-500/30' : 'bg-card/70'
+                  }`}
+              >
+                <CardContent className="p-5 space-y-4">
+                  {/* CABEÇALHO DO CARD - RESUMO PRINCIPAL */}
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {vencido ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/40 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" /> Solicitação Vencida
+                          </span>
+                        ) : (
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${apt.status === 'confirmado' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                              apt.status === 'concluido' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                apt.status === 'cancelado' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                                  'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                            }`}>
+                            Status: {apt.status || 'Pendente'}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <User className="w-5 h-5 text-primary" />
+                        {apt.userName || 'Cliente sem nome'}
+                      </h3>
+
+                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Scissors className="w-4 h-4 text-primary" />
+                          {apt.serviceName || 'Serviço'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          {apt.date ? format(parseISO(apt.date), 'dd/MM/yyyy') : 'Data n/i'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4 text-primary" />
+                          às {apt.time || 'Horário n/i'}
+                        </span>
+                        <span className="font-bold text-green-500 text-base">
+                          R$ {(apt.price || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* GRUPO DE BOTÕES DE AÇÃO */}
+                    <div className="flex items-center gap-2 w-full md:w-auto justify-end" onClick={(e) => e.stopPropagation()}>
+                      {vencido ? (
+                        <>
+                          <Button
+                            variant="secondary"
+                            disabled
+                            size="sm"
+                            className="bg-muted/50 text-muted-foreground opacity-70"
+                          >
+                            ⚠️ Horário Vencido
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => handleCancel(e, apt.id!)}
+                            disabled={processandoId === apt.id}
+                            className="font-semibold"
+                          >
+                            {processandoId === apt.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Cancelar Solicitação
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          {apt.status !== 'confirmado' && apt.status !== 'concluido' && apt.status !== 'cancelado' && (
+                            <>
+                              <Button
+                                onClick={(e) => handleConfirm(e, apt.id!)}
+                                disabled={processandoId === apt.id}
+                                className="bg-green-600 hover:bg-green-700 text-white font-semibold"
+                                size="sm"
+                              >
+                                {processandoId === apt.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    Confirmar
+                                  </>
+                                )}
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => handleCancel(e, apt.id!)}
+                                disabled={processandoId === apt.id}
+                                className="border-red-500/40 text-red-400 hover:bg-red-500/10"
+                              >
+                                Cancelar
+                              </Button>
+                            </>
+                          )}
+                        </>
+                      )}
+
+                      {/* ÍCONE DE INDICADOR DE EXPANSÃO DO CARD */}
+                      <div className="ml-2 text-muted-foreground">
+                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </div>
+                    </div>
                   </div>
 
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    <User className="w-5 h-5 text-primary" />
-                    {apt.userName || 'Cliente sem nome'}
-                  </h3>
-
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Scissors className="w-4 h-4 text-primary" />
-                      {apt.serviceName || 'Serviço'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      {apt.date ? format(parseISO(apt.date), 'dd/MM/yyyy') : 'Data n/i'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4 text-primary" />
-                      às {apt.time || 'Horário n/i'}
-                    </span>
-                    <span className="font-bold text-green-500 text-base">
-                      R$ {(apt.price || 0).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* AÇÕES DE GESTÃO DO BARBEIRO */}
-                {apt.status !== 'confirmado' && apt.status !== 'concluido' && (
-                  <Button
-                    onClick={() => handleConfirm(apt.id!)}
-                    disabled={processandoId === apt.id}
-                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-5 rounded-xl w-full md:w-auto"
-                  >
-                    {processandoId === apt.id ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                        Confirmar Agendamento
-                      </>
-                    )}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                  {/* PAINEL EXPANSÍVEL - INFORMAÇÕES DETALHADAS DO AGENDAMENTO */}
+                  {isExpanded && (
+                    <div className="pt-4 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground bg-accent/20 p-4 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Info className="w-4 h-4 text-primary shrink-0" />
+                        <span><strong>ID da Reserva:</strong> {apt.id}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-primary shrink-0" />
+                        <span><strong>E-mail do Cliente:</strong> {apt.userEmail || 'Não informado'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-primary shrink-0" />
+                        <span><strong>Duração Estimada:</strong> {apt.durationMinutes || 30} minutos</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-primary shrink-0" />
+                        <span><strong>ID do Barbeiro:</strong> {apt.barberId || 'barbeiro1'}</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>
