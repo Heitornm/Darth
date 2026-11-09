@@ -1,9 +1,8 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
 
 /**
- * Inicialização segura do Firebase Admin SDK no ambiente Serverless da Vercel.
+ * Inicialização segura do Firebase Admin SDK no ambiente Serverless da Vercel (Next.js / Turbopack).
  */
 function getAdminApp() {
   if (getApps().length > 0) {
@@ -51,6 +50,5 @@ function getAdminApp() {
 
 const adminApp = getAdminApp();
 const adminDb = getFirestore(adminApp);
-const adminAuth = getAuth(adminApp);
 
-export { adminApp, adminDb, adminAuth };
+export { adminApp, adminDb };
