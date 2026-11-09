@@ -1,35 +1,63 @@
-import { initializeApp, getApps, cert, getApp } from 'firebase-admin/app';
-import { getAuth, Auth } from 'firebase-admin/auth';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-let adminAuth: Auth | null = null;
-let adminDb: Firestore | null = null;
+/**
+ * Inicialização segura do Firebase Admin SDK no ambiente Node.js Serverless (Vercel).
+ */
+function getAdminApp(): App {
+  // Se já existe uma instância iniciada, reutiliza-a
+  const apps = getApps();
+  if (apps.length > 0) {
+    return apps[0]!;
+  }
 
-try {
-  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT;
+  // Opção A: Chave JSON completa via variável de ambiente FIREBASE_SERVICE_ACCOUNT_KEY
+  const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (serviceAccountVar) {
+    try {
+      const serviceAccount = typeof serviceAccountVar === 'string' 
+        ? JSON.parse(serviceAccountVar) 
+        : serviceAccountVar;
 
-  if (rawKey) {
-    if (!getApps().length) {
-      // Trata possíveis quebras de linha que invalidam o JSON.parse em variáveis de ambiente
-      const formattedKey = rawKey.replace(/\\n/g, '\n');
-      const serviceAccount = typeof formattedKey === 'string' ? JSON.parse(formattedKey) : formattedKey;
-
-      const app = initializeApp({
+      return initializeApp({
         credential: cert(serviceAccount),
       });
-
-      adminAuth = getAuth(app);
-      adminDb = getFirestore(app);
-    } else {
-      const app = getApp();
-      adminAuth = getAuth(app);
-      adminDb = getFirestore(app);
+    } catch (e) {
+      console.error("❌ Erro ao parsear a variável FIREBASE_SERVICE_ACCOUNT_KEY:", e);
     }
-  } else {
-    console.warn('⚠️ [Firebase Admin] Variável FIREBASE_SERVICE_ACCOUNT não encontrada.');
   }
-} catch (error) {
-  console.error('⚠️ [Firebase Admin] Falha ao inicializar o Firebase Admin SDK:', error);
+
+  // Opção B: Variáveis individuais de chave privada
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    : undefined;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+  if (privateKey && clientEmail && projectId) {
+    return initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+  }
+
+  // Opção C: Tenta Application Default Credentials
+  try {
+    return initializeApp();
+  } catch (err) {
+    console.error("⚠️ [Firebase Admin] Falha ao inicializar com credenciais padrão. Verifique as variáveis no painel da Vercel.");
+    return initializeApp({
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    });
+  }
 }
 
-export { adminAuth, adminDb };
+const adminApp = getAdminApp();
+const adminDb = getFirestore(adminApp);
+const adminAuth = getAuth(adminApp);
+
+export { adminApp, adminDb, adminAuth };

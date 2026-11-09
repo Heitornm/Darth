@@ -4,23 +4,22 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Rota de API: Confirmação e Cancelamento de Agendamentos pelo Barbeiro
- * Atualiza o status do agendamento no Firestore e envia notificação de forma segura.
  */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { appointmentId, action = 'approve' } = body;
-    
-    // Validação da presença do ID do agendamento
+
+    // 1. Validação básica de entrada
     if (!appointmentId) {
-      return NextResponse.json({ error: 'ID do agendamento ausente.' }, { status: 400 });
+      return NextResponse.json({ error: 'ID do agendamento ausente no payload.' }, { status: 400 });
     }
 
-    // Validação do serviço do Firebase Admin no servidor
+    // 2. Validação da conexão com o Firestore Admin
     if (!adminDb) {
-      console.error('[CONFIRM API ERROR] Instância do adminDb não inicializada no servidor.');
-      return NextResponse.json({ 
-        error: 'Serviço do Firebase Admin indisponível no servidor. Verifique as variáveis de ambiente na Vercel.' 
+      console.error('[CONFIRM API ERROR] Instância adminDb indisponível.');
+      return NextResponse.json({
+        error: 'Instância do Firebase Admin indisponível no servidor. Verifique as credenciais no painel da Vercel.'
       }, { status: 503 });
     }
 
@@ -28,20 +27,20 @@ export async function POST(request: Request) {
     const appointmentSnap = await appointmentRef.get();
 
     if (!appointmentSnap.exists) {
-      return NextResponse.json({ error: 'Agendamento não localizado no banco de dados.' }, { status: 404 });
+      return NextResponse.json({ error: 'Agendamento não encontrado no banco de dados.' }, { status: 404 });
     }
 
     const appointmentData = appointmentSnap.data() || {};
     const clientName = appointmentData.userName || appointmentData.clientName || 'Cliente';
     const serviceName = appointmentData.serviceName || 'Serviço';
     const timeStr = appointmentData.time || '';
-    
+
     let dateStr = '';
     if (appointmentData.date && typeof appointmentData.date === 'string') {
       dateStr = appointmentData.date.split('-').reverse().join('/');
     }
 
-    // AÇÃO: CANCELAMENTO
+    // 3. AÇÃO: CANCELAMENTO DE SOLICITAÇÃO
     if (action === 'cancel') {
       await appointmentRef.update({
         status: 'cancelado',
@@ -49,40 +48,35 @@ export async function POST(request: Request) {
         updatedAt: Timestamp.now()
       });
 
-      // Tenta enviar notificação se houver ID de cliente válido
+      // Gravação opcional de notificação ao cliente
       if (appointmentData.clientId) {
         try {
           await adminDb.collection('notifications').add({
             toId: appointmentData.clientId,
             fromId: 'system',
             title: '❌ Agendamento Cancelado',
-            message: `Olá ${clientName}, o agendamento do serviço ${serviceName} para ${dateStr}${timeStr ? ` às ${timeStr}` : ''} foi cancelado pelo barbeiro.`,
+            message: `Olá ${clientName}, o agendamento de ${serviceName} para ${dateStr}${timeStr ? ` às ${timeStr}` : ''} foi cancelado pelo barbeiro.`,
             type: 'appointment_canceled',
             appointmentId: appointmentId,
             read: false,
             createdAt: Timestamp.now()
           });
-        } catch (notifErr) {
-          console.warn('[CONFIRM API WARNING] Não foi possível enviar notificação de cancelamento:', notifErr);
+        } catch (nErr) {
+          console.warn('[CONFIRM API WARNING] Falha ao salvar notificação:', nErr);
         }
       }
 
-      console.log(`❌ Agendamento ${appointmentId} cancelado pelo barbeiro.`);
-
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Solicitação cancelada com sucesso.' 
-      }, { status: 200 });
+      console.log(`❌ Agendamento ${appointmentId} cancelado.`);
+      return NextResponse.json({ success: true, message: 'Solicitação cancelada com sucesso.' }, { status: 200 });
     }
 
-    // AÇÃO: CONFIRMAÇÃO / APROVAÇÃO
+    // 4. AÇÃO: CONFIRMAÇÃO DE AGENDAMENTO
     await appointmentRef.update({
       status: 'confirmado',
       confirmedAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
 
-    // Tenta enviar notificação se houver ID de cliente válido
     if (appointmentData.clientId) {
       try {
         await adminDb.collection('notifications').add({
@@ -95,22 +89,19 @@ export async function POST(request: Request) {
           read: false,
           createdAt: Timestamp.now()
         });
-      } catch (notifErr) {
-        console.warn('[CONFIRM API WARNING] Não foi possível enviar notificação de confirmação:', notifErr);
+      } catch (nErr) {
+        console.warn('[CONFIRM API WARNING] Falha ao salvar notificação:', nErr);
       }
     }
 
-    console.log(`✅ Agendamento ${appointmentId} confirmado com sucesso!`);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Agendamento confirmado com sucesso!' 
-    }, { status: 200 });
+    console.log(`✅ Agendamento ${appointmentId} confirmado.`);
+    return NextResponse.json({ success: true, message: 'Agendamento confirmado com sucesso!' }, { status: 200 });
 
   } catch (error: any) {
     console.error('[CONFIRM API EXCEPTION]:', error);
-    return NextResponse.json({ 
-      error: 'Erro ao processar o agendamento no servidor.', 
+    // Devolve o detalhe exato do erro no payload JSON para fácil diagnóstico
+    return NextResponse.json({
+      error: 'Erro no servidor ao processar agendamento.',
       details: error?.message || String(error)
     }, { status: 500 });
   }
