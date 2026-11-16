@@ -1,81 +1,108 @@
 rules_version = '2';
+
+// DarthBarber - regras do Firestore (ETAPA 1)
+//
+// IMPORTANTE:
+// - As rotas /api usam o Admin SDK e IGNORAM estas regras. Elas precisam
+//   validar o login por conta própria (veja a Fase 1 da avaliação).
+// - Teste no Emulator Suite ou no "Playground de regras" antes de publicar.
+// - Se alguma tela ainda gravar direto em appointments/notifications,
+//   ela passará a receber permission-denied: migre-a para a API.
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ========== FUNÇÕES AUXILIARES DE SEGURANÇA ==========
-    
-    // Verifica se o usuário realizou autenticação
+    // ========== FUNÇÕES AUXILIARES ==========
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Verifica se o usuário autenticado é o dono do próprio documento
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Verifica se o usuário autenticado possui e-mail ou UID com privilégios de Barbeiro/Master
+    // Barbeiro/Master: UID (não pode ser forjado) ou custom claim "barber".
+    // Emails e o campo users/{uid}.role NÃO concedem mais privilégio.
     function isMaster() {
       return isAuthenticated() && (
-        request.auth.token.email == 'heitormartins@gmail.com' ||
-        request.auth.token.email == 'heitormartins@email.com' ||
-        request.auth.token.email == 'darthbarbers@email.com' ||
-        request.auth.token.email == 'darthbarber@gmail.com.br' ||
-        request.auth.uid == '2cAVs3U9ciV3NiqApJuOlYGEJS32' ||
-        request.auth.uid == 'eUCAkXknM1N0mcC04hCIfF3HcMk1' ||
-        request.auth.uid == 'wWlt2ixyjwfLqDHDQFFNQgaYfCT2' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'barber')
+        request.auth.token.get('barber', false) == true ||
+        request.auth.uid in [
+          '2cAVs3U9ciV3NiqApJuOlYGEJS32',
+          'eUCAkXknM1N0mcC04hCIfF3HcMk1',
+          'wWlt2ixyjwfLqDHDQFFNQgaYfCT2'
+        ]
       );
     }
 
-    // Valida alteração efetuada pelo cliente para solicitar cancelamento
-    function clientePodeCancelar() {
-      return request.resource.data.keys().hasOnly(['status', 'updatedAt']) &&
-             request.resource.data.status == 'solicitado_cancelamento';
+    // Campos que o próprio usuário pode alterar no perfil.
+    // 'role' fica de fora de propósito.
+    function onlyProfileFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name', 'email', 'phone', 'avatarUrl', 'themeColor', 'updatedAt']);
     }
 
-    // ========== COLEÇÃO: USUÁRIOS ==========
+    // ========== USUÁRIOS ==========
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isMaster();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && !request.resource.data.hasRole;
-      allow delete: if isMaster();
+
+      // Cria o próprio perfil, mas nunca como barbeiro/admin.
+      allow create: if isOwner(userId)
+        && (!('role' in request.resource.data)
+            || request.resource.data.role == 'client');
+
+      // Personalização: nome, contato, foto e cor do tema.
+      // avatarUrl aceita data URL pequena (foto reduzida no navegador).
+      allow update: if isOwner(userId)
+        && onlyProfileFieldsChanged()
+        && (!('themeColor' in request.resource.data)
+            || (request.resource.data.themeColor is string
+                && request.resource.data.themeColor.size() <= 20))
+        && (!('avatarUrl' in request.resource.data)
+            || (request.resource.data.avatarUrl is string
+                && request.resource.data.avatarUrl.size() <= 80000));
+
+      allow delete: if isOwner(userId) || isMaster();
     }
 
-    // ========== COLEÇÃO: AGENDAMENTOS ==========
+    // ========== AGENDAMENTOS ==========
+    // Criação e mudanças de status acontecem nas rotas /api (Admin SDK).
+
     match /appointments/{appointmentId} {
-      // Permite leitura para qualquer usuário autenticado (necessário para a grade de horários ocupados e painel do barbeiro)
+      // ETAPA 1 (mantém o app atual funcionando; o calendário ainda lê
+      // os agendamentos direto do Firestore):
       allow read: if isAuthenticated();
-      
-      // Permite criação se o usuário estiver autenticado e não tentar criar diretamente como finalizado
-      allow create: if isAuthenticated() &&
-        request.resource.data.status != 'confirmado' &&
-        request.resource.data.status != 'concluido';
 
-      // Permite atualização pelo dono para cancelar ou pelo barbeiro/master para aprovar e gerenciar
-      allow update: if isAuthenticated() && (
-        (resource.data.clientId == request.auth.uid && clientePodeCancelar()) ||
-        isMaster()
-      );
-      
-      // Exclusão permitida apenas para o barbeiro/master
-      allow delete: if isMaster();
+      // ETAPA 2 (depois de migrar o calendário para /api/appointments/slots),
+      // troque a linha acima por:
+      // allow read: if isMaster()
+      //   || (isAuthenticated() && resource.data.clientId == request.auth.uid);
+
+      allow create: if false;
+      allow update, delete: if isMaster();
     }
 
-    // ========== COLEÇÃO: NOTIFICAÇÕES ==========
+    // ========== NOTIFICAÇÕES ==========
+
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (
-        resource.data.toId == request.auth.uid || isMaster()
-      );
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        resource.data.toId == request.auth.uid || isMaster()
-      );
-      allow delete: if isMaster();
+      allow read: if isAuthenticated()
+        && (resource.data.toId == request.auth.uid || isMaster());
+
+      // Quem recebe só pode marcar como lida.
+      allow update: if isAuthenticated()
+        && (resource.data.toId == request.auth.uid || isMaster())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+      // Criação só pelo servidor (Admin SDK) ou pelo barbeiro.
+      allow create: if isMaster();
+
+      allow delete: if isAuthenticated()
+        && (resource.data.toId == request.auth.uid || isMaster());
     }
 
-    // ========== BLOQUEIO GERAL DE SEGURANÇA ==========
+    // ========== BLOQUEIO GERAL ==========
+
     match /{document=**} {
       allow read, write: if false;
     }
