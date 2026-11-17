@@ -1,29 +1,33 @@
 'use client';
 
-import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, {
+  DependencyList,
+  createContext,
+  useContext,
+  ReactNode,
+  useMemo,
+  useState,
+  useEffect,
+} from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/common/FirebaseErrorListener';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, isPermissionDenied } from '@/firebase/errors';
+import { isBarberUid } from '@/lib/barbers';
 
 /**
- * Lista oficial de UIDs de barbeiros/administradores da plataforma.
+ * Quantos dias de histórico o barbeiro carrega no contexto.
+ * Aumente se alguma tela do barbeiro precisar de um período maior.
  */
-const BARBER_UIDS = [
-  '2cAVs3U9ciV3NiqApJuOlYGEJS32',
-  'eUCAkXknM1N0mcC04hCIfF3HcMk1',
-  'wWlt2ixyjwfLqDHDQFFNQgaYfCT2'
-];
+const BARBER_HISTORY_DAYS = 90;
 
-/**
- * Lista oficial de E-mails com permissão de gestão de agendamentos.
- */
-const BARBER_EMAILS = [
-  'heitormartins@gmail.com',
-  'heitormartins@email.com',
-  'darthbarbers@email.com',
-  'darthbarber@gmail.com.br'
-];
+/** Data "YYYY-MM-DD" (fuso de São Paulo) de N dias atrás. */
+function cutoffDateString(daysBack: number): string {
+  const ms = Date.now() - daysBack * 24 * 60 * 60 * 1000;
+  return new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -46,6 +50,7 @@ export interface FirebaseContextState {
   user: User | null;
   userProfile: any | null;
   appointments: any[] | null;
+  isBarber: boolean;
   isUserLoading: boolean;
   isProfileLoading: boolean;
   isAppointmentsLoading: boolean;
@@ -70,13 +75,24 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(true);
   const [appointments, setAppointments] = useState<any[] | null>(null);
   const [isAppointmentsLoading, setIsAppointmentsLoading] = useState(false);
+  const [hasBarberClaim, setHasBarberClaim] = useState(false);
+
+  const uid = userAuthState.user?.uid ?? null;
+
+  // Mesma regra do firestore.rules: UID da lista OU custom claim "barber".
+  // (Email e o campo "role" do perfil NÃO concedem privilégio.)
+  const isBarber = isBarberUid(uid) || hasBarberClaim;
 
   // 1. Escuta mudanças no estado de autenticação (Login / Logout)
   useEffect(() => {
     if (!auth) {
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Serviço de autenticação indisponível.") });
+      setUserAuthState({
+        user: null,
+        isUserLoading: false,
+        userError: new Error('Serviço de autenticação indisponível.'),
+      });
       setIsProfileLoading(false);
-      return;
+      return undefined;
     }
 
     const unsubscribe = onAuthStateChanged(
@@ -96,18 +112,41 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     return () => unsubscribe();
   }, [auth]);
 
-  // 2. Escuta o perfil do usuário em tempo real no Firestore
+  // 2. Custom claim "barber" (opcional; definido via firebase-admin)
   useEffect(() => {
-    if (!userAuthState.user || !firestore) {
+    const currentUser = userAuthState.user;
+    if (!currentUser) {
+      setHasBarberClaim(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    currentUser
+      .getIdTokenResult()
+      .then((result) => {
+        if (!cancelled) setHasBarberClaim(result.claims.barber === true);
+      })
+      .catch(() => {
+        if (!cancelled) setHasBarberClaim(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userAuthState.user]);
+
+  // 3. Escuta o perfil do usuário em tempo real (depende só do UID)
+  useEffect(() => {
+    if (!uid || !firestore) {
       setUserProfile(null);
       setIsProfileLoading(false);
-      return;
+      return undefined;
     }
 
     setIsProfileLoading(true);
 
     const unsubscribe = onSnapshot(
-      doc(firestore, 'users', userAuthState.user.uid),
+      doc(firestore, 'users', uid),
       (snap) => {
         if (snap.exists()) {
           setUserProfile({ ...snap.data(), id: snap.id });
@@ -117,38 +156,36 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setIsProfileLoading(false);
       },
       (err) => {
-        console.error("Erro ao carregar perfil do usuário:", err);
+        console.error('Erro ao carregar perfil do usuário:', err);
+        if (isPermissionDenied(err)) {
+          errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({ operation: 'get', path: `users/${uid}` })
+          );
+        }
         setIsProfileLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [userAuthState.user, firestore]);
+  }, [uid, firestore]);
 
-  // 3. Escuta os agendamentos em tempo real no Firestore
-  // CORREÇÃO: Detecta se o usuário é barbeiro/master para carregar TODOS os agendamentos da barbearia
+  // 4. Escuta os agendamentos em tempo real.
+  // Depende só de uid/isBarber: gravar o perfil (tema, foto) NÃO refaz a leitura.
+  // Barbeiro: últimos BARBER_HISTORY_DAYS dias em diante. Cliente: só os seus.
   useEffect(() => {
-    if (!firestore || !userAuthState.user) {
+    if (!firestore || !uid) {
       setAppointments(null);
       setIsAppointmentsLoading(false);
-      return;
+      return undefined;
     }
 
     setIsAppointmentsLoading(true);
 
-    // Valida se o usuário possui perfil ou privilégios de barbeiro
-    const userEmailLower = userAuthState.user.email?.toLowerCase() || '';
-    const isBarber =
-      BARBER_UIDS.includes(userAuthState.user.uid) ||
-      BARBER_EMAILS.some((email) => email.toLowerCase() === userEmailLower) ||
-      userProfile?.role === 'barber';
-
     const appointmentsCollection = collection(firestore, 'appointments');
-
-    // Se for barbeiro, escuta todos os agendamentos; se for cliente, escuta apenas os seus
     const q = isBarber
-      ? query(appointmentsCollection)
-      : query(appointmentsCollection, where('clientId', '==', userAuthState.user.uid));
+      ? query(appointmentsCollection, where('date', '>=', cutoffDateString(BARBER_HISTORY_DAYS)))
+      : query(appointmentsCollection, where('clientId', '==', uid));
 
     const unsubscribe = onSnapshot(
       q,
@@ -158,13 +195,19 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         setIsAppointmentsLoading(false);
       },
       (err) => {
-        console.error("Erro ao escutar agendamentos do Firestore:", err);
+        console.error('Erro ao escutar agendamentos do Firestore:', err);
+        if (isPermissionDenied(err)) {
+          errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({ operation: 'list', path: 'appointments' })
+          );
+        }
         setIsAppointmentsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [firestore, userAuthState.user, userProfile]);
+  }, [firestore, uid, isBarber]);
 
   // Valor memoizado do contexto para evitar re-renderizações desnecessárias
   const contextValue = useMemo((): FirebaseContextState => {
@@ -177,6 +220,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       user: userAuthState.user,
       userProfile,
       appointments,
+      isBarber,
       isUserLoading: userAuthState.isUserLoading,
       isProfileLoading,
       isAppointmentsLoading,
@@ -188,9 +232,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     auth,
     userAuthState,
     userProfile,
+    isBarber,
     isProfileLoading,
     appointments,
-    isAppointmentsLoading
+    isAppointmentsLoading,
   ]);
 
   return (
@@ -214,7 +259,7 @@ export const useFirestore = () => useFirebase().firestore;
 export const useFirebaseApp = () => useFirebase().firebaseApp;
 
 type MemoFirebase<T> = T & { __memo?: boolean };
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
+export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | MemoFirebase<T> {
   const memoized = useMemo(factory, deps);
   if (typeof memoized !== 'object' || memoized === null) return memoized;
   (memoized as MemoFirebase<T>).__memo = true;
@@ -222,11 +267,12 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
 }
 
 export const useUser = () => {
-  const { user, userProfile, isUserLoading, isProfileLoading, userError } = useFirebase();
+  const { user, userProfile, isBarber, isUserLoading, isProfileLoading, userError } = useFirebase();
   return {
     user,
     userProfile,
+    isBarber,
     isLoading: isUserLoading || isProfileLoading,
-    userError
+    userError,
   };
 };

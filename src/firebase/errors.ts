@@ -35,6 +35,19 @@ interface SecurityRuleRequest {
 }
 
 /**
+ * Verdadeiro somente quando o erro do Firestore é "permission-denied".
+ * Usado para não tratar erros de rede/índice como erro de permissão.
+ */
+export function isPermissionDenied(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'permission-denied'
+  );
+}
+
+/**
  * Builds a security-rule-compliant auth object from the Firebase User.
  * @param currentUser The currently authenticated Firebase user.
  * @returns An object that mirrors request.auth in security rules, or null.

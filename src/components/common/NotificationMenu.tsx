@@ -1,16 +1,23 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  Timestamp 
+import { useState, useEffect, useRef } from 'react';
+import {
+  useUser,
+  useFirestore,
+  errorEmitter,
+  FirestorePermissionError,
+  isPermissionDenied,
+} from '@/firebase';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +26,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from '@/hooks/use-toast';
+
+/** Quantas notificações recentes são carregadas. */
+const NOTIFICATIONS_LIMIT = 30;
 
 interface NotificationItem {
   id: string;
@@ -28,21 +39,35 @@ interface NotificationItem {
   createdAt: any;
 }
 
+/**
+ * Menu de notificações + aviso (toast) de novas notificações.
+ * Uma única assinatura do Firestore atende os dois usos
+ * (substitui o antigo NotificationListener).
+ */
 export function NotificationMenu() {
   const { user } = useUser();
   const db = useFirestore();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const isFirstSnapshot = useRef(true);
+
+  const uid = user?.uid ?? null;
 
   useEffect(() => {
-    if (!user || !db) {
+    if (!uid || !db) {
+      setNotifications([]);
+      setUnreadCount(0);
       return undefined;
     }
 
+    // O primeiro snapshot traz o histórico: não deve gerar toast.
+    isFirstSnapshot.current = true;
+
     const q = query(
       collection(db, 'notifications'),
-      where('toId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('toId', '==', uid),
+      orderBy('createdAt', 'desc'),
+      limit(NOTIFICATIONS_LIMIT)
     );
 
     const unsubscribe = onSnapshot(
@@ -63,16 +88,37 @@ export function NotificationMenu() {
         });
         setNotifications(list);
         setUnreadCount(unread);
+
+        if (!isFirstSnapshot.current) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type !== 'added') return;
+            const data = change.doc.data();
+            if (data.read) return;
+            toast({
+              title: data.title || 'Nova Notificação',
+              description: data.message || '',
+            });
+          });
+        }
+        isFirstSnapshot.current = false;
       },
       (err) => {
-        console.warn('Aguardando criação do índice de notificações:', err.message);
+        if (isPermissionDenied(err)) {
+          errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({ operation: 'list', path: 'notifications' })
+          );
+          return;
+        }
+        // Normalmente é o índice composto (toId + createdAt) ainda não criado.
+        console.warn('Falha ao escutar notificações (verifique o índice do Firestore):', err.message);
       }
     );
 
     return () => {
       unsubscribe();
     };
-  }, [user, db]);
+  }, [uid, db]);
 
   const markAsRead = async (id: string) => {
     if (!db) return;
@@ -97,7 +143,7 @@ export function NotificationMenu() {
     try {
       const d = dateVal instanceof Timestamp ? dateVal.toDate() : new Date(dateVal);
       if (isNaN(d.getTime())) return 'Recente';
-      
+
       return d.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
@@ -121,7 +167,7 @@ export function NotificationMenu() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0 bg-card border-border">
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)] p-0 bg-card border-border">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h4 className="font-headline font-bold text-sm">Notificações</h4>
           {unreadCount > 0 && (
@@ -136,8 +182,8 @@ export function NotificationMenu() {
           ) : (
             <div className="divide-y divide-border/40">
               {notifications.map((item) => (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   className={`p-3.5 transition-colors flex items-start justify-between gap-2 ${
                     !item.read ? 'bg-primary/5' : ''
                   }`}

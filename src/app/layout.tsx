@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppSidebar } from '@/components/common/AppSidebar';
 import { FirebaseClientProvider } from '@/firebase';
@@ -10,12 +10,19 @@ export const metadata: Metadata = {
   description: 'Sistema de Agendamento e Pagamento Online para Barbearias',
 };
 
+// viewport-fit=cover é necessário para a barra inferior respeitar a área segura do celular.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#0a0a0c',
+};
+
 /**
  * Layout Raiz da Aplicação.
- * Envolve todo o sistema com o Provedor do Firebase, Provedor da Sidebar e inclui a navegação lateral.
- * A área principal (main) possui uma margem esquerda reservada (ml-16) correspondente à largura da sidebar recolhida.
- * Isso garante que o conteúdo principal nunca seja sobreposto ou empurrado quando a sidebar estiver em estado de repouso,
- * expandindo no formato overlay (sobreposição) apenas durante a interação de hover.
+ * Envolve todo o sistema com o Provedor do Firebase, Provedor da Sidebar e inclui a navegação.
+ * - Desktop (md+): sidebar lateral recolhida de 64px (md:ml-16), que expande em overlay no hover.
+ * - Celular: barra de navegação inferior (fixa); o conteúdo ganha pb-24 para não ficar por baixo dela.
  */
 export default function RootLayout({
   children,
@@ -33,11 +40,11 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <SidebarProvider defaultOpen={false}>
             <div className="flex min-h-screen w-full relative">
-              {/* Navegação Lateral Retrátil em Tempo Real */}
+              {/* Navegação: sidebar (desktop) ou barra inferior (celular) */}
               <AppSidebar />
 
-              {/* Conteúdo Principal com margem reservada de 64px (ml-16) para a Sidebar recolhida */}
-              <main className="flex-1 min-w-0 ml-16 overflow-x-hidden p-4 md:p-8">
+              {/* Conteúdo Principal */}
+              <main className="flex-1 min-w-0 md:ml-16 overflow-x-hidden p-4 pb-24 md:p-8">
                 {children}
               </main>
             </div>

@@ -11,7 +11,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, isPermissionDenied } from '@/firebase/errors';
 
 export type WithId<T> = T & { id: string };
 
@@ -26,7 +26,7 @@ export interface InternalQuery extends Query<DocumentData> {
     path: {
       canonicalString(): string;
       toString(): string;
-    }
+    };
   };
   path?: string;
 }
@@ -78,9 +78,29 @@ function safeConvertTimestamps<T>(obj: any): T {
   return result as T;
 }
 
+/** Descobre o caminho da coleção/query para mensagens de erro. */
+function resolveTargetPath(target: unknown): string {
+  try {
+    const t = target as InternalQuery;
+    let path = 'collection';
+    if (typeof t.path === 'string') {
+      path = t.path;
+    } else if (t._query?.path) {
+      path =
+        typeof t._query.path.canonicalString === 'function'
+          ? t._query.path.canonicalString()
+          : t._query.path.toString();
+    }
+    return path.replace(/^\/databases\/\(default\)\/documents\//, '');
+  } catch {
+    return 'firestore-collection';
+  }
+}
+
 /**
  * Hook customizado para assinar uma coleção ou query do Firestore em tempo real.
- * Inclui tratamento seguro de Timestamps e emissão de erros de permissão.
+ * IMPORTANTE: a query recebida precisa estar memoizada (useMemoFirebase).
+ * Só erros "permission-denied" viram evento global; os demais ficam em `error`.
  */
 export function useCollection<T = any>(
   target: ((CollectionReference<DocumentData> | Query<DocumentData>) & { __memo?: boolean }) | null | undefined,
@@ -96,7 +116,7 @@ export function useCollection<T = any>(
       setData(null);
       setIsLoading(false);
       setError(null);
-      return;
+      return undefined;
     }
 
     setIsLoading(true);
@@ -118,31 +138,22 @@ export function useCollection<T = any>(
         setIsLoading(false);
         setError(null);
       },
-      async (_err: FirestoreError) => {
-        let path = 'collection';
-        try {
-          if ((target as any).path) {
-            path = (target as any).path;
-          } else if ((target as any)._query?.path) {
-            const queryPath = (target as any)._query.path;
-            path = typeof queryPath.canonicalString === 'function' 
-              ? queryPath.canonicalString() 
-              : queryPath.toString();
-          }
-        } catch (_e) {
-          path = 'firestore-collection';
-        }
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path: path.replace(/^\/databases\/\(default\)\/documents\//, ''),
-        });
-
-        setError(contextualError);
+      (err: FirestoreError) => {
         setData(null);
         setIsLoading(false);
 
-        errorEmitter.emit('permission-error', contextualError);
+        if (isPermissionDenied(err)) {
+          const contextualError = new FirestorePermissionError({
+            operation: 'list',
+            path: resolveTargetPath(target),
+          });
+          setError(contextualError);
+          errorEmitter.emit('permission-error', contextualError);
+          return;
+        }
+
+        console.error('[useCollection] erro ao ler a coleção:', err);
+        setError(err);
       }
     );
 
